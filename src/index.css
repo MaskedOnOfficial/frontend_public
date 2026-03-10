@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+/* maskOn custom theme layer */
+@theme {
+  --color-bg: #0a0a0a;
+  --color-surface: #1a1a2e;
+  --color-surface-light: #252545;
+  --color-primary: #e94560;
+  --color-primary-hover: #d63851;
+  --color-accent: #533483;
+  --color-accent-hover: #6b44a8;
+  --color-text: #ffffff;
+  --color-text-muted: #a0a0a0;
+  --color-success: #00d4aa;
+  --color-warning: #ffa502;
+  --color-error: #ff4757;
+}
