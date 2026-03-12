@@ -12,9 +12,62 @@ function formatDate(dateStr: string) {
   });
 }
 
+function PartyRow({ party }: { party: Party }) {
+  return (
+    <div className="bg-surface rounded-xl border border-text-muted/10 p-4 flex items-center justify-between">
+      <div className="flex-1">
+        <div className="flex items-center gap-3">
+          <Link to={`/parties/${party.id}`} className="text-text font-semibold hover:text-primary transition">
+            {party.title}
+          </Link>
+          <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
+            party.status === "upcoming" ? "bg-success/20 text-success" :
+            party.status === "ongoing" ? "bg-primary/20 text-primary" :
+            party.status === "cancelled" ? "bg-error/20 text-error" :
+            party.status === "completed" ? "bg-accent/20 text-accent-hover" :
+            "bg-text-muted/20 text-text-muted"
+          }`}>
+            {party.status}
+          </span>
+        </div>
+        <p className="text-text-muted text-sm mt-1">
+          📅 {formatDate(party.date_time)} · 📍 {party.location_city} · 👥 {party.current_attendees}/{party.max_capacity}
+        </p>
+      </div>
+      <div className="flex items-center gap-2 ml-4 shrink-0">
+        {party.status === "upcoming" && (
+          <Link
+            to={`/dashboard/${party.id}/requests`}
+            className="bg-accent/20 hover:bg-accent/30 text-accent-hover font-semibold text-sm px-4 py-2 rounded-lg transition"
+          >
+            Requests
+          </Link>
+        )}
+        {party.status !== "cancelled" && new Date(party.date_time) < new Date() && (
+          <Link
+            to={`/parties/${party.id}/rate`}
+            className="bg-warning/10 hover:bg-warning/20 text-warning font-semibold text-sm px-4 py-2 rounded-lg border border-warning/20 transition"
+          >
+            ⭐ Rate
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function isPartyActive(party: Party): boolean {
+  // A party is "active" if it's upcoming/ongoing and its date hasn't passed
+  if (party.status === "cancelled" || party.status === "completed" || party.status === "archived") return false;
+  // Also treat parties whose date has passed as inactive even if status wasn't updated
+  if (new Date(party.date_time) < new Date() && party.status === "upcoming") return false;
+  return true;
+}
+
 export default function DashboardPage() {
   const [parties, setParties] = useState<Party[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showPast, setShowPast] = useState(false);
 
   useEffect(() => {
     api.get("/users/me/parties")
@@ -22,6 +75,9 @@ export default function DashboardPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  const activeParties = parties.filter(isPartyActive);
+  const pastParties = parties.filter((p) => !isPartyActive(p));
 
   if (loading) {
     return <div className="min-h-screen bg-bg flex items-center justify-center text-text-muted">Loading...</div>;
@@ -51,41 +107,41 @@ export default function DashboardPage() {
             </Link>
           </div>
         ) : (
-          <div className="space-y-3">
-            {parties.map((party) => (
-              <div
-                key={party.id}
-                className="bg-surface rounded-xl border border-text-muted/10 p-4 flex items-center justify-between"
-              >
-                <div className="flex-1">
-                  <div className="flex items-center gap-3">
-                    <Link to={`/parties/${party.id}`} className="text-text font-semibold hover:text-primary transition">
-                      {party.title}
-                    </Link>
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
-                      party.status === "upcoming" ? "bg-success/20 text-success" :
-                      party.status === "cancelled" ? "bg-error/20 text-error" :
-                      party.status === "completed" ? "bg-accent/20 text-accent-hover" :
-                      "bg-text-muted/20 text-text-muted"
-                    }`}>
-                      {party.status}
-                    </span>
-                  </div>
-                  <p className="text-text-muted text-sm mt-1">
-                    📅 {formatDate(party.date_time)} · 📍 {party.location_city} · 👥 {party.current_attendees}/{party.max_capacity}
-                  </p>
+          <div className="space-y-8">
+            {/* Active Parties */}
+            <div>
+              <h2 className="text-lg font-semibold text-text mb-3">Active Parties</h2>
+              {activeParties.length === 0 ? (
+                <p className="text-text-muted text-sm">No active parties. <Link to="/parties/create" className="text-primary hover:underline">Host one?</Link></p>
+              ) : (
+                <div className="space-y-3">
+                  {activeParties.map((party) => (
+                    <PartyRow key={party.id} party={party} />
+                  ))}
                 </div>
+              )}
+            </div>
 
-                {party.status === "upcoming" && (
-                  <Link
-                    to={`/dashboard/${party.id}/requests`}
-                    className="bg-accent/20 hover:bg-accent/30 text-accent-hover font-semibold text-sm px-4 py-2 rounded-lg transition ml-4"
-                  >
-                    Requests
-                  </Link>
+            {/* Past Parties */}
+            {pastParties.length > 0 && (
+              <div>
+                <button
+                  onClick={() => setShowPast((v) => !v)}
+                  className="flex items-center gap-2 text-text-muted hover:text-text transition mb-3"
+                >
+                  <span className="text-lg font-semibold">Past Parties</span>
+                  <span className="text-xs bg-text-muted/20 px-2 py-0.5 rounded-full">{pastParties.length}</span>
+                  <span className="text-xs">{showPast ? "▲" : "▼"}</span>
+                </button>
+                {showPast && (
+                  <div className="space-y-3 opacity-60">
+                    {pastParties.map((party) => (
+                      <PartyRow key={party.id} party={party} />
+                    ))}
+                  </div>
                 )}
               </div>
-            ))}
+            )}
           </div>
         )}
       </div>

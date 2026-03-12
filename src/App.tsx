@@ -16,6 +16,7 @@ import PartyPhotosPage from "./pages/party-photos";
 import UserPhotosPage from "./pages/user-photos";
 import NotificationsPage from "./pages/notifications";
 import PublicProfilePage from "./pages/public-profile";
+import SearchPage from "./pages/search";
 
 function App() {
   return (
@@ -39,6 +40,7 @@ function App() {
           <Route path="/profile/:userId" element={<PublicProfilePage />} />
           <Route path="/profile/:userId/photos" element={<UserPhotosPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/search" element={<SearchPage />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

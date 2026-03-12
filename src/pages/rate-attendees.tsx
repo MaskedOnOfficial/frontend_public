@@ -41,7 +41,7 @@ export default function RateAttendeesPage() {
       const myRatings = ratingsRes.data.data.ratings.filter(
         (r: any) => r.rater_id === user?.id
       );
-      const alreadyRated = new Set(myRatings.map((r: any) => r.rated_id));
+      const alreadyRated = new Set<string>(myRatings.map((r: any) => r.rated_id as string));
       setSubmitted(alreadyRated);
     } catch {
       setError("Failed to load party data");
@@ -93,10 +93,26 @@ export default function RateAttendeesPage() {
     );
   }
 
-  // Filter out current user from the list + include host if user is attendee
+  // Filter out current user
   const rateable = attendees.filter((a) => a.user_id !== user?.id);
-  // Also add host as rateable if current user is an attendee (not host)
   const isHost = party.host_id === user?.id;
+
+  // Non-host attendees should also be able to rate the HOST.
+  // The host is never in the party_attendees table, so we inject them manually.
+  if (!isHost && party.host_id) {
+    rateable.unshift({
+      id: `host-${party.host_id}`,
+      party_id: partyId!,
+      user_id: party.host_id,
+      payment_id: null,
+      checked_in: 0,
+      joined_at: party.created_at,
+      username: party.host_username,
+      display_name: party.host_display_name ?? party.host_username ?? "Host",
+      avatar_url: party.host_avatar_url ?? null,
+      social_rating: party.host_social_rating,
+    });
+  }
 
   return (
     <div className="min-h-screen bg-bg py-8 px-4">
@@ -110,11 +126,11 @@ export default function RateAttendeesPage() {
 
         {error && <p className="text-error text-sm mb-4 bg-error/10 px-4 py-2 rounded">{error}</p>}
 
-        {party.status !== "completed" ? (
+        {new Date(party.date_time) > new Date() ? (
           <div className="bg-surface rounded-xl p-8 text-center">
-            <p className="text-text-muted">Ratings are available once the party is completed.</p>
+            <p className="text-text-muted">Ratings open once the party has ended.</p>
           </div>
-        ) : rateable.length === 0 && !isHost ? (
+        ) : rateable.length === 0 ? (
           <div className="bg-surface rounded-xl p-8 text-center">
             <p className="text-text-muted">No attendees to rate.</p>
           </div>

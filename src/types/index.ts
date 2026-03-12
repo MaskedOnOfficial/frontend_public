@@ -145,3 +145,15 @@ export interface Notification {
   is_read: number;
   created_at: string;
 }
+
+export interface FriendUser {
+  id: string;
+  username: string;
+  display_name: string;
+  avatar_url: string | null;
+  social_rating: number;
+}
+
+export interface PendingFriendRequest extends FriendUser {
+  created_at: string;
+}

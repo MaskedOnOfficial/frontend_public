@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef, FormEvent } from "react";
+import { useState, useEffect, useRef, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/auth-context";
 import api from "../lib/api";
-import type { Photo, Rating } from "../types";
+import type { Photo, Rating, FriendUser, PendingFriendRequest } from "../types";
 
 function timeAgo(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -19,7 +19,7 @@ export default function ProfilePage() {
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
-  const [tab, setTab] = useState<"photos" | "ratings" | "settings">("photos");
+  const [tab, setTab] = useState<"photos" | "ratings" | "friends" | "settings">("photos");
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
@@ -40,6 +40,16 @@ export default function ProfilePage() {
   const [ratings, setRatings] = useState<Rating[]>([]);
   const [ratingsLoading, setRatingsLoading] = useState(true);
 
+  // Friends
+  const [friends, setFriends] = useState<FriendUser[]>([]);
+  const [friendsTotal, setFriendsTotal] = useState(0);
+  const [friendsPage, setFriendsPage] = useState(1);
+  const [friendsLoading, setFriendsLoading] = useState(false);
+  const [friendCount, setFriendCount] = useState(0);
+  const [pendingRequests, setPendingRequests] = useState<PendingFriendRequest[]>([]);
+  const [pendingLoading, setPendingLoading] = useState(false);
+  const [pendingActionId, setPendingActionId] = useState<string | null>(null);
+
   useEffect(() => {
     if (user) {
       setDisplayName(user.display_name);
@@ -53,7 +63,12 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (user && tab === "ratings") loadRatings();
+    if (user && tab === "friends") { loadFriendsList(); loadPendingRequests(); }
   }, [user, tab]);
+
+  useEffect(() => {
+    if (user && tab === "friends") loadFriendsList();
+  }, [friendsPage]);
 
   async function loadPhotos() {
     try {
@@ -68,6 +83,51 @@ export default function ProfilePage() {
       const res = await api.get(`/users/${user!.id}/ratings`);
       setRatings(res.data.data.ratings);
     } catch {} finally { setRatingsLoading(false); }
+  }
+
+  async function loadFriendsList() {
+    setFriendsLoading(true);
+    try {
+      const res = await api.get(`/friends/me?page=${friendsPage}&limit=20`);
+      setFriends(res.data.data.friends);
+      setFriendsTotal(res.data.data.total);
+      setFriendCount(res.data.data.total);
+    } catch {} finally { setFriendsLoading(false); }
+  }
+
+  async function loadPendingRequests() {
+    setPendingLoading(true);
+    try {
+      const res = await api.get("/friends/me/pending");
+      setPendingRequests(res.data.data.requests || []);
+    } catch {} finally { setPendingLoading(false); }
+  }
+
+  async function handleAcceptFriend(requesterId: string) {
+    setPendingActionId(requesterId);
+    try {
+      await api.patch(`/friends/${requesterId}/accept`);
+      setPendingRequests((prev) => prev.filter((r) => r.id !== requesterId));
+      setFriendCount((c) => c + 1);
+      loadFriendsList();
+    } catch {} finally { setPendingActionId(null); }
+  }
+
+  async function handleDeclineFriend(requesterId: string) {
+    setPendingActionId(requesterId);
+    try {
+      await api.patch(`/friends/${requesterId}/reject`);
+      setPendingRequests((prev) => prev.filter((r) => r.id !== requesterId));
+    } catch {} finally { setPendingActionId(null); }
+  }
+
+  async function handleUnfriend(friendId: string) {
+    try {
+      await api.delete(`/friends/${friendId}`);
+      setFriends((prev) => prev.filter((f) => f.id !== friendId));
+      setFriendsTotal((t) => Math.max(0, t - 1));
+      setFriendCount((c) => Math.max(0, c - 1));
+    } catch {}
   }
 
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -202,33 +262,38 @@ export default function ProfilePage() {
             </div>
 
             {/* Stats strip */}
-            <div className="flex items-center justify-center sm:justify-start gap-8 mt-6 pt-6 border-t border-text-muted/10">
+            <div className="flex items-center justify-center sm:justify-start gap-5 mt-6 pt-6 border-t border-text-muted/10 flex-wrap">
               <div className="text-center">
                 <div className="text-xl font-bold text-text">{user.parties_hosted}</div>
                 <div className="text-[11px] text-text-muted uppercase tracking-wider">Hosted</div>
               </div>
-              <div className="w-px h-8 bg-text-muted/10" />
+              <div className="w-px h-8 bg-text-muted/10 hidden sm:block" />
               <div className="text-center">
                 <div className="text-xl font-bold text-text">{user.parties_attended}</div>
                 <div className="text-[11px] text-text-muted uppercase tracking-wider">Attended</div>
               </div>
-              <div className="w-px h-8 bg-text-muted/10" />
+              <div className="w-px h-8 bg-text-muted/10 hidden sm:block" />
               <div className="text-center">
                 <div className="text-xl font-bold text-text">{photosTotal}</div>
                 <div className="text-[11px] text-text-muted uppercase tracking-wider">Photos</div>
               </div>
-              <div className="w-px h-8 bg-text-muted/10" />
+              <div className="w-px h-8 bg-text-muted/10 hidden sm:block" />
               <div className="text-center">
                 <div className="text-xl font-bold text-text">{user.total_ratings}</div>
                 <div className="text-[11px] text-text-muted uppercase tracking-wider">Reviews</div>
               </div>
+              <div className="w-px h-8 bg-text-muted/10 hidden sm:block" />
+              <button onClick={() => setTab("friends")} className="text-center hover:opacity-80 transition">
+                <div className="text-xl font-bold text-text">{friendCount}</div>
+                <div className="text-[11px] text-text-muted uppercase tracking-wider">Friends</div>
+              </button>
             </div>
           </div>
         </div>
 
         {/* Tabs */}
         <div className="flex gap-1 mt-6 bg-surface rounded-xl p-1 border border-text-muted/10">
-          {(["photos", "ratings", "settings"] as const).map((t) => (
+          {(["photos", "ratings", "friends", "settings"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -238,7 +303,7 @@ export default function ProfilePage() {
                   : "text-text-muted hover:text-text"
               }`}
             >
-              {t === "photos" ? "📷 Photos" : t === "ratings" ? "⭐ Ratings" : "⚙️ Settings"}
+              {t === "photos" ? "📷 Photos" : t === "ratings" ? "⭐ Ratings" : t === "friends" ? `👥 Friends${pendingRequests.length > 0 ? ` (${pendingRequests.length})` : ""}` : "⚙️ Settings"}
             </button>
           ))}
         </div>
@@ -369,6 +434,125 @@ export default function ProfilePage() {
             </div>
           )}
 
+          {/* ===== FRIENDS TAB ===== */}
+          {tab === "friends" && (
+            <div>
+              {/* Pending incoming requests */}
+              {(pendingLoading || pendingRequests.length > 0) && (
+                <div className="bg-surface rounded-xl border border-text-muted/10 p-5 mb-4">
+                  <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">
+                    {pendingLoading
+                      ? "Loading..."
+                      : `${pendingRequests.length} Pending Request${pendingRequests.length !== 1 ? "s" : ""}`}
+                  </h3>
+                  {!pendingLoading && (
+                    <div className="space-y-3">
+                      {pendingRequests.map((req) => (
+                        <div
+                          key={req.id}
+                          className="flex items-center gap-3 py-2"
+                        >
+                          <Link to={`/profile/${req.id}`} className="flex-shrink-0">
+                            <div className="w-10 h-10 rounded-full bg-accent overflow-hidden flex items-center justify-center text-white text-sm font-bold">
+                              {req.avatar_url ? (
+                                <img src={req.avatar_url} alt={req.display_name} className="w-full h-full object-cover" />
+                              ) : (
+                                req.display_name.charAt(0).toUpperCase()
+                              )}
+                            </div>
+                          </Link>
+                          <Link to={`/profile/${req.id}`} className="flex-1 min-w-0 hover:opacity-80 transition">
+                            <p className="text-text font-semibold text-sm truncate">{req.display_name}</p>
+                            <p className="text-text-muted text-xs">@{req.username}</p>
+                          </Link>
+                          <div className="flex gap-2 flex-shrink-0">
+                            <button
+                              onClick={() => handleAcceptFriend(req.id)}
+                              disabled={pendingActionId === req.id}
+                              className="bg-success/20 hover:bg-success/30 text-success border border-success/30 text-xs font-semibold px-3 py-1.5 rounded-lg transition disabled:opacity-50"
+                            >
+                              Accept
+                            </button>
+                            <button
+                              onClick={() => handleDeclineFriend(req.id)}
+                              disabled={pendingActionId === req.id}
+                              className="bg-error/10 hover:bg-error/20 text-error border border-error/20 text-xs font-semibold px-3 py-1.5 rounded-lg transition disabled:opacity-50"
+                            >
+                              Decline
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* My friends list */}
+              {friendsLoading ? (
+                <p className="text-text-muted text-center py-12">Loading friends...</p>
+              ) : friends.length === 0 && pendingRequests.length === 0 ? (
+                <div className="text-center py-16 bg-surface rounded-xl border border-dashed border-text-muted/20">
+                  <p className="text-text-muted text-lg mb-1">No friends yet</p>
+                  <p className="text-text-muted/50 text-sm">Browse events and connect with other attendees</p>
+                </div>
+              ) : friends.length > 0 ? (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {friends.map((f) => (
+                      <div
+                        key={f.id}
+                        className="flex items-center gap-3 bg-surface rounded-xl border border-text-muted/10 p-4"
+                      >
+                        <Link to={`/profile/${f.id}`} className="flex-shrink-0">
+                          <div className="w-12 h-12 rounded-full bg-accent overflow-hidden flex items-center justify-center text-white text-lg font-bold">
+                            {f.avatar_url ? (
+                              <img src={f.avatar_url} alt={f.display_name} className="w-full h-full object-cover" />
+                            ) : (
+                              f.display_name.charAt(0).toUpperCase()
+                            )}
+                          </div>
+                        </Link>
+                        <Link to={`/profile/${f.id}`} className="flex-1 min-w-0 hover:opacity-80 transition">
+                          <p className="text-text font-semibold text-sm truncate">{f.display_name}</p>
+                          <p className="text-text-muted text-xs">@{f.username} · ⭐ {Number(f.social_rating).toFixed(1)}</p>
+                        </Link>
+                        <button
+                          onClick={() => handleUnfriend(f.id)}
+                          className="text-text-muted/50 hover:text-error text-xs px-2 py-1 rounded-lg hover:bg-error/10 transition flex-shrink-0"
+                          title="Unfriend"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  {Math.ceil(friendsTotal / 20) > 1 && (
+                    <div className="flex justify-center gap-2 mt-6">
+                      <button
+                        onClick={() => setFriendsPage((p) => Math.max(1, p - 1))}
+                        disabled={friendsPage === 1}
+                        className="px-3 py-1.5 text-sm rounded-lg bg-surface text-text-muted disabled:opacity-40 border border-text-muted/10"
+                      >
+                        Prev
+                      </button>
+                      <span className="px-3 py-1.5 text-sm text-text-muted">
+                        {friendsPage} / {Math.ceil(friendsTotal / 20)}
+                      </span>
+                      <button
+                        onClick={() => setFriendsPage((p) => Math.min(Math.ceil(friendsTotal / 20), p + 1))}
+                        disabled={friendsPage === Math.ceil(friendsTotal / 20)}
+                        className="px-3 py-1.5 text-sm rounded-lg bg-surface text-text-muted disabled:opacity-40 border border-text-muted/10"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : null}
+            </div>
+          )}
+
           {/* ===== SETTINGS TAB ===== */}
           {tab === "settings" && (
             <div className="bg-surface rounded-2xl border border-text-muted/10 p-6 sm:p-8">
@@ -451,7 +635,7 @@ export default function ProfilePage() {
                       onClick={logout}
                       className="bg-error/10 text-error hover:bg-error/20 font-semibold px-6 py-2.5 rounded-lg transition border border-error/20"
                     >
-                      Sign Out
+                      <Link to="/">Sign Out</Link>
                     </button>
                   </div>
                 </div>

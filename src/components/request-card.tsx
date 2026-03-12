@@ -1,13 +1,25 @@
-import { useState } from "react";
-import type { PartyRequest } from "../types";
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import api from "../lib/api";
+import type { PartyRequest, FriendUser } from "../types";
 
 interface Props {
   request: PartyRequest;
   onAction?: (requestId: string, status: "approved" | "rejected") => Promise<void>;
+  showMutuals?: boolean;
 }
 
-export default function RequestCard({ request, onAction }: Props) {
+export default function RequestCard({ request, onAction, showMutuals = false }: Props) {
   const [loading, setLoading] = useState(false);
+  const [mutuals, setMutuals] = useState<FriendUser[]>([]);
+
+  useEffect(() => {
+    if (showMutuals && request.user_id) {
+      api.get(`/friends/${request.user_id}/mutual`)
+        .then((res) => setMutuals(res.data.data.mutuals || []))
+        .catch(() => {});
+    }
+  }, [request.user_id, showMutuals]);
 
   const statusColors: Record<string, string> = {
     pending: "bg-warning/20 text-warning",
@@ -30,14 +42,50 @@ export default function RequestCard({ request, onAction }: Props) {
     <div className="bg-surface-light rounded-lg p-4 border border-text-muted/10">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-white font-bold">
-            {(request.display_name || "?").charAt(0).toUpperCase()}
-          </div>
+          <Link to={`/profile/${request.user_id}`} className="flex-shrink-0">
+            <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-white font-bold hover:opacity-80 transition">
+              {request.avatar_url ? (
+                <img
+                  src={request.avatar_url}
+                  alt={request.display_name || ""}
+                  className="w-full h-full rounded-full object-cover"
+                />
+              ) : (
+                (request.display_name || "?").charAt(0).toUpperCase()
+              )}
+            </div>
+          </Link>
           <div>
-            <p className="text-text font-semibold text-sm">{request.display_name || request.username}</p>
+            <Link
+              to={`/profile/${request.user_id}`}
+              className="text-text font-semibold text-sm hover:text-primary transition"
+            >
+              {request.display_name || request.username}
+            </Link>
             <p className="text-text-muted text-xs">
               @{request.username} · ⭐ {request.social_rating?.toFixed(1) || "N/A"} · {request.parties_attended ?? 0} parties
             </p>
+            {mutuals.length > 0 && (
+              <div className="flex items-center gap-1.5 mt-1">
+                <div className="flex -space-x-1">
+                  {mutuals.slice(0, 3).map((m) => (
+                    <div
+                      key={m.id}
+                      className="w-4 h-4 rounded-full border border-surface-light bg-accent flex items-center justify-center text-[8px] text-white font-bold overflow-hidden"
+                    >
+                      {m.avatar_url ? (
+                        <img src={m.avatar_url} alt={m.display_name} className="w-full h-full object-cover" />
+                      ) : (
+                        m.display_name.charAt(0).toUpperCase()
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <span className="text-text-muted/70 text-[10px]">
+                  {mutuals.length} mutual {mutuals.length === 1 ? "friend" : "friends"}
+                </span>
+              </div>
+            )}
           </div>
         </div>
         <span className={`text-xs font-semibold px-2 py-1 rounded ${statusColors[request.status] || ""}`}>

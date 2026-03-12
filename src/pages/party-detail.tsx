@@ -65,8 +65,9 @@ export default function PartyDetailPage() {
           if (myReq) setRequestStatus(myReq.status);
         } catch {}
       }
-    } catch {
-      setError("Party not found");
+    } catch (err: any) {
+      const msg = err.response?.data?.error?.message || err.message || "Party not found";
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -114,6 +115,10 @@ export default function PartyDetailPage() {
 
   const tags = parseTags(party.tags);
   const alreadyAttending = attendees.some((a) => a.user_id === user?.id);
+  // Party is rateable once its end time (or start time) has passed
+  const isPartyPast = new Date(party.end_time ?? party.date_time) < new Date();
+  // Show Rate button for host OR for confirmed attendees
+  const canRate = isPartyPast && (isHost || alreadyAttending);
 
   return (
     <div className="min-h-screen bg-bg">
@@ -216,12 +221,12 @@ export default function PartyDetailPage() {
           >
             📷 Photos
           </button>
-          {party.status === "completed" && (
+          {canRate && (
             <button
               onClick={() => navigate(`/parties/${party.id}/rate`)}
-              className="bg-surface border border-text-muted/10 text-text hover:bg-surface-light font-semibold text-sm px-5 py-2.5 rounded-lg transition"
+              className="bg-warning/10 border border-warning/20 text-warning hover:bg-warning/20 font-semibold text-sm px-5 py-2.5 rounded-lg transition"
             >
-              ⭐ Rate Attendees
+              ⭐ Rate Members
             </button>
           )}
         </div>

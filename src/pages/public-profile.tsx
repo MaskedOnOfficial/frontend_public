@@ -1,8 +1,11 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import api from "../lib/api";
 import { useAuth } from "../context/auth-context";
-import type { User, Photo, Rating } from "../types";
+import type { User, Photo, Rating, FriendUser } from "../types";
+
+type FriendStatus = "none" | "pending" | "accepted";
+type FriendDir = "incoming" | "outgoing" | null;
 
 function timeAgo(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -17,10 +20,11 @@ function timeAgo(dateStr: string) {
 export default function PublicProfilePage() {
   const { userId } = useParams<{ userId: string }>();
   const { user: me } = useAuth();
+  const isOwnProfile = !!(me && me.id === userId);
 
   const [profile, setProfile] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"photos" | "ratings">("photos");
+  const [tab, setTab] = useState<"photos" | "ratings" | "friends">("photos");
 
   // Photos
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -32,8 +36,27 @@ export default function PublicProfilePage() {
   const [ratings, setRatings] = useState<Rating[]>([]);
   const [ratingsLoading, setRatingsLoading] = useState(true);
 
+  // Friends
+  const [friendStatus, setFriendStatus] = useState<FriendStatus>("none");
+  const [friendDir, setFriendDir] = useState<FriendDir>(null);
+  const [friendLoading, setFriendLoading] = useState(false);
+  const [friendCount, setFriendCount] = useState(0);
+  const [mutualFriends, setMutualFriends] = useState<FriendUser[]>([]);
+  const [friends, setFriends] = useState<FriendUser[]>([]);
+  const [friendsTotal, setFriendsTotal] = useState(0);
+  const [friendsPage, setFriendsPage] = useState(1);
+  const [friendsLoading, setFriendsLoading] = useState(false);
+  const [showUnfriendMenu, setShowUnfriendMenu] = useState(false);
+  const unfriendRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    if (userId) loadProfile();
+    if (userId) {
+      setLoading(true);
+      setPhotosPage(1);
+      setFriendsPage(1);
+      setTab("photos");
+      loadProfile();
+    }
   }, [userId]);
 
   useEffect(() => {
@@ -42,13 +65,50 @@ export default function PublicProfilePage() {
 
   useEffect(() => {
     if (userId && tab === "ratings") loadRatings();
-  }, [userId, tab]);
+    if (userId && tab === "friends") loadFriendsList();
+  }, [tab]);
+
+  useEffect(() => {
+    if (userId && tab === "friends") loadFriendsList();
+  }, [friendsPage]);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (unfriendRef.current && !unfriendRef.current.contains(e.target as Node)) {
+        setShowUnfriendMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   async function loadProfile() {
     try {
       const res = await api.get(`/users/${userId}`);
       setProfile(res.data.data.user);
-    } catch {} finally { setLoading(false); }
+    } catch {} finally {
+      setLoading(false);
+    }
+
+    // Load friend count
+    try {
+      const countRes = await api.get(`/friends/${userId}/list?limit=1`);
+      setFriendCount(countRes.data.data.total);
+    } catch {}
+
+    // Load friendship status + mutual friends (logged in, not own profile)
+    if (me && !isOwnProfile) {
+      try {
+        const [statusRes, mutualRes] = await Promise.all([
+          api.get(`/friends/${userId}/status`),
+          api.get(`/friends/${userId}/mutual`),
+        ]);
+        const { status, direction } = statusRes.data.data;
+        setFriendStatus(status || "none");
+        setFriendDir(direction || null);
+        setMutualFriends(mutualRes.data.data.mutuals || []);
+      } catch {}
+    }
   }
 
   async function loadPhotos() {
@@ -63,7 +123,20 @@ export default function PublicProfilePage() {
     try {
       const res = await api.get(`/users/${userId}/ratings`);
       setRatings(res.data.data.ratings);
-    } catch {} finally { setRatingsLoading(false); }
+    } catch {} finally {
+      setRatingsLoading(false);
+    }
+  }
+
+  async function loadFriendsList() {
+    setFriendsLoading(true);
+    try {
+      const res = await api.get(`/friends/${userId}/list?page=${friendsPage}&limit=20`);
+      setFriends(res.data.data.friends);
+      setFriendsTotal(res.data.data.total);
+    } catch {} finally {
+      setFriendsLoading(false);
+    }
   }
 
   async function handleLike(photoId: string) {
@@ -75,8 +148,77 @@ export default function PublicProfilePage() {
     } catch {}
   }
 
+  async function handleAddFriend() {
+    if (!userId || friendLoading) return;
+    setFriendLoading(true);
+    try {
+      const res = await api.post(`/friends/${userId}`);
+      const newStatus = res.data.data.friendship?.status === "accepted" ? "accepted" : "pending";
+      setFriendStatus(newStatus);
+      setFriendDir("outgoing");
+      if (newStatus === "accepted") setFriendCount((c) => c + 1);
+    } catch {} finally {
+      setFriendLoading(false);
+    }
+  }
+
+  async function handleAcceptFriend() {
+    if (!userId || friendLoading) return;
+    setFriendLoading(true);
+    try {
+      await api.patch(`/friends/${userId}/accept`);
+      setFriendStatus("accepted");
+      setFriendDir(null);
+      setFriendCount((c) => c + 1);
+    } catch {} finally {
+      setFriendLoading(false);
+    }
+  }
+
+  async function handleDeclineFriend() {
+    if (!userId || friendLoading) return;
+    setFriendLoading(true);
+    try {
+      await api.patch(`/friends/${userId}/reject`);
+      setFriendStatus("none");
+      setFriendDir(null);
+    } catch {} finally {
+      setFriendLoading(false);
+    }
+  }
+
+  async function handleUnfriend() {
+    if (!userId || friendLoading) return;
+    setFriendLoading(true);
+    setShowUnfriendMenu(false);
+    try {
+      await api.delete(`/friends/${userId}`);
+      setFriendStatus("none");
+      setFriendDir(null);
+      setFriendCount((c) => Math.max(0, c - 1));
+    } catch {} finally {
+      setFriendLoading(false);
+    }
+  }
+
+  async function handleCancelRequest() {
+    if (!userId || friendLoading) return;
+    setFriendLoading(true);
+    try {
+      await api.delete(`/friends/${userId}`);
+      setFriendStatus("none");
+      setFriendDir(null);
+    } catch {} finally {
+      setFriendLoading(false);
+    }
+  }
+
   if (loading) {
-    return <div className="min-h-screen bg-bg flex items-center justify-center text-text-muted">Loading...</div>;
+    return (
+      <div className="min-h-screen bg-bg flex items-center justify-center text-text-muted">
+        Loading...
+      </div>
+    );
   }
 
   if (!profile) {
@@ -89,6 +231,88 @@ export default function PublicProfilePage() {
 
   const ratingVal = Number(profile.social_rating);
   const photoPages = Math.ceil(photosTotal / 12);
+  const friendPages = Math.ceil(friendsTotal / 20);
+
+  function renderFriendButton() {
+    if (isOwnProfile) {
+      return (
+        <Link
+          to="/profile/me"
+          className="bg-surface-light hover:bg-surface text-text-muted border border-text-muted/20 text-sm font-semibold px-5 py-2.5 rounded-xl transition"
+        >
+          Edit Profile
+        </Link>
+      );
+    }
+    if (!me) return null;
+
+    if (friendStatus === "accepted") {
+      return (
+        <div className="relative" ref={unfriendRef}>
+          <button
+            onClick={() => setShowUnfriendMenu((v) => !v)}
+            disabled={friendLoading}
+            className="bg-success/20 hover:bg-success/30 text-success border border-success/30 text-sm font-semibold px-5 py-2.5 rounded-xl transition flex items-center gap-2 disabled:opacity-50"
+          >
+            ✓ Friends <span className="text-success/60 text-xs">▾</span>
+          </button>
+          {showUnfriendMenu && (
+            <div className="absolute top-full left-0 mt-1 bg-surface border border-text-muted/20 rounded-xl shadow-xl overflow-hidden z-10 w-40">
+              <button
+                onClick={handleUnfriend}
+                className="w-full text-left px-4 py-3 text-sm text-error hover:bg-error/10 transition"
+              >
+                Unfriend
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    if (friendStatus === "pending" && friendDir === "outgoing") {
+      return (
+        <button
+          onClick={handleCancelRequest}
+          disabled={friendLoading}
+          className="bg-surface-light hover:bg-error/10 text-text-muted hover:text-error border border-text-muted/20 hover:border-error/30 text-sm font-semibold px-5 py-2.5 rounded-xl transition disabled:opacity-50"
+        >
+          {friendLoading ? "..." : "Pending · Cancel"}
+        </button>
+      );
+    }
+
+    if (friendStatus === "pending" && friendDir === "incoming") {
+      return (
+        <div className="flex gap-2">
+          <button
+            onClick={handleAcceptFriend}
+            disabled={friendLoading}
+            className="bg-success/20 hover:bg-success/30 text-success border border-success/30 text-sm font-semibold px-4 py-2.5 rounded-xl transition disabled:opacity-50"
+          >
+            Accept
+          </button>
+          <button
+            onClick={handleDeclineFriend}
+            disabled={friendLoading}
+            className="bg-error/10 hover:bg-error/20 text-error border border-error/20 text-sm font-semibold px-4 py-2.5 rounded-xl transition disabled:opacity-50"
+          >
+            Decline
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <button
+        onClick={handleAddFriend}
+        disabled={friendLoading}
+        className="bg-primary hover:bg-primary-hover text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition disabled:opacity-50"
+      >
+        {friendLoading ? "..." : "+ Add Friend"}
+      </button>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-bg">
@@ -106,7 +330,11 @@ export default function PublicProfilePage() {
               <div className="relative -mt-20 sm:-mt-24 flex-shrink-0">
                 <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full border-4 border-surface overflow-hidden bg-accent shadow-lg">
                   {profile.avatar_url ? (
-                    <img src={profile.avatar_url} alt={profile.display_name} className="w-full h-full object-cover" />
+                    <img
+                      src={profile.avatar_url}
+                      alt={profile.display_name}
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-4xl sm:text-5xl text-white font-bold">
                       {profile.display_name.charAt(0).toUpperCase()}
@@ -115,68 +343,103 @@ export default function PublicProfilePage() {
                 </div>
               </div>
 
-              {/* Name & info */}
+              {/* Name, username, bio, mutual friends */}
               <div className="flex-1 text-center sm:text-left">
                 <h1 className="text-2xl sm:text-3xl font-bold text-text">{profile.display_name}</h1>
                 <p className="text-text-muted text-sm">@{profile.username}</p>
                 {profile.bio && (
                   <p className="text-text-muted/80 text-sm mt-2 max-w-md">{profile.bio}</p>
                 )}
+                {/* Mutual friends mini strip */}
+                {!isOwnProfile && mutualFriends.length > 0 && (
+                  <div className="flex items-center gap-2 mt-3">
+                    <div className="flex -space-x-2">
+                      {mutualFriends.slice(0, 3).map((f) => (
+                        <div
+                          key={f.id}
+                          className="w-6 h-6 rounded-full border-2 border-surface bg-accent overflow-hidden flex-shrink-0 flex items-center justify-center text-[10px] text-white font-bold"
+                        >
+                          {f.avatar_url ? (
+                            <img src={f.avatar_url} alt={f.display_name} className="w-full h-full object-cover" />
+                          ) : (
+                            f.display_name.charAt(0).toUpperCase()
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <span className="text-text-muted/70 text-xs">
+                      {mutualFriends.length} mutual {mutualFriends.length === 1 ? "friend" : "friends"}
+                    </span>
+                  </div>
+                )}
               </div>
 
-              {/* Rating badge */}
-              <div className="flex-shrink-0 text-center">
+              {/* Rating + friend button */}
+              <div className="flex flex-col items-center gap-3 flex-shrink-0">
                 {profile.total_ratings >= 3 ? (
-                  <div className="bg-warning/10 border border-warning/20 rounded-xl px-5 py-3">
+                  <div className="bg-warning/10 border border-warning/20 rounded-xl px-5 py-3 text-center">
                     <div className="text-2xl font-bold text-warning">{ratingVal.toFixed(1)}</div>
-                    <div className="text-[10px] text-text-muted uppercase tracking-wider">{profile.total_ratings} ratings</div>
+                    <div className="text-[10px] text-text-muted uppercase tracking-wider">
+                      {profile.total_ratings} ratings
+                    </div>
                   </div>
                 ) : (
-                  <div className="bg-surface-light rounded-xl px-5 py-3">
+                  <div className="bg-surface-light rounded-xl px-5 py-3 text-center">
                     <div className="text-sm text-text-muted">No rating yet</div>
                   </div>
                 )}
+                {renderFriendButton()}
               </div>
             </div>
 
             {/* Stats strip */}
-            <div className="flex items-center justify-center sm:justify-start gap-8 mt-6 pt-6 border-t border-text-muted/10">
+            <div className="flex items-center justify-center sm:justify-start gap-5 mt-6 pt-6 border-t border-text-muted/10 flex-wrap">
               <div className="text-center">
                 <div className="text-xl font-bold text-text">{profile.parties_hosted}</div>
                 <div className="text-[11px] text-text-muted uppercase tracking-wider">Hosted</div>
               </div>
-              <div className="w-px h-8 bg-text-muted/10" />
+              <div className="w-px h-8 bg-text-muted/10 hidden sm:block" />
               <div className="text-center">
                 <div className="text-xl font-bold text-text">{profile.parties_attended}</div>
                 <div className="text-[11px] text-text-muted uppercase tracking-wider">Attended</div>
               </div>
-              <div className="w-px h-8 bg-text-muted/10" />
+              <div className="w-px h-8 bg-text-muted/10 hidden sm:block" />
               <div className="text-center">
                 <div className="text-xl font-bold text-text">{photosTotal}</div>
                 <div className="text-[11px] text-text-muted uppercase tracking-wider">Photos</div>
               </div>
-              <div className="w-px h-8 bg-text-muted/10" />
+              <div className="w-px h-8 bg-text-muted/10 hidden sm:block" />
               <div className="text-center">
                 <div className="text-xl font-bold text-text">{profile.total_ratings}</div>
                 <div className="text-[11px] text-text-muted uppercase tracking-wider">Reviews</div>
               </div>
+              <div className="w-px h-8 bg-text-muted/10 hidden sm:block" />
+              <button
+                onClick={() => setTab("friends")}
+                className="text-center hover:opacity-80 transition"
+              >
+                <div className="text-xl font-bold text-text">{friendCount}</div>
+                <div className="text-[11px] text-text-muted uppercase tracking-wider">Friends</div>
+              </button>
             </div>
           </div>
         </div>
 
         {/* Tabs */}
         <div className="flex gap-1 mt-6 bg-surface rounded-xl p-1 border border-text-muted/10">
-          {(["photos", "ratings"] as const).map((t) => (
+          {(["photos", "ratings", "friends"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition ${
-                tab === t
-                  ? "bg-primary text-white shadow"
-                  : "text-text-muted hover:text-text"
+                tab === t ? "bg-primary text-white shadow" : "text-text-muted hover:text-text"
               }`}
             >
-              {t === "photos" ? `📷 Photos (${photosTotal})` : `⭐ Ratings (${profile.total_ratings})`}
+              {t === "photos"
+                ? `📷 Photos (${photosTotal})`
+                : t === "ratings"
+                ? `⭐ Ratings (${profile.total_ratings})`
+                : `👥 Friends (${friendCount})`}
             </button>
           ))}
         </div>
@@ -209,7 +472,9 @@ export default function PublicProfilePage() {
                           <div className="p-3 w-full flex items-center justify-between">
                             <span className="text-white text-xs">❤️ {photo.like_count}</span>
                             {photo.caption && (
-                              <span className="text-white/80 text-xs truncate max-w-[60%]">{photo.caption}</span>
+                              <span className="text-white/80 text-xs truncate max-w-[60%]">
+                                {photo.caption}
+                              </span>
                             )}
                           </div>
                         </div>
@@ -225,7 +490,9 @@ export default function PublicProfilePage() {
                       >
                         Prev
                       </button>
-                      <span className="px-3 py-1.5 text-sm text-text-muted">{photosPage} / {photoPages}</span>
+                      <span className="px-3 py-1.5 text-sm text-text-muted">
+                        {photosPage} / {photoPages}
+                      </span>
                       <button
                         onClick={() => setPhotosPage((p) => Math.min(photoPages, p + 1))}
                         disabled={photosPage === photoPages}
@@ -252,7 +519,10 @@ export default function PublicProfilePage() {
               ) : (
                 <div className="space-y-3">
                   {ratings.map((r) => (
-                    <div key={r.id} className="bg-surface rounded-xl border border-text-muted/10 p-5 flex items-start gap-4">
+                    <div
+                      key={r.id}
+                      className="bg-surface rounded-xl border border-text-muted/10 p-5 flex items-start gap-4"
+                    >
                       <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
                         {(r.rater_display_name || "?").charAt(0).toUpperCase()}
                       </div>
@@ -266,7 +536,12 @@ export default function PublicProfilePage() {
                         </div>
                         <div className="flex gap-0.5 mb-2">
                           {Array.from({ length: 5 }, (_, i) => (
-                            <span key={i} className={`text-sm ${i < r.score ? "text-warning" : "text-text-muted/20"}`}>★</span>
+                            <span
+                              key={i}
+                              className={`text-sm ${i < r.score ? "text-warning" : "text-text-muted/20"}`}
+                            >
+                              ★
+                            </span>
                           ))}
                         </div>
                         {r.comment && <p className="text-text-muted text-sm">{r.comment}</p>}
@@ -274,6 +549,98 @@ export default function PublicProfilePage() {
                     </div>
                   ))}
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* ===== FRIENDS TAB ===== */}
+          {tab === "friends" && (
+            <div>
+              {/* Mutual friends section */}
+              {!isOwnProfile && mutualFriends.length > 0 && (
+                <div className="bg-surface rounded-xl border border-text-muted/10 p-5 mb-4">
+                  <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">
+                    {mutualFriends.length} Mutual {mutualFriends.length === 1 ? "Friend" : "Friends"}
+                  </h3>
+                  <div className="flex flex-wrap gap-3">
+                    {mutualFriends.map((f) => (
+                      <Link
+                        key={f.id}
+                        to={`/profile/${f.id}`}
+                        className="flex items-center gap-2 bg-surface-light rounded-lg px-3 py-2 hover:bg-primary/10 transition"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-accent overflow-hidden flex-shrink-0 flex items-center justify-center text-white text-xs font-bold">
+                          {f.avatar_url ? (
+                            <img src={f.avatar_url} alt={f.display_name} className="w-full h-full object-cover" />
+                          ) : (
+                            f.display_name.charAt(0).toUpperCase()
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-text text-xs font-semibold leading-tight">{f.display_name}</p>
+                          <p className="text-text-muted text-[10px]">@{f.username}</p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Full friends list */}
+              {friendsLoading ? (
+                <p className="text-text-muted text-center py-12">Loading...</p>
+              ) : friends.length === 0 ? (
+                <div className="text-center py-16 bg-surface rounded-xl border border-dashed border-text-muted/20">
+                  <p className="text-text-muted text-lg">No friends yet</p>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {friends.map((f) => (
+                      <Link
+                        key={f.id}
+                        to={`/profile/${f.id}`}
+                        className="flex items-center gap-3 bg-surface rounded-xl border border-text-muted/10 p-4 hover:border-primary/30 hover:bg-surface-light transition"
+                      >
+                        <div className="w-12 h-12 rounded-full bg-accent overflow-hidden flex-shrink-0 flex items-center justify-center text-white text-lg font-bold">
+                          {f.avatar_url ? (
+                            <img src={f.avatar_url} alt={f.display_name} className="w-full h-full object-cover" />
+                          ) : (
+                            f.display_name.charAt(0).toUpperCase()
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-text font-semibold text-sm truncate">{f.display_name}</p>
+                          <p className="text-text-muted text-xs">@{f.username}</p>
+                        </div>
+                        <div className="text-warning text-xs font-semibold flex-shrink-0">
+                          ⭐ {Number(f.social_rating).toFixed(1)}
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                  {friendPages > 1 && (
+                    <div className="flex justify-center gap-2 mt-6">
+                      <button
+                        onClick={() => setFriendsPage((p) => Math.max(1, p - 1))}
+                        disabled={friendsPage === 1}
+                        className="px-3 py-1.5 text-sm rounded-lg bg-surface text-text-muted disabled:opacity-40 border border-text-muted/10"
+                      >
+                        Prev
+                      </button>
+                      <span className="px-3 py-1.5 text-sm text-text-muted">
+                        {friendsPage} / {friendPages}
+                      </span>
+                      <button
+                        onClick={() => setFriendsPage((p) => Math.min(friendPages, p + 1))}
+                        disabled={friendsPage === friendPages}
+                        className="px-3 py-1.5 text-sm rounded-lg bg-surface text-text-muted disabled:opacity-40 border border-text-muted/10"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}

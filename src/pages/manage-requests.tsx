@@ -79,7 +79,7 @@ export default function ManageRequestsPage() {
         ) : (
           <div className="space-y-3">
             {filtered.map((req) => (
-              <RequestCard key={req.id} request={req} onAction={handleAction} />
+              <RequestCard key={req.id} request={req} onAction={handleAction} showMutuals={true} />
             ))}
           </div>
         )}

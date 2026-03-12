@@ -39,31 +39,46 @@ export default function MyRequestsPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {requests.map((req) => (
-              <Link
-                key={req.id}
-                to={`/parties/${req.party_id}`}
-                className="block bg-surface rounded-xl border border-text-muted/10 p-4 hover:border-primary/30 transition"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-text font-semibold">{req.party_title}</h3>
-                    <p className="text-text-muted text-sm mt-1">
-                      📍 {req.party_location_city} · 📅{" "}
-                      {req.party_date_time
-                        ? new Date(req.party_date_time).toLocaleDateString("en-IN", {
-                            month: "short",
-                            day: "numeric",
-                          })
-                        : ""}
-                    </p>
+            {requests.map((req) => {
+              const partyIsPast = req.party_date_time ? new Date(req.party_date_time) < new Date() : false;
+              const canRate = req.status === "approved" && partyIsPast;
+              return (
+                <div
+                  key={req.id}
+                  className="bg-surface rounded-xl border border-text-muted/10 p-4 hover:border-primary/30 transition"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Link to={`/parties/${req.party_id}`} className="text-text font-semibold hover:text-primary transition">
+                        {req.party_title}
+                      </Link>
+                      <p className="text-text-muted text-sm mt-1">
+                        📍 {req.party_location_city} · 📅{" "}
+                        {req.party_date_time
+                          ? new Date(req.party_date_time).toLocaleDateString("en-IN", {
+                              month: "short",
+                              day: "numeric",
+                            })
+                          : ""}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 ml-4 shrink-0">
+                      {canRate && (
+                        <Link
+                          to={`/parties/${req.party_id}/rate`}
+                          className="bg-warning/10 hover:bg-warning/20 text-warning font-semibold text-xs px-3 py-1.5 rounded-lg border border-warning/20 transition"
+                        >
+                          ⭐ Rate
+                        </Link>
+                      )}
+                      <span className={`text-xs font-semibold px-3 py-1 rounded ${statusColors[req.status] || ""}`}>
+                        {req.status}
+                      </span>
+                    </div>
                   </div>
-                  <span className={`text-xs font-semibold px-3 py-1 rounded ${statusColors[req.status] || ""}`}>
-                    {req.status}
-                  </span>
                 </div>
-              </Link>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

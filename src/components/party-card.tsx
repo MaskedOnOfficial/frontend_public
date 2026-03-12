@@ -12,7 +12,7 @@ function formatDate(dateStr: string) {
   });
 }
 
-function formatPrice(price: number, currency: string) {
+function formatPrice(price: number, _currency: string) {
   if (price === 0) return "Free";
   // price is in paisa, convert to rupees
   return `₹${(price / 100).toLocaleString("en-IN")}`;
