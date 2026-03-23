@@ -14,7 +14,7 @@ function formatDate(dateStr: string) {
 
 function PartyRow({ party }: { party: Party }) {
   return (
-    <div className="bg-surface rounded-xl border border-text-muted/10 p-4 flex items-center justify-between">
+    <div className="glass-panel rounded-xl p-4 flex items-center justify-between">
       <div className="flex-1">
         <div className="flex items-center gap-3">
           <Link to={`/parties/${party.id}`} className="text-text font-semibold hover:text-primary transition">
@@ -38,7 +38,7 @@ function PartyRow({ party }: { party: Party }) {
         {party.status === "upcoming" && (
           <Link
             to={`/dashboard/${party.id}/requests`}
-            className="bg-accent/20 hover:bg-accent/30 text-accent-hover font-semibold text-sm px-4 py-2 rounded-lg transition"
+            className="btn-secondary-luxe font-semibold text-sm px-4 py-2 rounded-lg transition"
           >
             Requests
           </Link>
@@ -87,16 +87,18 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-bg">
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
-          <div>
+          <div className="glass-panel rounded-2xl p-6 flex-1">
             <h1 className="text-3xl font-bold text-text">Host Dashboard</h1>
-            <p className="text-text-muted mt-1">Manage your parties</p>
+            <p className="text-text-muted mt-1">Manage your parties with confidence.</p>
           </div>
-          <Link
-            to="/parties/create"
-            className="bg-primary hover:bg-primary-hover text-white font-semibold px-6 py-3 rounded-lg transition"
-          >
-            + New Party
-          </Link>
+          <div className="ml-4">
+            <Link
+              to="/parties/create"
+              className="btn-primary-luxe font-semibold px-6 py-3 rounded-lg transition block text-center"
+            >
+              + New Party
+            </Link>
+          </div>
         </div>
 
         {parties.length === 0 ? (

@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import api from "../lib/api";
-import { useAuth } from "../context/auth-context";
+import { useAuth } from "../context/auth-hook";
 import PhotoGrid from "../components/photo-grid";
-import type { Party, Photo } from "../types";
+import type { Party, Photo, Attendee } from "../types";
+import { getApiErrorMessage } from "../lib/errors";
 
 export default function PartyPhotosPage() {
   const { partyId } = useParams<{ partyId: string }>();
@@ -11,6 +12,7 @@ export default function PartyPhotosPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [party, setParty] = useState<Party | null>(null);
+  const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -19,34 +21,40 @@ export default function PartyPhotosPage() {
   const [caption, setCaption] = useState("");
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    loadParty();
-  }, [partyId]);
-
-  useEffect(() => {
-    if (partyId) loadPhotos();
-  }, [partyId, page]);
-
-  async function loadParty() {
+  const loadParty = useCallback(async () => {
     try {
-      const res = await api.get(`/parties/${partyId}`);
-      setParty(res.data.data.party);
-    } catch {
+      const [partyRes, attendeesRes] = await Promise.all([
+        api.get(`/parties/${partyId}`),
+        api.get(`/parties/${partyId}/attendees`),
+      ]);
+      setParty(partyRes.data.data.party);
+      setAttendees(attendeesRes.data.data.attendees);
+    } catch (loadError) {
+      console.error("Failed to load party details:", getApiErrorMessage(loadError, "Unknown party details error"));
       setError("Party not found");
     }
-  }
+  }, [partyId]);
 
-  async function loadPhotos() {
+  const loadPhotos = useCallback(async () => {
     try {
       const res = await api.get(`/parties/${partyId}/photos?page=${page}&limit=20`);
       setPhotos(res.data.data.photos);
       setTotal(res.data.data.total);
-    } catch {
+    } catch (loadError) {
+      console.error("Failed to load party photos:", getApiErrorMessage(loadError, "Unknown party photos error"));
       setError("Failed to load photos");
     } finally {
       setLoading(false);
     }
-  }
+  }, [page, partyId]);
+
+  useEffect(() => {
+    loadParty();
+  }, [loadParty]);
+
+  useEffect(() => {
+    if (partyId) loadPhotos();
+  }, [loadPhotos, partyId]);
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -65,8 +73,8 @@ export default function PartyPhotosPage() {
       });
       setCaption("");
       loadPhotos();
-    } catch (err: any) {
-      setError(err.response?.data?.error?.message || "Upload failed");
+    } catch (uploadError: unknown) {
+      setError(getApiErrorMessage(uploadError, "Upload failed"));
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -77,16 +85,18 @@ export default function PartyPhotosPage() {
     try {
       await api.post(`/photos/${photoId}/like`);
       setPhotos((prev) =>
-        prev.map((p) => (p.id === photoId ? { ...p, like_count: p.like_count + 1 } : p))
+        prev.map((p) => (p.id === photoId ? { ...p, like_count: p.like_count + 1 } : p)),
       );
-    } catch {
-      // May already be liked — try unlike
+    } catch (likeError) {
+      console.error("Failed to like photo, attempting unlike:", getApiErrorMessage(likeError, "Unknown like error"));
       try {
         await api.delete(`/photos/${photoId}/like`);
         setPhotos((prev) =>
-          prev.map((p) => (p.id === photoId ? { ...p, like_count: Math.max(0, p.like_count - 1) } : p))
+          prev.map((p) => (p.id === photoId ? { ...p, like_count: Math.max(0, p.like_count - 1) } : p)),
         );
-      } catch {}
+      } catch (unlikeError) {
+        console.error("Failed to unlike photo:", getApiErrorMessage(unlikeError, "Unknown unlike error"));
+      }
     }
   }
 
@@ -94,13 +104,15 @@ export default function PartyPhotosPage() {
     try {
       await api.delete(`/photos/${photoId}`);
       setPhotos((prev) => prev.filter((p) => p.id !== photoId));
-      setTotal((t) => t - 1);
-    } catch (err: any) {
-      setError(err.response?.data?.error?.message || "Delete failed");
+      setTotal((count) => count - 1);
+    } catch (deleteError: unknown) {
+      setError(getApiErrorMessage(deleteError, "Delete failed"));
     }
   }
 
-  const canUpload = party && (party.status === "ongoing" || party.status === "completed");
+  const isHost = party && user && party.host_id === user.id;
+  const isAttendee = user && attendees.some((a) => a.user_id === user.id);
+  const canUpload = user && (isHost || isAttendee);
   const totalPages = Math.ceil(total / 20);
 
   if (loading) {
@@ -109,37 +121,59 @@ export default function PartyPhotosPage() {
 
   return (
     <div className="min-h-screen bg-bg py-8 px-4">
-      <div className="max-w-5xl mx-auto">
-        <Link to={`/parties/${partyId}`} className="text-accent text-sm hover:underline mb-4 inline-block">
-          ← Back to party
+      <div className="max-w-6xl mx-auto">
+        <Link to={`/parties/${partyId}`} className="text-text-muted text-sm hover:text-text transition mb-4 inline-block">
+          Back to party
         </Link>
 
-        <div className="flex items-center justify-between mb-6">
+        <div className="glass-panel rounded-2xl p-6 mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-text">Party Photos</h1>
-            {party && <p className="text-text-muted text-sm">{party.title}</p>}
+            <p className="text-xs uppercase tracking-[0.2em] text-text-muted mb-2">Visual Archive</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-text">Party Gallery</h1>
+            {party && <p className="text-text-muted text-sm mt-1">{party.title}</p>}
           </div>
           <span className="text-text-muted text-sm">{total} photo{total !== 1 ? "s" : ""}</span>
         </div>
 
         {error && <p className="text-error text-sm mb-4 bg-error/10 px-4 py-2 rounded">{error}</p>}
 
-        {/* Upload area */}
+        {/* Featured Cover Image Section */}
+        {party?.cover_image_url && (
+          <div className="mb-8">
+            <p className="text-xs uppercase tracking-[0.25em] text-text-muted mb-3">⭐ Featured</p>
+            <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-accent/20 to-primary/10 border border-accent/20 group cursor-pointer">
+              <img
+                src={party.cover_image_url}
+                alt={`${party.title} cover`}
+                className="w-full h-72 sm:h-96 object-cover group-hover:scale-105 transition duration-300"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-bg/60 via-bg/20 to-transparent" />
+              <div className="absolute bottom-4 left-4 right-4">
+                <p className="text-white font-bold text-lg">Event Cover Image</p>
+                <p className="text-white/80 text-sm">Set by the host • Featured in gallery</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {canUpload && (
-          <div className="bg-surface rounded-xl border border-text-muted/10 p-4 mb-6">
-            <div className="flex items-end gap-3">
+          <div className="glass-panel rounded-2xl p-4 mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-end gap-3">
               <div className="flex-1">
                 <input
                   type="text"
-                  placeholder="Add a caption..."
+                  aria-label="Photo caption"
+                  placeholder="Write a memory caption..."
                   value={caption}
                   onChange={(e) => setCaption(e.target.value)}
-                  className="w-full bg-bg border border-text-muted/20 text-text rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-primary"
+                  className="input-luxe w-full rounded-lg px-4 py-2.5 text-sm"
                 />
               </div>
               <input
                 ref={fileInputRef}
                 type="file"
+                aria-label="Upload party photo"
+                title="Upload party photo"
                 accept="image/jpeg,image/png,image/webp"
                 onChange={handleUpload}
                 className="hidden"
@@ -147,9 +181,9 @@ export default function PartyPhotosPage() {
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                className="bg-primary hover:bg-primary-hover text-white text-sm font-semibold px-5 py-2 rounded-lg transition disabled:opacity-50"
+                className="btn-primary-luxe text-sm font-semibold px-5 py-2.5 rounded-lg transition disabled:opacity-50"
               >
-                {uploading ? "Uploading..." : "📷 Upload"}
+                {uploading ? "Uploading..." : "Upload Photo"}
               </button>
             </div>
           </div>
@@ -162,17 +196,14 @@ export default function PartyPhotosPage() {
           currentUserId={user?.id}
         />
 
-        {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex justify-center gap-2 mt-6">
+          <div className="flex justify-center gap-2 mt-6 flex-wrap">
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
               <button
                 key={p}
                 onClick={() => setPage(p)}
-                className={`px-3 py-1 rounded text-sm transition ${
-                  p === page
-                    ? "bg-primary text-white"
-                    : "bg-surface text-text-muted hover:bg-surface-light"
+                className={`px-3 py-1 rounded text-sm transition rounded-lg ${
+                  p === page ? "btn-primary-luxe" : "btn-secondary-luxe"
                 }`}
               >
                 {p}

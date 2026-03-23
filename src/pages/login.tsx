@@ -1,12 +1,14 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../context/auth-context";
+import { useAuth } from "../context/auth-hook";
+import { getApiErrorMessage } from "../lib/errors";
 
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -16,64 +18,112 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       await login(email, password);
-      navigate("/");
-    } catch (err: any) {
-      setError(err.response?.data?.error?.message || "Login failed");
+      navigate("/", { replace: true });
+    } catch (error: unknown) {
+      setError(getApiErrorMessage(error, "Login failed. Please check your credentials."));
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <div className="min-h-screen bg-bg flex items-center justify-center px-4">
-      <div className="w-full max-w-md bg-surface rounded-2xl p-8 shadow-xl">
-        <h1 className="text-3xl font-bold text-text text-center mb-2">🎭 maskOn</h1>
-        <p className="text-text-muted text-center mb-8">Sign in to your account</p>
+    <div className="auth-ambient min-h-screen bg-bg flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-md relative z-10 fade-rise">
+        {/* Logo / Brand */}
+        <div className="text-center mb-8">
+          <div className="text-5xl mb-3 select-none">🎭</div>
+          <h1 className="text-3xl font-extrabold text-white tracking-tight">
+            mask<span className="brand-gradient-text">On</span>
+          </h1>
+          <p className="text-text-muted text-sm mt-2">
+            Curated social moments for unforgettable house parties.
+          </p>
+        </div>
 
-        {error && (
-          <div className="bg-error/10 border border-error/30 rounded-lg p-3 mb-6 text-error text-sm">
-            {error}
-          </div>
-        )}
+        {/* Card */}
+        <div className="glass-panel rounded-3xl p-8">
+          <h2 className="text-xl font-bold text-text mb-1">Welcome back</h2>
+          <p className="text-text-muted text-sm mb-7">Sign in to view your trusted circle and latest party updates.</p>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-sm text-text-muted mb-1">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full bg-surface-light border border-text-muted/20 rounded-lg px-4 py-3 text-text focus:outline-none focus:border-primary transition"
-              placeholder="you@example.com"
-            />
-          </div>
+          {/* Error */}
+          {error && (
+            <div className="bg-error/10 border border-error/30 rounded-xl px-4 py-3 mb-6 text-error text-sm flex items-start gap-2">
+              <span className="mt-0.5 text-base leading-none">⚠️</span>
+              <span>{error}</span>
+            </div>
+          )}
 
-          <div>
-            <label className="block text-sm text-text-muted mb-1">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full bg-surface-light border border-text-muted/20 rounded-lg px-4 py-3 text-text focus:outline-none focus:border-primary transition"
-              placeholder="••••••••"
-            />
-          </div>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Email */}
+            <div>
+              <label htmlFor="email" className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5">
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                className="input-luxe w-full rounded-xl px-4 py-3 text-sm"
+                placeholder="you@example.com"
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full bg-primary hover:bg-primary-hover text-white font-semibold py-3 rounded-lg transition disabled:opacity-50"
-          >
-            {submitting ? "Signing in..." : "Sign In"}
-          </button>
-        </form>
+            {/* Password */}
+            <div>
+              <label htmlFor="password" className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                  className="input-luxe w-full rounded-xl px-4 py-3 pr-12 text-sm"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text transition text-lg leading-none"
+                  tabIndex={-1}
+                >
+                  {showPassword ? "🙈" : "👁"}
+                </button>
+              </div>
+            </div>
 
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={submitting}
+              className="btn-primary-luxe relative w-full overflow-hidden font-bold py-3.5 rounded-xl transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+            >
+              {submitting ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Signing in…
+                </span>
+              ) : (
+                "Sign In"
+              )}
+            </button>
+          </form>
+        </div>
+
+        {/* Register link */}
         <p className="text-text-muted text-sm text-center mt-6">
-          Don't have an account?{" "}
-          <Link to="/auth/register" className="text-primary hover:underline">
-            Register
+          New here?{" "}
+          <Link
+            to="/auth/register"
+            className="text-primary font-semibold hover:text-primary-hover transition"
+          >
+            Create an account →
           </Link>
         </p>
       </div>

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../context/auth-context";
+import { useAuth } from "../context/auth-hook";
+import { getApiErrorMessage } from "../lib/errors";
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -19,18 +20,18 @@ export default function RegisterPage() {
     try {
       await register(email, username, password, displayName);
       navigate("/");
-    } catch (err: any) {
-      setError(err.response?.data?.error?.message || "Registration failed");
+    } catch (error: unknown) {
+      setError(getApiErrorMessage(error, "Registration failed"));
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <div className="min-h-screen bg-bg flex items-center justify-center px-4">
-      <div className="w-full max-w-md bg-surface rounded-2xl p-8 shadow-xl">
-        <h1 className="text-3xl font-bold text-text text-center mb-2">🎭 maskOn</h1>
-        <p className="text-text-muted text-center mb-8">Create your account</p>
+    <div className="auth-ambient min-h-screen bg-bg flex items-center justify-center px-4 py-10">
+      <div className="glass-panel w-full max-w-md rounded-3xl p-8 fade-rise">
+        <h1 className="text-3xl font-bold text-text text-center mb-2">🎭 mask<span className="brand-gradient-text">On</span></h1>
+        <p className="text-text-muted text-center mb-8">Create your private social identity.</p>
 
         {error && (
           <div className="bg-error/10 border border-error/30 rounded-lg p-3 mb-6 text-error text-sm">
@@ -40,50 +41,54 @@ export default function RegisterPage() {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-sm text-text-muted mb-1">Display Name</label>
+            <label htmlFor="displayName" className="block text-sm text-text-muted mb-1">Display Name</label>
             <input
+              id="displayName"
               type="text"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               required
-              className="w-full bg-surface-light border border-text-muted/20 rounded-lg px-4 py-3 text-text focus:outline-none focus:border-primary transition"
+              className="input-luxe w-full rounded-lg px-4 py-3"
               placeholder="Riya Sharma"
             />
           </div>
 
           <div>
-            <label className="block text-sm text-text-muted mb-1">Username</label>
+            <label htmlFor="username" className="block text-sm text-text-muted mb-1">Username</label>
             <input
+              id="username"
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
-              className="w-full bg-surface-light border border-text-muted/20 rounded-lg px-4 py-3 text-text focus:outline-none focus:border-primary transition"
+              className="input-luxe w-full rounded-lg px-4 py-3"
               placeholder="riya_hosts"
             />
           </div>
 
           <div>
-            <label className="block text-sm text-text-muted mb-1">Email</label>
+            <label htmlFor="email" className="block text-sm text-text-muted mb-1">Email</label>
             <input
+              id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full bg-surface-light border border-text-muted/20 rounded-lg px-4 py-3 text-text focus:outline-none focus:border-primary transition"
+              className="input-luxe w-full rounded-lg px-4 py-3"
               placeholder="you@example.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm text-text-muted mb-1">Password</label>
+            <label htmlFor="password" className="block text-sm text-text-muted mb-1">Password</label>
             <input
+              id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={8}
-              className="w-full bg-surface-light border border-text-muted/20 rounded-lg px-4 py-3 text-text focus:outline-none focus:border-primary transition"
+              className="input-luxe w-full rounded-lg px-4 py-3"
               placeholder="Min 8 characters"
             />
           </div>
@@ -91,7 +96,7 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full bg-primary hover:bg-primary-hover text-white font-semibold py-3 rounded-lg transition disabled:opacity-50"
+            className="btn-primary-luxe w-full font-semibold py-3 rounded-lg transition disabled:opacity-50"
           >
             {submitting ? "Creating account..." : "Create Account"}
           </button>

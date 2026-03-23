@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../lib/api";
 import type { Notification } from "../types";
+import { getApiErrorMessage } from "../lib/errors";
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
@@ -12,22 +13,22 @@ export default function NotificationsPage() {
   const [unread, setUnread] = useState(0);
   const limit = 20;
 
-  useEffect(() => {
-    fetchNotifications();
-  }, [page]);
-
-  async function fetchNotifications() {
+  const fetchNotifications = useCallback(async () => {
     try {
       const res = await api.get("/notifications", { params: { page, limit } });
       setNotifications(res.data.data.notifications);
       setTotal(res.data.data.total);
       setUnread(res.data.data.unread);
-    } catch {
-      /* handled by interceptor */
+    } catch (error) {
+      console.error("Failed to fetch notifications:", getApiErrorMessage(error, "Unknown notification error"));
     } finally {
       setLoading(false);
     }
-  }
+  }, [limit, page]);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
 
   async function markRead(id: string) {
     await api.patch(`/notifications/${id}/read`);
@@ -74,19 +75,12 @@ export default function NotificationsPage() {
   return (
     <div className="min-h-screen bg-bg py-8 px-4">
       <div className="max-w-2xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-text">
-            Notifications{" "}
-            {unread > 0 && (
-              <span className="text-sm font-normal text-primary">
-                ({unread} unread)
-              </span>
-            )}
-          </h1>
+        <div className="glass-panel rounded-2xl p-5 flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-text">Notifications <span className="brand-gradient-text text-sm font-normal">{unread > 0 ? `(${unread} unread)` : ""}</span></h1>
           {unread > 0 && (
             <button
               onClick={markAllRead}
-              className="text-sm text-accent hover:text-primary transition"
+              className="btn-secondary-luxe text-sm px-3 py-1.5 rounded-lg transition"
             >
               Mark all as read
             </button>
@@ -108,8 +102,8 @@ export default function NotificationsPage() {
                 onClick={() => handleClick(n)}
                 className={`w-full text-left p-4 rounded-lg border transition ${
                   n.is_read
-                    ? "bg-surface/50 border-text-muted/10 hover:bg-surface"
-                    : "bg-surface border-primary/30 hover:border-primary/50"
+                    ? "glass-panel border-white/8 hover:border-white/15"
+                    : "glass-panel border-primary/30 hover:border-primary/50"
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -142,7 +136,7 @@ export default function NotificationsPage() {
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-3 py-1.5 text-sm rounded bg-surface text-text-muted disabled:opacity-40"
+              className="btn-secondary-luxe px-3 py-1.5 text-sm rounded disabled:opacity-40"
             >
               Prev
             </button>
@@ -152,7 +146,7 @@ export default function NotificationsPage() {
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="px-3 py-1.5 text-sm rounded bg-surface text-text-muted disabled:opacity-40"
+              className="btn-secondary-luxe px-3 py-1.5 text-sm rounded disabled:opacity-40"
             >
               Next
             </button>

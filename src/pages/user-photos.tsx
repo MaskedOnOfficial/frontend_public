@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import api from "../lib/api";
-import { useAuth } from "../context/auth-context";
+import { useAuth } from "../context/auth-hook";
 import PhotoGrid from "../components/photo-grid";
 import type { Photo } from "../types";
+import { getApiErrorMessage } from "../lib/errors";
 
 export default function UserPhotosPage() {
   const { userId } = useParams<{ userId: string }>();
@@ -22,35 +23,38 @@ export default function UserPhotosPage() {
   const isOwnProfile = userId === "me" || userId === user?.id;
   const resolvedUserId = isOwnProfile ? user?.id : userId;
 
+  const loadUserInfo = useCallback(async () => {
+    if (isOwnProfile) {
+      setDisplayName(user?.display_name || "My");
+      return;
+    }
+    try {
+      const res = await api.get(`/users/${resolvedUserId}`);
+      setDisplayName(res.data.data.user.display_name);
+    } catch (loadError) {
+      console.error("Failed to load profile info:", getApiErrorMessage(loadError, "Unknown profile info error"));
+    }
+  }, [isOwnProfile, resolvedUserId, user?.display_name]);
+
+  const loadPhotos = useCallback(async () => {
+    try {
+      const res = await api.get(`/users/${resolvedUserId}/photos?page=${page}&limit=20`);
+      setPhotos(res.data.data.photos);
+      setTotal(res.data.data.total);
+    } catch (loadError) {
+      console.error("Failed to load user photos:", getApiErrorMessage(loadError, "Unknown user photos error"));
+      setError("Failed to load photos");
+    } finally {
+      setLoading(false);
+    }
+  }, [page, resolvedUserId]);
+
   useEffect(() => {
     if (resolvedUserId) {
       loadPhotos();
       loadUserInfo();
     }
-  }, [resolvedUserId, page]);
-
-  async function loadUserInfo() {
-    if (isOwnProfile) {
-      setDisplayName(user?.display_name || "My");
-    } else {
-      try {
-        const res = await api.get(`/users/${resolvedUserId}`);
-        setDisplayName(res.data.data.user.display_name);
-      } catch {}
-    }
-  }
-
-  async function loadPhotos() {
-    try {
-      const res = await api.get(`/users/${resolvedUserId}/photos?page=${page}&limit=20`);
-      setPhotos(res.data.data.photos);
-      setTotal(res.data.data.total);
-    } catch {
-      setError("Failed to load photos");
-    } finally {
-      setLoading(false);
-    }
-  }
+  }, [loadPhotos, loadUserInfo, resolvedUserId]);
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -68,8 +72,8 @@ export default function UserPhotosPage() {
       });
       setCaption("");
       loadPhotos();
-    } catch (err: any) {
-      setError(err.response?.data?.error?.message || "Upload failed");
+    } catch (uploadError: unknown) {
+      setError(getApiErrorMessage(uploadError, "Upload failed"));
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -80,15 +84,18 @@ export default function UserPhotosPage() {
     try {
       await api.post(`/photos/${photoId}/like`);
       setPhotos((prev) =>
-        prev.map((p) => (p.id === photoId ? { ...p, like_count: p.like_count + 1 } : p))
+        prev.map((p) => (p.id === photoId ? { ...p, like_count: p.like_count + 1 } : p)),
       );
-    } catch {
+    } catch (likeError) {
+      console.error("Failed to like photo, attempting unlike:", getApiErrorMessage(likeError, "Unknown like error"));
       try {
         await api.delete(`/photos/${photoId}/like`);
         setPhotos((prev) =>
-          prev.map((p) => (p.id === photoId ? { ...p, like_count: Math.max(0, p.like_count - 1) } : p))
+          prev.map((p) => (p.id === photoId ? { ...p, like_count: Math.max(0, p.like_count - 1) } : p)),
         );
-      } catch {}
+      } catch (unlikeError) {
+        console.error("Failed to unlike photo:", getApiErrorMessage(unlikeError, "Unknown unlike error"));
+      }
     }
   }
 
@@ -96,9 +103,9 @@ export default function UserPhotosPage() {
     try {
       await api.delete(`/photos/${photoId}`);
       setPhotos((prev) => prev.filter((p) => p.id !== photoId));
-      setTotal((t) => t - 1);
-    } catch (err: any) {
-      setError(err.response?.data?.error?.message || "Delete failed");
+      setTotal((count) => count - 1);
+    } catch (deleteError: unknown) {
+      setError(getApiErrorMessage(deleteError, "Delete failed"));
     }
   }
 
@@ -110,30 +117,37 @@ export default function UserPhotosPage() {
 
   return (
     <div className="min-h-screen bg-bg py-8 px-4">
-      <div className="max-w-5xl mx-auto">
-        <h1 className="text-2xl font-bold text-text mb-1">
-          {isOwnProfile ? "My Photos" : `${displayName}'s Photos`}
-        </h1>
-        <p className="text-text-muted text-sm mb-6">{total} photo{total !== 1 ? "s" : ""}</p>
+      <div className="max-w-6xl mx-auto">
+        <div className="glass-panel rounded-2xl p-6 mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-text-muted mb-2">Media Portfolio</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-text">
+              {isOwnProfile ? "My Photos" : `${displayName}'s Photos`}
+            </h1>
+          </div>
+          <p className="text-text-muted text-sm">{total} photo{total !== 1 ? "s" : ""}</p>
+        </div>
 
         {error && <p className="text-error text-sm mb-4 bg-error/10 px-4 py-2 rounded">{error}</p>}
 
-        {/* Upload area (own profile only) */}
         {isOwnProfile && (
-          <div className="bg-surface rounded-xl border border-text-muted/10 p-4 mb-6">
-            <div className="flex items-end gap-3">
+          <div className="glass-panel rounded-2xl p-4 mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-end gap-3">
               <div className="flex-1">
                 <input
                   type="text"
-                  placeholder="Add a caption..."
+                  aria-label="Photo caption"
+                  placeholder="Add a caption to your memory..."
                   value={caption}
                   onChange={(e) => setCaption(e.target.value)}
-                  className="w-full bg-bg border border-text-muted/20 text-text rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-primary"
+                  className="input-luxe w-full rounded-lg px-4 py-2.5 text-sm"
                 />
               </div>
               <input
                 ref={fileInputRef}
                 type="file"
+                aria-label="Upload user photo"
+                title="Upload user photo"
                 accept="image/jpeg,image/png,image/webp"
                 onChange={handleUpload}
                 className="hidden"
@@ -141,9 +155,9 @@ export default function UserPhotosPage() {
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                className="bg-primary hover:bg-primary-hover text-white text-sm font-semibold px-5 py-2 rounded-lg transition disabled:opacity-50"
+                className="btn-primary-luxe text-sm font-semibold px-5 py-2.5 rounded-lg transition disabled:opacity-50"
               >
-                {uploading ? "Uploading..." : "📷 Upload"}
+                {uploading ? "Uploading..." : "Upload Photo"}
               </button>
             </div>
           </div>
@@ -157,15 +171,13 @@ export default function UserPhotosPage() {
         />
 
         {totalPages > 1 && (
-          <div className="flex justify-center gap-2 mt-6">
+          <div className="flex justify-center gap-2 mt-6 flex-wrap">
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
               <button
                 key={p}
                 onClick={() => setPage(p)}
-                className={`px-3 py-1 rounded text-sm transition ${
-                  p === page
-                    ? "bg-primary text-white"
-                    : "bg-surface text-text-muted hover:bg-surface-light"
+                className={`px-3 py-1 rounded text-sm transition rounded-lg ${
+                  p === page ? "btn-primary-luxe" : "btn-secondary-luxe"
                 }`}
               >
                 {p}

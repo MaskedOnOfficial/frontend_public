@@ -39,7 +39,7 @@ export default function RequestCard({ request, onAction, showMutuals = false }: 
   }
 
   return (
-    <div className="bg-surface-light rounded-lg p-4 border border-text-muted/10">
+    <div className="glass-panel rounded-xl p-4">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-3">
           <Link to={`/profile/${request.user_id}`} className="flex-shrink-0">
@@ -102,14 +102,14 @@ export default function RequestCard({ request, onAction, showMutuals = false }: 
           <button
             onClick={() => handleAction("approved")}
             disabled={loading}
-            className="flex-1 bg-success/20 hover:bg-success/30 text-success font-semibold text-sm py-2 rounded transition disabled:opacity-50"
+            className="flex-1 bg-success/15 hover:bg-success/25 text-success border border-success/30 font-semibold text-sm py-2 rounded-lg transition disabled:opacity-50"
           >
             Approve
           </button>
           <button
             onClick={() => handleAction("rejected")}
             disabled={loading}
-            className="flex-1 bg-error/20 hover:bg-error/30 text-error font-semibold text-sm py-2 rounded transition disabled:opacity-50"
+            className="flex-1 bg-error/10 hover:bg-error/20 text-error border border-error/30 font-semibold text-sm py-2 rounded-lg transition disabled:opacity-50"
           >
             Reject
           </button>

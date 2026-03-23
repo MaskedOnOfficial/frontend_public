@@ -12,7 +12,7 @@ function formatDate(dateStr: string) {
   });
 }
 
-function formatPrice(price: number, _currency: string) {
+function formatPrice(price: number) {
   if (price === 0) return "Free";
   // price is in paisa, convert to rupees
   return `₹${(price / 100).toLocaleString("en-IN")}`;
@@ -30,15 +30,15 @@ export default function PartyCard({ party }: { party: Party }) {
   return (
     <Link
       to={`/parties/${party.id}`}
-      className="bg-surface rounded-xl border border-text-muted/10 overflow-hidden hover:border-primary/30 transition group"
+      className="glass-panel rounded-xl overflow-hidden hover:border-primary/35 transition group"
     >
       {/* Cover image or gradient placeholder */}
-      <div className="h-40 bg-gradient-to-br from-accent/40 to-primary/30 relative">
+      <div className="h-40 bg-gradient-to-br from-accent/45 to-primary/30 relative">
         {party.cover_image_url && (
           <img src={party.cover_image_url} alt={party.title} className="w-full h-full object-cover" />
         )}
-        <div className="absolute top-3 right-3 bg-bg/70 text-text text-xs font-semibold px-2 py-1 rounded">
-          {formatPrice(party.ticket_price, party.currency)}
+        <div className="absolute top-3 right-3 bg-bg/80 text-text text-xs font-semibold px-2 py-1 rounded">
+          {formatPrice(party.ticket_price)}
         </div>
       </div>
 
@@ -54,7 +54,7 @@ export default function PartyCard({ party }: { party: Party }) {
           <div className="flex items-center gap-2">
             {party.host_display_name && (
               <>
-                <div className="w-6 h-6 rounded-full bg-accent flex items-center justify-center text-xs text-white font-bold">
+                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-accent to-accent-hover flex items-center justify-center text-xs text-white font-bold">
                   {party.host_display_name.charAt(0).toUpperCase()}
                 </div>
                 <span className="text-text-muted text-xs">{party.host_display_name}</span>
@@ -71,7 +71,7 @@ export default function PartyCard({ party }: { party: Party }) {
             {tags.slice(0, 3).map((tag) => (
               <span
                 key={tag}
-                className="bg-accent/20 text-accent-hover text-xs px-2 py-0.5 rounded-full"
+                className="bg-accent/20 text-[#9ed4d1] text-xs px-2 py-0.5 rounded-full"
               >
                 {tag}
               </span>

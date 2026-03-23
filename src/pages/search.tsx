@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import api from "../lib/api";
 import type { Party } from "../types";
+import { getApiErrorMessage } from "../lib/errors";
 
 type SearchUser = {
   id: string;
@@ -53,39 +54,38 @@ export default function SearchPage() {
 
   const [inputValue, setInputValue] = useState(initialQuery);
   const [results, setResults] = useState<SearchResults | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(initialQuery.length >= 2);
   const [tab, setTab] = useState<Tab>("all");
 
   const debouncedQuery = useDebounce(inputValue, 350);
 
+  const fetchSearch = useCallback((query: string) => {
+    api
+      .get("/search", { params: { q: query, limit: 20 } })
+      .then((r) => setResults(r.data.data))
+      .catch((error) => {
+        console.error("Search request failed:", getApiErrorMessage(error, "Unknown search error"));
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
   // Load initial query on mount
   useEffect(() => {
     if (initialQuery.length >= 2) {
-      setLoading(true);
-      api
-        .get("/search", { params: { q: initialQuery, limit: 20 } })
-        .then((r) => setResults(r.data.data))
-        .catch(() => {})
-        .finally(() => setLoading(false));
+      fetchSearch(initialQuery);
     }
-  }, []);
+  }, [fetchSearch, initialQuery]);
 
   // Re-fetch on debounced input change
   useEffect(() => {
     if (debouncedQuery === initialQuery && results) return; // skip duplicate on mount
     if (debouncedQuery.length < 2) {
-      setResults(null);
       if (debouncedQuery.length === 0) setSearchParams({}, { replace: true });
       return;
     }
     setSearchParams({ q: debouncedQuery }, { replace: true });
-    setLoading(true);
-    api
-      .get("/search", { params: { q: debouncedQuery, limit: 20 } })
-      .then((r) => setResults(r.data.data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [debouncedQuery]);
+    fetchSearch(debouncedQuery);
+  }, [debouncedQuery, fetchSearch, initialQuery, results, setSearchParams]);
 
   const users = results?.users ?? [];
   const parties = results?.parties ?? [];
@@ -100,7 +100,10 @@ export default function SearchPage() {
   return (
     <div className="min-h-screen bg-bg">
       <div className="max-w-3xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold text-text mb-6">Search</h1>
+        <div className="glass-panel rounded-2xl p-5 mb-6">
+          <h1 className="text-2xl font-bold text-text">Search</h1>
+          <p className="text-text-muted text-sm mt-1">Find people and parties in your social orbit.</p>
+        </div>
 
         {/* Search input */}
         <div className="relative mb-6">
@@ -116,9 +119,17 @@ export default function SearchPage() {
             type="text"
             placeholder="Search users and parties..."
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            className="w-full bg-surface border border-text-muted/20 rounded-xl pl-12 pr-12 py-3 text-text
-              placeholder-text-muted focus:outline-none focus:border-primary/50 transition text-base"
+            onChange={(e) => {
+              const next = e.target.value;
+              setInputValue(next);
+              if (next.length < 2) {
+                setLoading(false);
+                setResults(null);
+              } else {
+                setLoading(true);
+              }
+            }}
+            className="input-luxe w-full rounded-xl pl-12 pr-12 py-3 text-base"
           />
           {loading && (
             <svg
@@ -133,7 +144,7 @@ export default function SearchPage() {
 
         {/* Tabs */}
         {results && totalAll > 0 && (
-          <div className="flex gap-1 mb-6 bg-surface rounded-xl p-1 w-fit">
+          <div className="glass-panel flex gap-1 mb-6 rounded-xl p-1 w-fit">
             {(["all", "users", "parties"] as Tab[]).map((t) => {
               const count = t === "all" ? totalAll : t === "users" ? totalUsers : totalParties;
               return (
@@ -146,7 +157,7 @@ export default function SearchPage() {
                 >
                   {t.charAt(0).toUpperCase() + t.slice(1)}
                   <span className={`text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold ${
-                    tab === t ? "bg-primary text-white" : "bg-text-muted/20 text-text-muted"
+                    tab === t ? "bg-primary text-bg" : "bg-text-muted/20 text-text-muted"
                   }`}>{count}</span>
                 </button>
               );
@@ -186,7 +197,7 @@ export default function SearchPage() {
                 <Link
                   key={u.id}
                   to={`/profile/${u.id}`}
-                  className="flex items-center gap-4 bg-surface rounded-xl p-4 border border-text-muted/10 hover:border-primary/30 transition"
+                  className="glass-panel flex items-center gap-4 rounded-xl p-4 hover:border-primary/30 transition"
                 >
                   <div className="w-12 h-12 rounded-full bg-accent shrink-0 flex items-center justify-center text-white text-lg font-bold overflow-hidden">
                     {u.avatar_url
@@ -221,7 +232,7 @@ export default function SearchPage() {
                   <Link
                     key={p.id}
                     to={`/parties/${p.id}`}
-                    className="flex items-start gap-4 bg-surface rounded-xl p-4 border border-text-muted/10 hover:border-primary/30 transition"
+                    className="glass-panel flex items-start gap-4 rounded-xl p-4 hover:border-primary/30 transition"
                   >
                     <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-accent/40 to-primary/30 shrink-0 overflow-hidden">
                       {p.cover_image_url && (

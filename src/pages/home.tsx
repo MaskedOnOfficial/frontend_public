@@ -1,4 +1,4 @@
-import { useAuth } from "../context/auth-context";
+import { useAuth } from "../context/auth-hook";
 import { Link } from "react-router-dom";
 
 export default function HomePage() {

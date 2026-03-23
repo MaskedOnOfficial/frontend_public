@@ -1,8 +1,9 @@
-﻿import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import api from "../lib/api";
-import { useAuth } from "../context/auth-context";
+import { useAuth } from "../context/auth-hook";
 import type { User, Photo, Rating, FriendUser } from "../types";
+import { getApiErrorMessage } from "../lib/errors";
 
 type FriendStatus = "none" | "pending" | "accepted";
 type FriendDir = "incoming" | "outgoing" | null;
@@ -50,29 +51,6 @@ export default function PublicProfilePage() {
   const unfriendRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (userId) {
-      setLoading(true);
-      setPhotosPage(1);
-      setFriendsPage(1);
-      setTab("photos");
-      loadProfile();
-    }
-  }, [userId]);
-
-  useEffect(() => {
-    if (userId) loadPhotos();
-  }, [userId, photosPage]);
-
-  useEffect(() => {
-    if (userId && tab === "ratings") loadRatings();
-    if (userId && tab === "friends") loadFriendsList();
-  }, [tab]);
-
-  useEffect(() => {
-    if (userId && tab === "friends") loadFriendsList();
-  }, [friendsPage]);
-
-  useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (unfriendRef.current && !unfriendRef.current.contains(e.target as Node)) {
         setShowUnfriendMenu(false);
@@ -82,11 +60,13 @@ export default function PublicProfilePage() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  async function loadProfile() {
+  const loadProfile = useCallback(async () => {
     try {
       const res = await api.get(`/users/${userId}`);
       setProfile(res.data.data.user);
-    } catch {} finally {
+    } catch (error) {
+      console.error("Failed to load public profile:", getApiErrorMessage(error, "Unknown public profile error"));
+    } finally {
       setLoading(false);
     }
 
@@ -94,7 +74,9 @@ export default function PublicProfilePage() {
     try {
       const countRes = await api.get(`/friends/${userId}/list?limit=1`);
       setFriendCount(countRes.data.data.total);
-    } catch {}
+    } catch (error) {
+      console.error("Failed to load friend count:", getApiErrorMessage(error, "Unknown friend count error"));
+    }
 
     // Load friendship status + mutual friends (logged in, not own profile)
     if (me && !isOwnProfile) {
@@ -107,37 +89,68 @@ export default function PublicProfilePage() {
         setFriendStatus(status || "none");
         setFriendDir(direction || null);
         setMutualFriends(mutualRes.data.data.mutuals || []);
-      } catch {}
+      } catch (error) {
+        console.error("Failed to load friendship state:", getApiErrorMessage(error, "Unknown friendship state error"));
+      }
     }
-  }
+  }, [isOwnProfile, me, userId]);
 
-  async function loadPhotos() {
+  const loadPhotos = useCallback(async () => {
     try {
       const res = await api.get(`/users/${userId}/photos?page=${photosPage}&limit=12`);
       setPhotos(res.data.data.photos);
       setPhotosTotal(res.data.data.total);
-    } catch {}
-  }
+    } catch (error) {
+      console.error("Failed to load public photos:", getApiErrorMessage(error, "Unknown public photos error"));
+    }
+  }, [photosPage, userId]);
 
-  async function loadRatings() {
+  const loadRatings = useCallback(async () => {
     try {
       const res = await api.get(`/users/${userId}/ratings`);
       setRatings(res.data.data.ratings);
-    } catch {} finally {
+    } catch (error) {
+      console.error("Failed to load public ratings:", getApiErrorMessage(error, "Unknown public ratings error"));
+    } finally {
       setRatingsLoading(false);
     }
-  }
+  }, [userId]);
 
-  async function loadFriendsList() {
+  const loadFriendsList = useCallback(async () => {
     setFriendsLoading(true);
     try {
       const res = await api.get(`/friends/${userId}/list?page=${friendsPage}&limit=20`);
       setFriends(res.data.data.friends);
       setFriendsTotal(res.data.data.total);
-    } catch {} finally {
+    } catch (error) {
+      console.error("Failed to load public friends list:", getApiErrorMessage(error, "Unknown public friends list error"));
+    } finally {
       setFriendsLoading(false);
     }
-  }
+  }, [friendsPage, userId]);
+
+  useEffect(() => {
+    if (userId) {
+      setLoading(true);
+      setPhotosPage(1);
+      setFriendsPage(1);
+      setTab("photos");
+      loadProfile();
+    }
+  }, [loadProfile, userId]);
+
+  useEffect(() => {
+    if (userId) loadPhotos();
+  }, [loadPhotos, userId]);
+
+  useEffect(() => {
+    if (userId && tab === "ratings") loadRatings();
+    if (userId && tab === "friends") loadFriendsList();
+  }, [loadFriendsList, loadRatings, tab, userId]);
+
+  useEffect(() => {
+    if (userId && tab === "friends") loadFriendsList();
+  }, [friendsPage, loadFriendsList, tab, userId]);
 
   async function handleLike(photoId: string) {
     try {
@@ -145,7 +158,9 @@ export default function PublicProfilePage() {
       setPhotos((prev) =>
         prev.map((p) => (p.id === photoId ? { ...p, like_count: p.like_count + 1 } : p))
       );
-    } catch {}
+    } catch (error) {
+      console.error("Failed to like public photo:", getApiErrorMessage(error, "Unknown like public photo error"));
+    }
   }
 
   async function handleAddFriend() {
@@ -157,7 +172,9 @@ export default function PublicProfilePage() {
       setFriendStatus(newStatus);
       setFriendDir("outgoing");
       if (newStatus === "accepted") setFriendCount((c) => c + 1);
-    } catch {} finally {
+    } catch (error) {
+      console.error("Failed to add friend:", getApiErrorMessage(error, "Unknown add friend error"));
+    } finally {
       setFriendLoading(false);
     }
   }
@@ -170,7 +187,9 @@ export default function PublicProfilePage() {
       setFriendStatus("accepted");
       setFriendDir(null);
       setFriendCount((c) => c + 1);
-    } catch {} finally {
+    } catch (error) {
+      console.error("Failed to accept friend request:", getApiErrorMessage(error, "Unknown accept friend error"));
+    } finally {
       setFriendLoading(false);
     }
   }
@@ -182,7 +201,9 @@ export default function PublicProfilePage() {
       await api.patch(`/friends/${userId}/reject`);
       setFriendStatus("none");
       setFriendDir(null);
-    } catch {} finally {
+    } catch (error) {
+      console.error("Failed to reject friend request:", getApiErrorMessage(error, "Unknown reject friend error"));
+    } finally {
       setFriendLoading(false);
     }
   }
@@ -196,7 +217,9 @@ export default function PublicProfilePage() {
       setFriendStatus("none");
       setFriendDir(null);
       setFriendCount((c) => Math.max(0, c - 1));
-    } catch {} finally {
+    } catch (error) {
+      console.error("Failed to unfriend user:", getApiErrorMessage(error, "Unknown unfriend error"));
+    } finally {
       setFriendLoading(false);
     }
   }
@@ -208,7 +231,9 @@ export default function PublicProfilePage() {
       await api.delete(`/friends/${userId}`);
       setFriendStatus("none");
       setFriendDir(null);
-    } catch {} finally {
+    } catch (error) {
+      console.error("Failed to cancel friend request:", getApiErrorMessage(error, "Unknown cancel friend request error"));
+    } finally {
       setFriendLoading(false);
     }
   }
@@ -238,7 +263,7 @@ export default function PublicProfilePage() {
       return (
         <Link
           to="/profile/me"
-          className="bg-surface-light hover:bg-surface text-text-muted border border-text-muted/20 text-sm font-semibold px-5 py-2.5 rounded-xl transition"
+          className="btn-secondary-luxe text-sm font-semibold px-5 py-2.5 rounded-xl transition"
         >
           Edit Profile
         </Link>
@@ -307,7 +332,7 @@ export default function PublicProfilePage() {
       <button
         onClick={handleAddFriend}
         disabled={friendLoading}
-        className="bg-primary hover:bg-primary-hover text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition disabled:opacity-50"
+          className="btn-primary-luxe text-sm font-semibold px-5 py-2.5 rounded-xl transition disabled:opacity-50"
       >
         {friendLoading ? "..." : "+ Add Friend"}
       </button>
@@ -323,7 +348,7 @@ export default function PublicProfilePage() {
 
       <div className="max-w-4xl mx-auto px-4 -mt-20 relative z-10 pb-12">
         {/* Profile header card */}
-        <div className="bg-surface rounded-2xl border border-text-muted/10 shadow-2xl shadow-black/30 overflow-hidden">
+        <div className="glass-panel rounded-2xl overflow-hidden">
           <div className="p-6 sm:p-8">
             <div className="flex flex-col sm:flex-row items-center sm:items-end gap-5">
               {/* Avatar */}
@@ -426,13 +451,13 @@ export default function PublicProfilePage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mt-6 bg-surface rounded-xl p-1 border border-text-muted/10">
+        <div className="glass-panel flex gap-1 mt-6 rounded-xl p-1">
           {(["photos", "ratings", "friends"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition ${
-                tab === t ? "bg-primary text-white shadow" : "text-text-muted hover:text-text"
+                tab === t ? "bg-primary text-bg shadow" : "text-text-muted hover:text-text"
               }`}
             >
               {t === "photos"
@@ -521,7 +546,7 @@ export default function PublicProfilePage() {
                   {ratings.map((r) => (
                     <div
                       key={r.id}
-                      className="bg-surface rounded-xl border border-text-muted/10 p-5 flex items-start gap-4"
+                      className="glass-panel rounded-xl p-5 flex items-start gap-4"
                     >
                       <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
                         {(r.rater_display_name || "?").charAt(0).toUpperCase()}
@@ -558,7 +583,7 @@ export default function PublicProfilePage() {
             <div>
               {/* Mutual friends section */}
               {!isOwnProfile && mutualFriends.length > 0 && (
-                <div className="bg-surface rounded-xl border border-text-muted/10 p-5 mb-4">
+                <div className="glass-panel rounded-xl p-5 mb-4">
                   <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">
                     {mutualFriends.length} Mutual {mutualFriends.length === 1 ? "Friend" : "Friends"}
                   </h3>
@@ -600,7 +625,7 @@ export default function PublicProfilePage() {
                       <Link
                         key={f.id}
                         to={`/profile/${f.id}`}
-                        className="flex items-center gap-3 bg-surface rounded-xl border border-text-muted/10 p-4 hover:border-primary/30 hover:bg-surface-light transition"
+                        className="glass-panel flex items-center gap-3 rounded-xl p-4 hover:border-primary/30 transition"
                       >
                         <div className="w-12 h-12 rounded-full bg-accent overflow-hidden flex-shrink-0 flex items-center justify-center text-white text-lg font-bold">
                           {f.avatar_url ? (
@@ -654,7 +679,7 @@ export default function PublicProfilePage() {
           onClick={() => setLightbox(null)}
         >
           <div
-            className="max-w-3xl w-full bg-surface rounded-2xl overflow-hidden shadow-2xl"
+            className="max-w-3xl w-full glass-panel rounded-2xl overflow-hidden shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <img

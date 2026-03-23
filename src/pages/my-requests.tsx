@@ -28,7 +28,10 @@ export default function MyRequestsPage() {
   return (
     <div className="min-h-screen bg-bg">
       <div className="max-w-3xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-text mb-8">My Requests</h1>
+        <div className="glass-panel rounded-2xl p-6 mb-8">
+          <h1 className="text-3xl font-bold text-text">My Requests</h1>
+          <p className="text-text-muted mt-1">Track every invite you have requested.</p>
+        </div>
 
         {requests.length === 0 ? (
           <div className="text-center py-20">
@@ -45,7 +48,7 @@ export default function MyRequestsPage() {
               return (
                 <div
                   key={req.id}
-                  className="bg-surface rounded-xl border border-text-muted/10 p-4 hover:border-primary/30 transition"
+                  className="glass-panel rounded-xl p-4 hover:border-primary/30 transition"
                 >
                   <div className="flex items-center justify-between">
                     <div>
@@ -66,7 +69,7 @@ export default function MyRequestsPage() {
                       {canRate && (
                         <Link
                           to={`/parties/${req.party_id}/rate`}
-                          className="bg-warning/10 hover:bg-warning/20 text-warning font-semibold text-xs px-3 py-1.5 rounded-lg border border-warning/20 transition"
+                          className="btn-secondary-luxe text-warning border-warning/25 font-semibold text-xs px-3 py-1.5 rounded-lg transition"
                         >
                           ⭐ Rate
                         </Link>
