@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "./auth-hook";
-import io, { Socket } from "socket.io-client";
+import io from "socket.io-client";
+
+const WS_URL = (import.meta.env.VITE_WS_URL as string | undefined)?.trim();
 
 interface FrontendNotification {
   id: string;
@@ -21,7 +23,6 @@ export function useNotifications() {
   const [notification, setNotification] = useState<FrontendNotification | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [socketError, setSocketError] = useState<string | null>(null);
-  const [socket, setSocket] = useState<Socket | null>(null);
 
   // Initialize WebSocket connection
   useEffect(() => {
@@ -32,17 +33,17 @@ export function useNotifications() {
     }
 
     // Get token from localStorage (set during auth)
-    const token = localStorage.getItem("auth_token");
+    const token = localStorage.getItem("access_token") || localStorage.getItem("auth_token");
     if (!token) {
       return;
     }
 
-    console.log("📱 Connecting to notification WebSocket...");
-
-    // Determine WebSocket URL based on environment
-    const wsUrl = window.location.hostname === "localhost"
-      ? "ws://localhost:5000"
-      : `wss://${window.location.host}`;
+    // Prefer explicit env var in production; fallback keeps local development simple.
+    const wsUrl =
+      WS_URL ||
+      (window.location.hostname === "localhost"
+        ? "ws://localhost:5000"
+        : `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}`);
 
     const newSocket = io(wsUrl, {
       auth: { token },
@@ -54,20 +55,17 @@ export function useNotifications() {
 
     // Connection event
     newSocket.on("connect", () => {
-      console.log("✓ WebSocket connected");
       setIsConnected(true);
       setSocketError(null);
     });
 
     // Disconnect event
     newSocket.on("disconnect", () => {
-      console.log("✗ WebSocket disconnected");
       setIsConnected(false);
     });
 
     // New notification event
     newSocket.on("notification:new", (notif: FrontendNotification) => {
-      console.log("🔔 New notification:", notif);
       setNotification(notif);
       // Increment unread count
       setUnreadCount((prev) => prev + 1);
@@ -75,17 +73,13 @@ export function useNotifications() {
 
     // Unread count update
     newSocket.on("notification:unread-count", (data: { count: number }) => {
-      console.log("📊 Unread count:", data.count);
       setUnreadCount(data.count);
     });
 
     // Error event
     newSocket.on("error", (err: string) => {
-      console.error("🔴 WebSocket error:", err);
       setSocketError(err);
     });
-
-    setSocket(newSocket);
 
     return () => {
       newSocket.disconnect();

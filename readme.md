@@ -21,10 +21,11 @@ React + TypeScript client for maskOn.
 
 ## Runtime behavior
 
-- Base API URL is `/api/v1` in `src/lib/api.ts`.
+- Base API URL defaults to `/api/v1`, or can be overridden with `VITE_API_BASE_URL`.
 - Access token is attached to requests from `localStorage`.
 - 401 responses trigger refresh-token rotation through `/auth/refresh`.
 - Vite dev server proxies `/api/*` to backend `http://localhost:5000`.
+- WebSocket URL defaults to `ws://localhost:5000` in local development, or can be set with `VITE_WS_URL`.
 
 ## Scripts
 
@@ -41,3 +42,16 @@ React + TypeScript client for maskOn.
 3. Start frontend:
    - `npm run dev`
 4. Open `http://localhost:5173`.
+
+## Netlify deploy
+
+1. Push the repository to GitHub.
+2. In Netlify, create a new site from that repo and set:
+   - Base directory: `frontend`
+   - Build command: `npm run build`
+   - Publish directory: `dist`
+3. Add frontend environment variables in Netlify site settings:
+   - `VITE_API_BASE_URL=https://<your-backend-domain>/api/v1`
+   - `VITE_WS_URL=wss://<your-backend-domain>`
+4. Ensure backend CORS allows your Netlify domain via `FRONTEND_URL`.
+5. Deploy. SPA routing is handled by `netlify.toml`.
