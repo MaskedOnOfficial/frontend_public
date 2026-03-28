@@ -1,6 +1,42 @@
 import axios from "axios";
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim() || "/api/v1";
+const healthUrl = `${apiBaseUrl}/health`;
+let wakePromise: Promise<void> | null = null;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Warm up sleeping backends (e.g. Render free tier) before user actions like login.
+export async function ensureBackendAwake(maxWaitMs = 65000): Promise<void> {
+  if (wakePromise) {
+    return wakePromise;
+  }
+
+  wakePromise = (async () => {
+    const startedAt = Date.now();
+    let lastError: unknown;
+
+    while (Date.now() - startedAt < maxWaitMs) {
+      try {
+        await axios.get(healthUrl, { timeout: 9000 });
+        return;
+      } catch (error) {
+        lastError = error;
+        await sleep(3000);
+      }
+    }
+
+    throw lastError ?? new Error("Backend is taking too long to wake up");
+  })();
+
+  try {
+    await wakePromise;
+  } finally {
+    wakePromise = null;
+  }
+}
 
 const api = axios.create({
   baseURL: apiBaseUrl,

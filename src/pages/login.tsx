@@ -1,7 +1,9 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/auth-hook";
 import { getApiErrorMessage } from "../lib/errors";
+import { ensureBackendAwake } from "../lib/api";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -11,6 +13,14 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [wakingUp, setWakingUp] = useState(false);
+
+  useEffect(() => {
+    // Start warming the backend as soon as the login page opens.
+    void ensureBackendAwake(45000).catch(() => {
+      // Ignore here; submit flow handles user-visible retry states.
+    });
+  }, []);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -20,7 +30,22 @@ export default function LoginPage() {
       await login(email, password);
       navigate("/", { replace: true });
     } catch (error: unknown) {
-      setError(getApiErrorMessage(error, "Login failed. Please check your credentials."));
+      if (axios.isAxiosError(error) && !error.response) {
+        setWakingUp(true);
+        setError("Server is waking up. Retrying sign-in in a moment...");
+        try {
+          await ensureBackendAwake();
+          await login(email, password);
+          navigate("/", { replace: true });
+          return;
+        } catch (retryError: unknown) {
+          setError(getApiErrorMessage(retryError, "Server is still waking up. Please try again in a few seconds."));
+        } finally {
+          setWakingUp(false);
+        }
+      } else {
+        setError(getApiErrorMessage(error, "Login failed. Please check your credentials."));
+      }
     } finally {
       setSubmitting(false);
     }
@@ -107,7 +132,7 @@ export default function LoginPage() {
               {submitting ? (
                 <span className="flex items-center justify-center gap-2">
                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Signing in…
+                  {wakingUp ? "Waking server..." : "Signing in..."}
                 </span>
               ) : (
                 "Sign In"
