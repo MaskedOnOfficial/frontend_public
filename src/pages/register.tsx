@@ -1,7 +1,9 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/auth-hook";
 import { getApiErrorMessage } from "../lib/errors";
+import { ensureBackendAwake } from "../lib/api";
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -12,6 +14,13 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [wakingUp, setWakingUp] = useState(false);
+
+  useEffect(() => {
+    void ensureBackendAwake(45000).catch(() => {
+      // Ignore here; submit flow handles user-visible retry states.
+    });
+  }, []);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -21,7 +30,22 @@ export default function RegisterPage() {
       await register(email, username, password, displayName);
       navigate("/");
     } catch (error: unknown) {
-      setError(getApiErrorMessage(error, "Registration failed"));
+      if (axios.isAxiosError(error) && !error.response) {
+        setWakingUp(true);
+        setError("Server is waking up. Retrying registration in a moment...");
+        try {
+          await ensureBackendAwake();
+          await register(email, username, password, displayName);
+          navigate("/");
+          return;
+        } catch (retryError: unknown) {
+          setError(getApiErrorMessage(retryError, "Server is still waking up. Please try again in a few seconds."));
+        } finally {
+          setWakingUp(false);
+        }
+      } else {
+        setError(getApiErrorMessage(error, "Registration failed"));
+      }
     } finally {
       setSubmitting(false);
     }
@@ -98,7 +122,7 @@ export default function RegisterPage() {
             disabled={submitting}
             className="btn-primary-luxe w-full font-semibold py-3 rounded-lg transition disabled:opacity-50"
           >
-            {submitting ? "Creating account..." : "Create Account"}
+            {submitting ? (wakingUp ? "Waking server..." : "Creating account...") : "Create Account"}
           </button>
         </form>
 
