@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import api from "../lib/api";
 import type { PartyRequest, FriendUser } from "../types";
 import { motion } from "framer-motion";
-import { CheckCircle, XCircle, Users, Star, Loader2 } from "lucide-react";
+import { CheckCircle, XCircle, Star, Loader2 } from "lucide-react";
 
 interface Props {
   request: PartyRequest;
