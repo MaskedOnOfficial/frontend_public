@@ -4,6 +4,8 @@ import api from "../lib/api";
 import { useAuth } from "../context/auth-hook";
 import type { Party, Attendee } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
+import { motion } from "framer-motion";
+import { ArrowLeft, MapPin, Calendar, Clock, Users, Star, Tag, Camera, MoreVertical, Ticket, Shield, CheckCircle, Loader2, Send, PartyPopper } from "lucide-react";
 
 interface MyRequestSummary {
   party_id: string;
@@ -18,11 +20,7 @@ function formatPrice(price: number) {
 function parseTags(tags: string | string[] | null): string[] {
   if (!tags) return [];
   if (Array.isArray(tags)) return tags;
-  try {
-    return JSON.parse(tags);
-  } catch {
-    return [];
-  }
+  try { return JSON.parse(tags); } catch { return []; }
 }
 
 export default function PartyDetailPage() {
@@ -101,13 +99,20 @@ export default function PartyDetailPage() {
   }
 
   if (loading) {
-    return <div className="min-h-screen bg-bg flex items-center justify-center text-text-muted">Loading...</div>;
+    return (
+      <div className="min-h-screen bg-bg flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    );
   }
 
   if (!party) {
     return (
       <div className="min-h-screen bg-bg flex items-center justify-center">
-        <p className="text-error">{error || "Party not found"}</p>
+        <div className="text-center">
+          <PartyPopper className="w-12 h-12 text-text-dim mx-auto mb-4" />
+          <p className="text-error text-lg font-semibold">{error || "Party not found"}</p>
+        </div>
       </div>
     );
   }
@@ -118,232 +123,254 @@ export default function PartyDetailPage() {
   const canRate = isPartyPast && (isHost || alreadyAttending);
   const isFull = party.current_attendees >= party.max_capacity;
   const canRequestToJoin = party.status === "upcoming";
+  const capacityPercent = Math.min(100, Math.round((party.current_attendees / party.max_capacity) * 100));
+
+  function getStatusClasses(status: string) {
+    switch (status) {
+      case "upcoming": return "status-upcoming";
+      case "ongoing": return "status-ongoing";
+      case "completed": return "status-completed";
+      default: return "status-cancelled";
+    }
+  }
 
   return (
-    <div className="min-h-screen bg-bg pb-8">
+    <div className="min-h-screen bg-bg pb-32 md:pb-8">
       {/* Hero image */}
-      <div className="relative h-60 md:h-80 overflow-hidden bg-surface">
+      <div className="relative h-64 md:h-96 overflow-hidden bg-surface">
         {party.cover_image_url && (
-          <img
+          <motion.img
+            initial={{ scale: 1.1 }}
+            animate={{ scale: 1 }}
+            transition={{ duration: 1.2 }}
             src={party.cover_image_url}
             alt={party.title}
             className="w-full h-full object-cover"
           />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/50 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/60 to-transparent" />
         <button
           onClick={() => navigate(-1)}
-          className="absolute top-4 left-4 z-10 w-10 h-10 rounded-full bg-black/40 backdrop-blur flex items-center justify-center text-white hover:bg-black/60 transition"
+          className="absolute top-4 left-4 z-10 w-10 h-10 rounded-full bg-bg/60 backdrop-blur-md border border-primary/10 flex items-center justify-center text-text hover:bg-bg/80 transition"
         >
-          ←
+          <ArrowLeft className="w-5 h-5" />
         </button>
         <div className="absolute top-4 right-4 z-10">
-          <button className="w-10 h-10 rounded-full bg-black/40 backdrop-blur flex items-center justify-center text-white hover:bg-black/60 transition text-lg">
-            ⋮
+          <button className="w-10 h-10 rounded-full bg-bg/60 backdrop-blur-md border border-primary/10 flex items-center justify-center text-text hover:bg-bg/80 transition">
+            <MoreVertical className="w-5 h-5" />
           </button>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 mt-6">
-        {/* Title & Status */}
-        <div className="mb-6">
-          <div className="flex items-start justify-between gap-3 mb-3">
-            <h1 className="text-3xl md:text-4xl font-bold text-text flex-1">{party.title}</h1>
-            <span
-              className={`text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap ${
-                party.status === "upcoming"
-                  ? "bg-success/30 text-success"
-                  : party.status === "ongoing"
-                    ? "bg-primary/30 text-primary"
-                    : "bg-text-muted/30 text-text-muted"
-              }`}
-            >
-              {party.status.toUpperCase()}
-            </span>
-          </div>
-          <div className="flex items-center gap-4 text-sm">
-            <span className="text-text-muted">⭐ 4.8 (100 reviews)</span>
-            <span className="text-warning font-semibold">{party.current_attendees}/{party.max_capacity} attending</span>
-          </div>
-        </div>
-
-        {/* Key details grid */}
-        <div className="grid grid-cols-2 gap-3 mb-8">
-          <div className="glass-panel rounded-xl p-4">
-            <p className="text-text-muted text-xs mb-1">When</p>
-            <p className="text-text text-sm font-semibold">{new Date(party.date_time).toLocaleDateString("en-IN", { weekday: "short", month: "short", day: "numeric" })}</p>
-            <p className="text-text-muted text-xs mt-1">{new Date(party.date_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</p>
-          </div>
-          <div className="glass-panel rounded-xl p-4">
-            <p className="text-text-muted text-xs mb-1">Where</p>
-            <p className="text-text text-sm font-semibold">📍 {party.location_city}</p>
-            <p className="text-text-muted text-xs mt-1">{party.location_name}</p>
-          </div>
-        </div>
-
-        {/* About section */}
-        {party.description && (
-          <div className="mb-8">
-            <h2 className="text-lg font-bold text-text mb-3">✨ About this Event</h2>
-            <p className="text-text-muted leading-relaxed whitespace-pre-wrap text-sm">{party.description}</p>
-          </div>
-        )}
-
-        {/* Tags */}
-        {tags.length > 0 && (
-          <div className="mb-8">
-            <h3 className="text-sm font-semibold text-text-muted mb-2 uppercase tracking-wide">Vibes</h3>
-            <div className="flex flex-wrap gap-2">
-              {tags.map((tag) => (
-                <span key={tag} className="bg-accent/20 text-[#9ed4d1] text-xs px-3 py-1.5 rounded-full">
-                  {tag}
-                </span>
-              ))}
+      <div className="max-w-4xl mx-auto px-4 -mt-16 relative z-10">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          {/* Title & Status */}
+          <div className="mb-6">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <h1 className="text-3xl md:text-4xl font-bold text-text flex-1 tracking-tight">{party.title}</h1>
+              <span className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full whitespace-nowrap ${getStatusClasses(party.status)}`}>
+                {party.status}
+              </span>
             </div>
-          </div>
-        )}
-
-        {/* Host card */}
-        {party.host_display_name && (
-          <div className="glass-panel rounded-xl p-5 mb-8">
-            <p className="text-xs uppercase tracking-wide text-text-muted mb-3">Hosted by</p>
-            <div className="flex items-center gap-3">
-              <Link
-                to={`/profile/${party.host_id}`}
-                className="w-14 h-14 rounded-full bg-gradient-to-br from-accent to-accent-hover flex items-center justify-center text-white font-bold text-lg overflow-hidden"
-              >
-                {party.host_avatar_url ? (
-                  <img src={party.host_avatar_url} alt={party.host_display_name} className="w-full h-full object-cover" />
-                ) : (
-                  party.host_display_name.charAt(0).toUpperCase()
-                )}
-              </Link>
-              <div className="flex-1">
-                <Link to={`/profile/${party.host_id}`} className="text-text font-semibold hover:text-primary transition block">
-                  {party.host_display_name}
-                </Link>
-                <p className="text-text-muted text-xs">@{party.host_username} · ⭐ {party.host_social_rating?.toFixed(1) || "N/A"}</p>
+            {/* Capacity bar */}
+            <div className="flex items-center gap-3 mt-3">
+              <div className="flex-1 h-1.5 bg-surface-light rounded-full overflow-hidden">
+                <div className="h-full rounded-full bg-gradient-to-r from-primary via-accent to-hot transition-all duration-500" style={{ width: `${capacityPercent}%` }} />
               </div>
-              {isHost && (
-                <button
-                  onClick={() => navigate(`/dashboard/${party.id}/requests`)}
-                  className="btn-secondary-luxe px-4 py-2 rounded-lg text-xs font-semibold whitespace-nowrap"
-                >
-                  Manage
-                </button>
-              )}
+              <span className="text-text-muted text-xs font-semibold whitespace-nowrap">
+                {party.current_attendees}/{party.max_capacity} attending
+              </span>
             </div>
           </div>
-        )}
 
-        {/* Attendees */}
-        {attendees.length > 0 && (
-          <div className="mb-8">
-            <h3 className="text-sm font-bold text-text mb-3">👥 Attendees ({attendees.length})</h3>
-            <div className="flex flex-wrap gap-2">
-              {attendees.slice(0, 8).map((a) => (
-                <Link
-                  key={a.id}
-                  to={`/profile/${a.user_id}`}
-                  className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-white text-xs font-bold overflow-hidden hover:ring-2 hover:ring-primary transition"
-                  title={a.display_name || "Attendee"}
-                >
-                  {a.avatar_url ? (
-                    <img src={a.avatar_url} alt={a.display_name || "Attendee"} className="w-full h-full object-cover" />
-                  ) : (
-                    (a.display_name || "?").charAt(0).toUpperCase()
-                  )}
-                </Link>
-              ))}
-              {attendees.length > 8 && (
-                <div className="w-10 h-10 rounded-full bg-text-muted/20 flex items-center justify-center text-[10px] font-bold text-text-muted">
-                  +{attendees.length - 8}
-                </div>
-              )}
-            </div>
+          {/* Key details */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+            {[
+              { icon: Calendar, label: "Date", value: new Date(party.date_time).toLocaleDateString("en-IN", { weekday: "short", month: "short", day: "numeric" }), sub: new Date(party.date_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }), color: "text-primary" },
+              { icon: MapPin, label: "Location", value: party.location_city, sub: party.location_name, color: "text-accent" },
+              { icon: Ticket, label: "Entry", value: formatPrice(party.ticket_price), sub: party.ticket_price === 0 ? "No cover charge" : "Per person", color: "text-hot" },
+              { icon: Shield, label: "Trust Gate", value: party.min_rating > 0 ? `★ ${Number(party.min_rating).toFixed(1)}+` : "Open", sub: party.min_rating > 0 ? "Minimum rating" : "No restriction", color: "text-warning" },
+            ].map((item) => (
+              <div key={item.label} className="glass-panel rounded-2xl p-4">
+                <item.icon className={`w-5 h-5 ${item.color} mb-2`} />
+                <p className="text-text-dim text-[10px] uppercase tracking-wider font-bold mb-1">{item.label}</p>
+                <p className="text-text text-sm font-bold">{item.value}</p>
+                <p className="text-text-dim text-xs mt-0.5">{item.sub}</p>
+              </div>
+            ))}
           </div>
-        )}
 
-        {/* Action buttons */}
-        <div className="space-y-3 sticky bottom-0 bg-gradient-to-t from-bg to-bg/80 -mx-4 px-4 py-4 md:relative md:bg-transparent md:p-0">
-          {user && !isHost && (
-            <>
-              {error && <p className="text-error text-sm bg-error/10 px-4 py-2 rounded-lg">{error}</p>}
-
-              {alreadyAttending || requestStatus === "paid" ? (
-                <div className="glass-panel rounded-lg p-4 border-success/30">
-                  <p className="text-success font-semibold text-center">✓ You're on the guest list!</p>
-                </div>
-              ) : requestStatus === "approved" && party.ticket_price > 0 ? (
-                <button
-                  onClick={handlePay}
-                  disabled={paying}
-                  className="btn-primary-luxe w-full px-4 py-3.5 rounded-lg font-semibold disabled:opacity-50"
-                >
-                  {paying ? "Processing..." : `Buy Ticket · ${formatPrice(party.ticket_price)}`}
-                </button>
-              ) : requestStatus === "approved" ? (
-                <div className="glass-panel rounded-lg p-4 border-success/30">
-                  <p className="text-success font-semibold text-center">✓ Invite Accepted</p>
-                </div>
-              ) : requestStatus === "pending" ? (
-                <div className="glass-panel rounded-lg p-4 border-warning/30">
-                  <p className="text-warning font-semibold text-center">⏳ Awaiting approval</p>
-                </div>
-              ) : !canRequestToJoin ? (
-                <div className="glass-panel rounded-lg p-4 border-text-muted/30">
-                  <p className="text-text-muted font-semibold text-center">Invites are closed for this event</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <textarea
-                    placeholder="Write a message to the host with your invite request..."
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    rows={2}
-                    className="input-luxe w-full rounded-lg px-4 py-3 resize-none text-sm"
-                  />
-                  <button
-                    onClick={handleJoinRequest}
-                    disabled={requesting || isFull}
-                    className="btn-primary-luxe w-full px-4 py-3.5 rounded-lg font-semibold disabled:opacity-50"
-                  >
-                    {requesting
-                      ? "Sending..."
-                      : isFull
-                        ? "Event is Full"
-                        : requestStatus === "rejected" || requestStatus === "withdrawn"
-                          ? "Send Invite Request Again"
-                          : "Send Invite Request"}
-                  </button>
-                </div>
-              )}
-            </>
+          {/* About */}
+          {party.description && (
+            <div className="mb-8">
+              <h2 className="text-base font-bold text-text mb-3 flex items-center gap-2">
+                <PartyPopper className="w-4 h-4 text-primary" />
+                About this Event
+              </h2>
+              <p className="text-text-muted leading-relaxed whitespace-pre-wrap text-sm glass-panel rounded-2xl p-5">{party.description}</p>
+            </div>
           )}
 
-          {/* Guest action buttons */}
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => navigate(`/parties/${party.id}/photos`)}
-              className="btn-secondary-luxe px-4 py-3 rounded-lg text-sm font-semibold text-center"
-            >
-              📷 Photos
-            </button>
-            {canRate && (
-              <button
-                onClick={() => navigate(`/parties/${party.id}/rate`)}
-                className="btn-secondary-luxe px-4 py-3 rounded-lg text-sm font-semibold text-center text-warning"
-              >
-                ⭐ Rate
-              </button>
+          {/* Tags */}
+          {tags.length > 0 && (
+            <div className="mb-8">
+              <h3 className="text-[11px] font-bold text-text-dim uppercase tracking-[0.15em] mb-3 flex items-center gap-2">
+                <Tag className="w-3.5 h-3.5" />
+                Vibes
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {tags.map((tag) => (
+                  <span key={tag} className="text-xs font-semibold text-accent bg-accent/10 border border-accent/15 px-3 py-1.5 rounded-full">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Host */}
+          {party.host_display_name && (
+            <div className="glass-panel rounded-2xl p-5 mb-8">
+              <p className="text-[10px] uppercase tracking-[0.15em] text-text-dim font-bold mb-3">Hosted by</p>
+              <div className="flex items-center gap-4">
+                <Link to={`/profile/${party.host_id}`} className="shrink-0">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary via-accent to-hot p-[2px] shadow-lg shadow-primary/20">
+                    <div className="w-full h-full rounded-[14px] bg-bg overflow-hidden flex items-center justify-center text-white font-bold text-lg">
+                      {party.host_avatar_url ? (
+                        <img src={party.host_avatar_url} alt={party.host_display_name} className="w-full h-full object-cover" />
+                      ) : (
+                        party.host_display_name.charAt(0).toUpperCase()
+                      )}
+                    </div>
+                  </div>
+                </Link>
+                <div className="flex-1">
+                  <Link to={`/profile/${party.host_id}`} className="text-text font-bold hover:text-primary transition block">{party.host_display_name}</Link>
+                  <p className="text-text-muted text-xs flex items-center gap-1.5">
+                    @{party.host_username}
+                    {party.host_social_rating && party.host_social_rating > 0 && (
+                      <span className="text-warning">· ★ {party.host_social_rating.toFixed(1)}</span>
+                    )}
+                  </p>
+                </div>
+                {isHost && (
+                  <button
+                    onClick={() => navigate(`/dashboard/${party.id}/requests`)}
+                    className="btn-secondary-luxe px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap"
+                  >
+                    Manage Requests
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Attendees */}
+          {attendees.length > 0 && (
+            <div className="mb-8">
+              <h3 className="text-[11px] font-bold text-text-dim uppercase tracking-[0.15em] mb-3 flex items-center gap-2">
+                <Users className="w-3.5 h-3.5" />
+                Attendees ({attendees.length})
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {attendees.slice(0, 10).map((a) => (
+                  <Link
+                    key={a.id}
+                    to={`/profile/${a.user_id}`}
+                    className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent p-[1.5px] hover:shadow-lg hover:shadow-primary/20 transition-shadow"
+                    title={a.display_name || "Attendee"}
+                  >
+                    <div className="w-full h-full rounded-full bg-bg overflow-hidden flex items-center justify-center text-text text-xs font-bold">
+                      {a.avatar_url ? (
+                        <img src={a.avatar_url} alt={a.display_name || "Attendee"} className="w-full h-full object-cover" />
+                      ) : (
+                        (a.display_name || "?").charAt(0).toUpperCase()
+                      )}
+                    </div>
+                  </Link>
+                ))}
+                {attendees.length > 10 && (
+                  <div className="w-10 h-10 rounded-full bg-surface-light border border-primary/10 flex items-center justify-center text-[10px] font-bold text-text-muted">
+                    +{attendees.length - 10}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="space-y-3">
+            {user && !isHost && (
+              <>
+                {error && <p className="text-error text-sm bg-error/10 border border-error/20 px-4 py-3 rounded-xl">{error}</p>}
+
+                {alreadyAttending || requestStatus === "paid" ? (
+                  <div className="glass-panel rounded-2xl p-5 border-success/20 border">
+                    <p className="text-success font-bold text-center flex items-center justify-center gap-2">
+                      <CheckCircle className="w-5 h-5" />
+                      You're on the guest list!
+                    </p>
+                  </div>
+                ) : requestStatus === "approved" && party.ticket_price > 0 ? (
+                  <button onClick={handlePay} disabled={paying} className="btn-primary-luxe w-full px-4 py-4 rounded-2xl font-bold disabled:opacity-50 flex items-center justify-center gap-2">
+                    {paying ? <><Loader2 className="w-4 h-4 animate-spin" />Processing...</> : <><Ticket className="w-4 h-4" />Buy Ticket · {formatPrice(party.ticket_price)}</>}
+                  </button>
+                ) : requestStatus === "approved" ? (
+                  <div className="glass-panel rounded-2xl p-5 border-success/20 border">
+                    <p className="text-success font-bold text-center flex items-center justify-center gap-2"><CheckCircle className="w-5 h-5" />Invite Accepted</p>
+                  </div>
+                ) : requestStatus === "pending" ? (
+                  <div className="glass-panel rounded-2xl p-5 border-warning/20 border">
+                    <p className="text-warning font-bold text-center flex items-center justify-center gap-2"><Clock className="w-5 h-5" />Awaiting host approval</p>
+                  </div>
+                ) : !canRequestToJoin ? (
+                  <div className="glass-panel rounded-2xl p-5 border-text-dim/10 border">
+                    <p className="text-text-dim font-semibold text-center">Invites are closed for this event</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <textarea
+                      placeholder="Write a message to the host..."
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      rows={2}
+                      className="input-luxe w-full rounded-2xl px-4 py-3.5 resize-none text-sm"
+                    />
+                    <button
+                      onClick={handleJoinRequest}
+                      disabled={requesting || isFull}
+                      className="btn-primary-luxe w-full px-4 py-4 rounded-2xl font-bold disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {requesting ? <><Loader2 className="w-4 h-4 animate-spin" />Sending...</> 
+                        : isFull ? "Event is Full"
+                        : requestStatus === "rejected" || requestStatus === "withdrawn" ? <><Send className="w-4 h-4" />Request Again</>
+                        : <><Send className="w-4 h-4" />Send Invite Request</>}
+                    </button>
+                  </div>
+                )}
+              </>
             )}
-            {!canRate && (
-              <button className="btn-secondary-luxe px-4 py-3 rounded-lg text-sm font-semibold text-center opacity-50 cursor-not-allowed">
-                💬 Chat
+
+            {/* Action row */}
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={() => navigate(`/parties/${party.id}/photos`)} className="btn-secondary-luxe px-4 py-3.5 rounded-2xl text-sm font-bold flex items-center justify-center gap-2">
+                <Camera className="w-4 h-4 text-accent" />
+                Photos
               </button>
-            )}
+              {canRate ? (
+                <button onClick={() => navigate(`/parties/${party.id}/rate`)} className="btn-secondary-luxe px-4 py-3.5 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 text-warning border-warning/20">
+                  <Star className="w-4 h-4" />
+                  Rate Attendees
+                </button>
+              ) : (
+                <div className="btn-secondary-luxe px-4 py-3.5 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 opacity-40 cursor-not-allowed">
+                  <Star className="w-4 h-4" />
+                  Rate
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

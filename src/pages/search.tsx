@@ -3,6 +3,8 @@ import { useSearchParams, Link } from "react-router-dom";
 import api from "../lib/api";
 import type { Party } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
+import { motion } from "framer-motion";
+import { Search, MapPin, Calendar, Users, Star, Ticket, Tag, Loader2 } from "lucide-react";
 
 type SearchUser = {
   id: string;
@@ -30,11 +32,7 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString("en-IN", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  return new Date(dateStr).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" });
 }
 
 function formatPrice(price: number) {
@@ -69,16 +67,14 @@ export default function SearchPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Load initial query on mount
   useEffect(() => {
     if (initialQuery.length >= 2) {
       fetchSearch(initialQuery);
     }
   }, [fetchSearch, initialQuery]);
 
-  // Re-fetch on debounced input change
   useEffect(() => {
-    if (debouncedQuery === initialQuery && results) return; // skip duplicate on mount
+    if (debouncedQuery === initialQuery && results) return;
     if (debouncedQuery.length < 2) {
       if (debouncedQuery.length === 0) setSearchParams({}, { replace: true });
       return;
@@ -98,22 +94,23 @@ export default function SearchPage() {
   const noResults = !!results && totalAll === 0;
 
   return (
-    <div className="min-h-screen bg-bg">
-      <div className="max-w-3xl mx-auto px-4 py-8">
-        <div className="glass-panel rounded-2xl p-5 mb-6">
-          <h1 className="text-2xl font-bold text-text">Search</h1>
-          <p className="text-text-muted text-sm mt-1">Find people and parties in your social orbit.</p>
-        </div>
+    <div className="min-h-screen bg-bg pb-28 md:pb-12">
+      <div className="max-w-3xl mx-auto px-4 py-6 md:py-8">
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="glass-panel rounded-2xl p-5 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/20">
+              <Search className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-text tracking-tight">Search</h1>
+              <p className="text-text-muted text-sm">Find people and parties in your social orbit.</p>
+            </div>
+          </div>
+        </motion.div>
 
         {/* Search input */}
         <div className="relative mb-6">
-          <svg
-            className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted pointer-events-none"
-            fill="none" stroke="currentColor" viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted pointer-events-none" />
           <input
             autoFocus
             type="text"
@@ -129,17 +126,9 @@ export default function SearchPage() {
                 setLoading(true);
               }
             }}
-            className="input-luxe w-full rounded-xl pl-12 pr-12 py-3 text-base"
+            className="input-luxe w-full rounded-2xl pl-12 pr-12 py-4 text-sm"
           />
-          {loading && (
-            <svg
-              className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted animate-spin"
-              fill="none" viewBox="0 0 24 24"
-            >
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-          )}
+          {loading && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted animate-spin" />}
         </div>
 
         {/* Tabs */}
@@ -151,13 +140,13 @@ export default function SearchPage() {
                 <button
                   key={t}
                   onClick={() => setTab(t)}
-                  className={`px-4 py-1.5 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
-                    tab === t ? "bg-bg text-text shadow" : "text-text-muted hover:text-text"
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 ${
+                    tab === t ? "bg-primary text-white shadow" : "text-text-muted hover:text-text"
                   }`}
                 >
                   {t.charAt(0).toUpperCase() + t.slice(1)}
-                  <span className={`text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold ${
-                    tab === t ? "bg-primary text-bg" : "bg-text-muted/20 text-text-muted"
+                  <span className={`text-[10px] rounded-full w-5 h-5 flex items-center justify-center font-bold ${
+                    tab === t ? "bg-white/20 text-white" : "bg-text-muted/15 text-text-dim"
                   }`}>{count}</span>
                 </button>
               );
@@ -168,19 +157,17 @@ export default function SearchPage() {
         {/* Empty prompt */}
         {!results && !loading && debouncedQuery.length < 2 && (
           <div className="text-center py-20">
-            <svg className="w-16 h-16 text-text-muted/20 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <p className="text-text-muted">Type at least 2 characters to search</p>
+            <div className="w-16 h-16 rounded-2xl bg-surface-light flex items-center justify-center mx-auto mb-4">
+              <Search className="w-8 h-8 text-text-dim/30" />
+            </div>
+            <p className="text-text-muted text-sm">Type at least 2 characters to search</p>
           </div>
         )}
 
-        {/* No results */}
         {noResults && (
           <div className="text-center py-16">
-            <p className="text-text-muted text-lg">No results for "{results!.query}"</p>
-            <p className="text-text-muted text-sm mt-1">Try a different search term</p>
+            <p className="text-text-muted text-lg font-semibold">No results for "{results!.query}"</p>
+            <p className="text-text-dim text-sm mt-1">Try a different search term</p>
           </div>
         )}
 
@@ -188,30 +175,37 @@ export default function SearchPage() {
         {displayUsers.length > 0 && (
           <div className="mb-8">
             {tab === "all" && (
-              <h2 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">
+              <h2 className="text-[11px] font-bold text-text-dim uppercase tracking-[0.15em] mb-3 flex items-center gap-2">
+                <Users className="w-3.5 h-3.5" />
                 Users · {totalUsers}
               </h2>
             )}
             <div className="space-y-2">
-              {displayUsers.map((u) => (
-                <Link
-                  key={u.id}
-                  to={`/profile/${u.id}`}
-                  className="glass-panel flex items-center gap-4 rounded-xl p-4 hover:border-primary/30 transition"
-                >
-                  <div className="w-12 h-12 rounded-full bg-accent shrink-0 flex items-center justify-center text-white text-lg font-bold overflow-hidden">
-                    {u.avatar_url
-                      ? <img src={u.avatar_url} alt={u.display_name} className="w-full h-full object-cover" />
-                      : u.display_name.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-text font-semibold">{u.display_name}</p>
-                    <p className="text-text-muted text-sm">@{u.username}</p>
-                  </div>
-                  {u.social_rating > 0 && (
-                    <p className="text-text-muted text-sm shrink-0">★ {u.social_rating.toFixed(1)}</p>
-                  )}
-                </Link>
+              {displayUsers.map((u, i) => (
+                <motion.div key={u.id} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: Math.min(i * 0.04, 0.3) }}>
+                  <Link
+                    to={`/profile/${u.id}`}
+                    className="glass-panel flex items-center gap-4 rounded-2xl p-4 hover:border-primary/20 transition group"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent p-[2px] shrink-0">
+                      <div className="w-full h-full rounded-full bg-bg overflow-hidden flex items-center justify-center text-text font-bold">
+                        {u.avatar_url
+                          ? <img src={u.avatar_url} alt={u.display_name} className="w-full h-full object-cover" />
+                          : u.display_name.charAt(0).toUpperCase()}
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-text font-semibold group-hover:text-primary transition truncate">{u.display_name}</p>
+                      <p className="text-text-muted text-xs">@{u.username}</p>
+                    </div>
+                    {u.social_rating > 0 && (
+                      <div className="flex items-center gap-1 text-warning text-sm font-semibold shrink-0">
+                        <Star className="w-3.5 h-3.5 fill-current" />
+                        {u.social_rating.toFixed(1)}
+                      </div>
+                    )}
+                  </Link>
+                </motion.div>
               ))}
             </div>
           </div>
@@ -221,51 +215,56 @@ export default function SearchPage() {
         {displayParties.length > 0 && (
           <div>
             {tab === "all" && (
-              <h2 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">
+              <h2 className="text-[11px] font-bold text-text-dim uppercase tracking-[0.15em] mb-3 flex items-center gap-2">
+                <Ticket className="w-3.5 h-3.5" />
                 Parties · {totalParties}
               </h2>
             )}
             <div className="space-y-2">
-              {displayParties.map((p) => {
+              {displayParties.map((p, i) => {
                 const tags = parseTags(p.tags);
                 return (
-                  <Link
-                    key={p.id}
-                    to={`/parties/${p.id}`}
-                    className="glass-panel flex items-start gap-4 rounded-xl p-4 hover:border-primary/30 transition"
-                  >
-                    <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-accent/40 to-primary/30 shrink-0 overflow-hidden">
-                      {p.cover_image_url && (
-                        <img src={p.cover_image_url} alt={p.title} className="w-full h-full object-cover" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-text font-semibold truncate">{p.title}</p>
-                        <span className={`text-xs px-2 py-0.5 rounded font-semibold shrink-0 ${
-                          p.status === "upcoming" ? "bg-success/20 text-success" :
-                          p.status === "ongoing" ? "bg-primary/20 text-primary" :
-                          p.status === "completed" ? "bg-accent/20 text-accent-hover" :
-                          "bg-text-muted/20 text-text-muted"
-                        }`}>{p.status}</span>
+                  <motion.div key={p.id} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: Math.min(i * 0.04, 0.3) }}>
+                    <Link
+                      to={`/parties/${p.id}`}
+                      className="glass-panel flex items-start gap-4 rounded-2xl p-4 hover:border-primary/20 transition group"
+                    >
+                      <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-accent/20 to-primary/15 shrink-0 overflow-hidden">
+                        {p.cover_image_url && (
+                          <img src={p.cover_image_url} alt={p.title} className="w-full h-full object-cover" />
+                        )}
                       </div>
-                      <p className="text-text-muted text-sm mt-0.5">
-                        📍 {p.location_city} · 📅 {formatDate(p.date_time)} · {formatPrice(p.ticket_price)}
-                      </p>
-                      {p.host_display_name && (
-                        <p className="text-text-muted text-xs mt-0.5">by {p.host_display_name}</p>
-                      )}
-                      {tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1.5">
-                          {tags.slice(0, 4).map((tag) => (
-                            <span key={tag} className="text-xs bg-accent/10 text-accent-hover px-2 py-0.5 rounded">
-                              {tag}
-                            </span>
-                          ))}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <p className="text-text font-semibold truncate group-hover:text-primary transition">{p.title}</p>
+                          <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider shrink-0 ${
+                            p.status === "upcoming" ? "status-upcoming" :
+                            p.status === "ongoing" ? "status-ongoing" :
+                            p.status === "completed" ? "status-completed" :
+                            "status-cancelled"
+                          }`}>{p.status}</span>
                         </div>
-                      )}
-                    </div>
-                  </Link>
+                        <p className="text-text-muted text-xs flex items-center gap-3 flex-wrap">
+                          <span className="flex items-center gap-1"><MapPin className="w-3 h-3 text-accent" />{p.location_city}</span>
+                          <span className="flex items-center gap-1"><Calendar className="w-3 h-3 text-primary" />{formatDate(p.date_time)}</span>
+                          <span className="font-semibold">{formatPrice(p.ticket_price)}</span>
+                        </p>
+                        {p.host_display_name && (
+                          <p className="text-text-dim text-xs mt-0.5">by {p.host_display_name}</p>
+                        )}
+                        {tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {tags.slice(0, 4).map((tag) => (
+                              <span key={tag} className="text-[10px] font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded-full flex items-center gap-0.5">
+                                <Tag className="w-2.5 h-2.5" />
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </Link>
+                  </motion.div>
                 );
               })}
             </div>

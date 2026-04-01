@@ -2,6 +2,8 @@ import { useState } from "react";
 import api from "../lib/api";
 import type { Photo } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
+import { motion, AnimatePresence } from "framer-motion";
+import { Heart, MessageCircle, Trash2, X, Loader2, Send } from "lucide-react";
 
 interface PhotoGridProps {
   photos: Photo[];
@@ -47,13 +49,10 @@ export default function PhotoGrid({ photos, onLike, onDelete, currentUserId, com
 
   async function handleAddComment() {
     if (!lightbox || !newComment.trim()) return;
-
     setPostingComment(true);
     setCommentError("");
     try {
-      const res = await api.post(`/photos/${lightbox.id}/comments`, {
-        comment_text: newComment.trim(),
-      });
+      const res = await api.post(`/photos/${lightbox.id}/comments`, { comment_text: newComment.trim() });
       setComments([res.data.data.comment, ...comments]);
       setNewComment("");
     } catch (error) {
@@ -90,184 +89,189 @@ export default function PhotoGrid({ photos, onLike, onDelete, currentUserId, com
   return (
     <>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-        {photos.map((photo) => (
-          <div
+        {photos.map((photo, i) => (
+          <motion.div
             key={photo.id}
-            className="relative aspect-square rounded-xl overflow-hidden cursor-pointer group"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: Math.min(i * 0.03, 0.25) }}
+            className="relative aspect-square rounded-2xl overflow-hidden cursor-pointer group bg-surface"
             onClick={() => handleOpenLightbox(photo)}
           >
             <img
               src={photo.image_url}
               alt={photo.caption || "Party photo"}
-              className="w-full h-full object-cover transition duration-300 group-hover:scale-110"
+              className="w-full h-full object-cover transition duration-500 group-hover:scale-110"
               loading="lazy"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center">
-              <div className="text-white text-4xl flex gap-6 mb-6">
-                <div className="flex flex-col items-center hover:scale-110 transition cursor-pointer">
-                  <span>💬</span>
-                  {commentCounts && commentCounts[photo.id] ? (
-                    <span className="text-xs mt-1">{commentCounts[photo.id]}</span>
-                  ) : null}
+            <div className="absolute inset-0 bg-gradient-to-t from-bg/80 via-bg/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center">
+              <div className="flex gap-5 mb-3">
+                <div className="flex flex-col items-center">
+                  <Heart className="w-6 h-6 text-hot" />
+                  <span className="text-white text-xs font-semibold mt-1">{photo.like_count}</span>
                 </div>
-                <div className="flex flex-col items-center hover:scale-110 transition cursor-pointer">
-                  <span>❤️</span>
-                  <span className="text-xs mt-1">{photo.like_count}</span>
-                </div>
+                {commentCounts && commentCounts[photo.id] != null && (
+                  <div className="flex flex-col items-center">
+                    <MessageCircle className="w-6 h-6 text-primary" />
+                    <span className="text-white text-xs font-semibold mt-1">{commentCounts[photo.id]}</span>
+                  </div>
+                )}
               </div>
               {photo.caption && (
-                <p className="text-white text-xs text-center px-2 max-w-xs truncate bg-black/30 px-3 py-1 rounded-full">
+                <p className="text-white/80 text-xs text-center px-3 max-w-[90%] truncate bg-bg/40 px-3 py-1 rounded-full">
                   {photo.caption}
                 </p>
               )}
             </div>
-          </div>
+          </motion.div>
         ))}
       </div>
 
-      {lightbox && (
-        <div
-          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 overflow-y-auto"
-          onClick={() => handleCloseLightbox()}
-        >
-          <div
-            className="max-w-4xl w-full my-auto glass-panel rounded-2xl overflow-hidden flex flex-col max-h-[90vh]"
-            onClick={(e) => e.stopPropagation()}
+      {/* Lightbox */}
+      <AnimatePresence>
+        {lightbox && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-bg/95 backdrop-blur-lg z-50 flex items-center justify-center p-4 overflow-y-auto"
+            onClick={() => handleCloseLightbox()}
           >
-            {/* Image Section */}
-            <div className="flex-shrink-0 bg-black">
-              <img
-                src={lightbox.image_url}
-                alt={lightbox.caption || "Photo"}
-                className="w-full max-h-[60vh] object-contain"
-              />
-            </div>
-
-            {/* Info and Comments Section */}
-            <div className="flex-1 overflow-y-auto flex flex-col">
-              {/* Photo Info */}
-              <div className="p-4 border-b border-white/10">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2 min-w-0">
-                    {lightbox.display_name && (
-                      <>
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent to-accent-hover flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                          {lightbox.display_name.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-text text-sm font-semibold truncate">{lightbox.display_name}</p>
-                          {lightbox.username && <p className="text-text-muted text-xs">@{lightbox.username}</p>}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3 flex-shrink-0">
-                    {onLike && (
-                      <button onClick={() => onLike(lightbox.id)} className="text-accent hover:text-accent-hover transition text-sm font-semibold">
-                        ❤️ {lightbox.like_count}
-                      </button>
-                    )}
-                    {onDelete && currentUserId === lightbox.user_id && (
-                      <button
-                        onClick={() => {
-                          onDelete(lightbox.id);
-                          handleCloseLightbox();
-                        }}
-                        className="text-error hover:text-error/80 transition text-sm"
-                      >
-                        🗑️ Delete
-                      </button>
-                    )}
-                  </div>
-                </div>
-                {lightbox.caption && (
-                  <p className="text-text text-sm mb-2">
-                    <span className="font-semibold">{lightbox.display_name}:</span> {lightbox.caption}
-                  </p>
-                )}
-                <p className="text-text-muted/60 text-xs">
-                  {new Date(lightbox.created_at).toLocaleDateString("en-IN", {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </p>
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="max-w-4xl w-full my-auto glass-panel rounded-3xl overflow-hidden flex flex-col max-h-[90vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Image */}
+              <div className="shrink-0 bg-black relative">
+                <img
+                  src={lightbox.image_url}
+                  alt={lightbox.caption || "Photo"}
+                  className="w-full max-h-[60vh] object-contain"
+                />
               </div>
 
-              {/* Comments Section */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {commentError && (
-                  <div className="text-error text-xs bg-error/10 px-3 py-2 rounded">{commentError}</div>
-                )}
-                {loadingComments ? (
-                  <p className="text-text-muted text-xs text-center py-4">Loading comments...</p>
-                ) : comments.length === 0 ? (
-                  <p className="text-text-muted text-xs text-center py-4">No comments yet</p>
-                ) : (
-                  comments.map((comment) => (
-                    <div key={comment.id} className="text-sm">
-                      <div className="flex items-start gap-2">
-                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-primary-hover flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                          {comment.display_name?.charAt(0).toUpperCase() || "?"}
+              {/* Info & Comments */}
+              <div className="flex-1 overflow-y-auto flex flex-col">
+                <div className="p-5 border-b border-primary/[0.06]">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      {lightbox.display_name && (
+                        <>
+                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-accent p-[1.5px] shrink-0">
+                            <div className="w-full h-full rounded-full bg-bg flex items-center justify-center text-sm font-bold text-text">
+                              {lightbox.display_name.charAt(0).toUpperCase()}
+                            </div>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-text text-sm font-bold truncate">{lightbox.display_name}</p>
+                            {lightbox.username && <p className="text-text-muted text-xs">@{lightbox.username}</p>}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      {onLike && (
+                        <button onClick={() => onLike(lightbox.id)} className="flex items-center gap-1.5 text-hot hover:scale-110 transition-transform font-semibold text-sm">
+                          <Heart className="w-4 h-4" />
+                          {lightbox.like_count}
+                        </button>
+                      )}
+                      {onDelete && currentUserId === lightbox.user_id && (
+                        <button
+                          onClick={() => { onDelete(lightbox.id); handleCloseLightbox(); }}
+                          className="text-error hover:text-error/80 transition text-sm flex items-center gap-1"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {lightbox.caption && (
+                    <p className="text-text text-sm">
+                      <span className="font-bold">{lightbox.display_name}:</span> <span className="text-text-muted">{lightbox.caption}</span>
+                    </p>
+                  )}
+                  <p className="text-text-dim text-[10px] mt-2">
+                    {new Date(lightbox.created_at).toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" })}
+                  </p>
+                </div>
+
+                {/* Comments */}
+                <div className="flex-1 overflow-y-auto p-5 space-y-3">
+                  {commentError && <div className="text-error text-xs bg-error/10 px-3 py-2 rounded-xl">{commentError}</div>}
+                  {loadingComments ? (
+                    <div className="flex items-center justify-center gap-2 py-6">
+                      <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                      <span className="text-text-muted text-xs">Loading comments...</span>
+                    </div>
+                  ) : comments.length === 0 ? (
+                    <p className="text-text-dim text-xs text-center py-6">No comments yet</p>
+                  ) : (
+                    comments.map((comment) => (
+                      <div key={comment.id} className="flex items-start gap-2.5">
+                        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-accent p-[1px] shrink-0">
+                          <div className="w-full h-full rounded-full bg-bg flex items-center justify-center text-[10px] font-bold text-text">
+                            {comment.display_name?.charAt(0).toUpperCase() || "?"}
+                          </div>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-text-muted text-xs">{comment.display_name || comment.username || "User"}</p>
-                          <p className="text-text text-sm">{comment.comment_text}</p>
-                          <div className="flex items-center gap-2 text-xs text-text-muted mt-1">
-                            <span>❤️ {comment.like_count}</span>
+                          <p className="text-xs">
+                            <span className="text-text font-bold mr-1">{comment.display_name || comment.username || "User"}</span>
+                            <span className="text-text-muted">{comment.comment_text}</span>
+                          </p>
+                          <div className="flex items-center gap-2 text-[10px] text-text-dim mt-1">
+                            <span className="flex items-center gap-0.5"><Heart className="w-2.5 h-2.5" /> {comment.like_count}</span>
                             {currentUserId === comment.user_id && (
-                              <button
-                                onClick={() => handleDeleteComment(comment.id)}
-                                className="text-error hover:text-error/80 transition"
-                              >
-                                Delete
-                              </button>
+                              <button onClick={() => handleDeleteComment(comment.id)} className="text-error hover:text-error/80 transition">Delete</button>
                             )}
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))
-                )}
-              </div>
+                    ))
+                  )}
+                </div>
 
-              {/* Comment Input */}
-              <div className="p-4 border-t border-white/10 flex-shrink-0">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Add a comment..."
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey && newComment.trim()) {
-                        handleAddComment();
-                      }
-                    }}
-                    disabled={postingComment}
-                    className="input-luxe flex-1 rounded-lg px-3 py-2 text-sm"
-                  />
-                  <button
-                    onClick={handleAddComment}
-                    disabled={postingComment || !newComment.trim()}
-                    className="btn-primary-luxe px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50 transition"
-                  >
-                    {postingComment ? "..." : "Post"}
-                  </button>
+                {/* Comment Input */}
+                <div className="p-4 border-t border-primary/[0.06] shrink-0">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Add a comment..."
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey && newComment.trim()) {
+                          handleAddComment();
+                        }
+                      }}
+                      disabled={postingComment}
+                      className="input-luxe flex-1 rounded-xl px-4 py-2.5 text-sm"
+                    />
+                    <button
+                      onClick={handleAddComment}
+                      disabled={postingComment || !newComment.trim()}
+                      className="btn-primary-luxe px-4 py-2.5 rounded-xl text-sm font-bold disabled:opacity-40 flex items-center gap-1"
+                    >
+                      {postingComment ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
+            </motion.div>
 
-          {/* Close Button */}
-          <button
-            onClick={() => handleCloseLightbox()}
-            className="absolute top-4 right-4 text-white text-3xl hover:text-text-muted transition"
-          >
-            ✕
-          </button>
-        </div>
-      )}
+            {/* Close */}
+            <button
+              onClick={() => handleCloseLightbox()}
+              className="absolute top-4 right-4 w-10 h-10 rounded-full bg-bg/60 backdrop-blur-md border border-primary/10 flex items-center justify-center text-text hover:bg-bg/80 transition z-10"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

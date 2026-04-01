@@ -3,6 +3,19 @@ import { useNavigate } from "react-router-dom";
 import api from "../lib/api";
 import type { Notification } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
+import { motion } from "framer-motion";
+import { Bell, CheckCheck, PartyPopper, UserPlus, Star, Heart, MessageCircle, Loader2, ChevronLeft, ChevronRight, Inbox } from "lucide-react";
+
+function getNotifIcon(type: string) {
+  if (type.includes("request")) return <UserPlus className="w-5 h-5 text-accent" />;
+  if (type.includes("approved")) return <PartyPopper className="w-5 h-5 text-success" />;
+  if (type.includes("rejected")) return <Inbox className="w-5 h-5 text-error" />;
+  if (type.includes("rating")) return <Star className="w-5 h-5 text-warning" />;
+  if (type.includes("like") || type.includes("photo")) return <Heart className="w-5 h-5 text-hot" />;
+  if (type.includes("friend")) return <UserPlus className="w-5 h-5 text-primary" />;
+  if (type.includes("comment")) return <MessageCircle className="w-5 h-5 text-accent" />;
+  return <Bell className="w-5 h-5 text-primary" />;
+}
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
@@ -67,88 +80,99 @@ export default function NotificationsPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-bg flex items-center justify-center">
-        <p className="text-text-muted">Loading notifications...</p>
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-bg py-8 px-4">
+    <div className="min-h-screen bg-bg py-6 md:py-8 px-4 pb-28 md:pb-12">
       <div className="max-w-2xl mx-auto">
-        <div className="glass-panel rounded-2xl p-5 flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-text">Notifications <span className="brand-gradient-text text-sm font-normal">{unread > 0 ? `(${unread} unread)` : ""}</span></h1>
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-panel rounded-2xl p-5 flex items-center justify-between mb-6"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-hot flex items-center justify-center shadow-lg shadow-primary/20">
+              <Bell className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-text tracking-tight">Notifications</h1>
+              {unread > 0 && <p className="text-hot text-xs font-semibold">{unread} unread</p>}
+            </div>
+          </div>
           {unread > 0 && (
-            <button
-              onClick={markAllRead}
-              className="btn-secondary-luxe text-sm px-3 py-1.5 rounded-lg transition"
-            >
-              Mark all as read
+            <button onClick={markAllRead} className="btn-secondary-luxe text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5">
+              <CheckCheck className="w-3.5 h-3.5" />
+              Mark all read
             </button>
           )}
-        </div>
+        </motion.div>
 
         {notifications.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-text-muted text-lg">No notifications yet</p>
-            <p className="text-text-muted/60 text-sm mt-2">
-              You'll be notified about party updates, requests, and more
-            </p>
-          </div>
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-20">
+            <div className="w-16 h-16 rounded-2xl bg-surface-light flex items-center justify-center mx-auto mb-4">
+              <Bell className="w-8 h-8 text-text-dim" />
+            </div>
+            <p className="text-text-muted text-lg font-semibold mb-2">No notifications yet</p>
+            <p className="text-text-dim text-sm">You'll be notified about party updates, requests, and more</p>
+          </motion.div>
         ) : (
           <div className="space-y-2">
-            {notifications.map((n) => (
-              <button
+            {notifications.map((n, i) => (
+              <motion.button
                 key={n.id}
+                initial={{ opacity: 0, x: -12 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: Math.min(i * 0.03, 0.3) }}
                 onClick={() => handleClick(n)}
-                className={`w-full text-left p-4 rounded-lg border transition ${
+                className={`w-full text-left p-4 rounded-2xl border transition-all hover:translate-x-1 ${
                   n.is_read
-                    ? "glass-panel border-white/8 hover:border-white/15"
-                    : "glass-panel border-primary/30 hover:border-primary/50"
+                    ? "glass-panel border-primary/[0.05] hover:border-primary/10"
+                    : "glass-panel border-primary/20 hover:border-primary/30 bg-primary/[0.03]"
                 }`}
               >
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${n.is_read ? "bg-surface-light" : "bg-primary/10"}`}>
+                    {getNotifIcon(n.type)}
+                  </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 mb-0.5">
                       {!n.is_read && (
-                        <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
+                        <span className="w-2 h-2 rounded-full bg-primary shadow-sm shadow-primary/50 shrink-0 animate-pulse" />
                       )}
-                      <p className="text-text font-medium text-sm truncate">
+                      <p className={`text-sm truncate ${n.is_read ? "text-text-muted font-medium" : "text-text font-bold"}`}>
                         {n.title}
                       </p>
                     </div>
                     {n.body && (
-                      <p className="text-text-muted text-sm mt-1 line-clamp-2">
-                        {n.body}
-                      </p>
+                      <p className="text-text-dim text-xs mt-0.5 line-clamp-2">{n.body}</p>
                     )}
                   </div>
-                  <span className="text-text-muted/60 text-xs flex-shrink-0">
-                    {timeAgo(n.created_at)}
-                  </span>
+                  <span className="text-text-dim text-[10px] font-semibold shrink-0 mt-0.5">{timeAgo(n.created_at)}</span>
                 </div>
-              </button>
+              </motion.button>
             ))}
           </div>
         )}
 
         {totalPages > 1 && (
-          <div className="flex justify-center gap-2 mt-8">
+          <div className="flex justify-center items-center gap-3 mt-8">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="btn-secondary-luxe px-3 py-1.5 text-sm rounded disabled:opacity-40"
+              className="btn-secondary-luxe p-2.5 rounded-xl disabled:opacity-30"
             >
-              Prev
+              <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="px-3 py-1.5 text-sm text-text-muted">
-              {page} / {totalPages}
-            </span>
+            <span className="text-text-muted text-sm font-semibold">{page} / {totalPages}</span>
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="btn-secondary-luxe px-3 py-1.5 text-sm rounded disabled:opacity-40"
+              className="btn-secondary-luxe p-2.5 rounded-xl disabled:opacity-30"
             >
-              Next
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         )}

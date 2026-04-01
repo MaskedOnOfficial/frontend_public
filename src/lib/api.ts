@@ -1,4 +1,13 @@
 import axios from "axios";
+import {
+  isCacheable,
+  getFromCache,
+  setInCache,
+  invalidateOnMutation,
+  getInflight,
+  setInflight,
+  getCacheKey,
+} from "./api-cache";
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim() || "/api/v1";
 const healthUrl = `${apiBaseUrl}/health`;
@@ -43,7 +52,7 @@ const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-// Attach access token to every request
+// ─── Request interceptor: auth token ────────────────────────────────
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("access_token");
   if (token) {
@@ -52,12 +61,144 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Auto-refresh on 401
+// ─── Request interceptor: cache check (GET only) ────────────────────
+// This intercepts GET requests and:
+// 1. Returns cached data immediately if FRESH (skips network entirely)
+// 2. Returns cached data immediately if STALE, but fires background revalidation
+// 3. Deduplicates concurrent identical requests
+api.interceptors.request.use(async (config) => {
+  // Only cache GET requests
+  if (config.method !== "get") return config;
+
+  const url = (config.baseURL || "") + (config.url || "");
+  const fullUrl = config.params
+    ? `${url}?${new URLSearchParams(config.params).toString()}`
+    : url;
+
+  // Strip base URL for cache key matching
+  const cacheUrl = fullUrl.replace(apiBaseUrl, "");
+
+  if (!isCacheable(cacheUrl)) return config;
+
+  const cached = getFromCache(cacheUrl);
+
+  if (cached && cached.status === "fresh") {
+    // FRESH HIT: Return cached data, abort network request
+    // We use the adapter override trick to return cached data without hitting network
+    config.adapter = () =>
+      Promise.resolve({
+        data: cached.data,
+        status: 200,
+        statusText: "OK (cache: fresh)",
+        headers: {},
+        config,
+      });
+    return config;
+  }
+
+  if (cached && cached.status === "stale") {
+    // STALE HIT: Return stale data now, schedule background refresh
+    // Fire background refresh (don't await it)
+    const bgConfig = { ...config, _skipCache: true } as typeof config & { _skipCache?: boolean };
+    // Use a separate axios instance for background refresh to avoid infinite loop
+    const refreshPromise = axios({
+      ...bgConfig,
+      baseURL: config.baseURL,
+      url: config.url,
+      params: config.params,
+      headers: {
+        ...config.headers,
+        Authorization: `Bearer ${localStorage.getItem("access_token") || ""}`,
+      },
+    })
+      .then((res) => {
+        setInCache(cacheUrl, res.data);
+      })
+      .catch(() => {
+        // Background refresh failed — stale data stays
+      });
+
+    // Don't block — fire and forget
+    void refreshPromise;
+
+    // Return stale data immediately
+    config.adapter = () =>
+      Promise.resolve({
+        data: cached.data,
+        status: 200,
+        statusText: "OK (cache: stale-while-revalidate)",
+        headers: {},
+        config,
+      });
+    return config;
+  }
+
+  // NOT CACHED or EXPIRED — check deduplication
+  const inflight = getInflight(cacheUrl);
+  if (inflight) {
+    // Another identical request is in flight — wait for it
+    config.adapter = async () => {
+      const data = await inflight;
+      return { data, status: 200, statusText: "OK (cache: dedup)", headers: {}, config };
+    };
+    return config;
+  }
+
+  // Mark this URL as the canonical inflight request
+  // We'll resolve the promise in the response interceptor
+  let resolveInflight: (data: unknown) => void;
+  let rejectInflight: (err: unknown) => void;
+  const promise = new Promise<unknown>((resolve, reject) => {
+    resolveInflight = resolve;
+    rejectInflight = reject;
+  });
+  setInflight(cacheUrl, promise);
+
+  // Attach resolvers to config so response interceptor can call them
+  (config as any)._cacheResolve = resolveInflight!;
+  (config as any)._cacheReject = rejectInflight!;
+  (config as any)._cacheUrl = cacheUrl;
+
+  return config;
+});
+
+// ─── Response interceptor: cache write (GET only) ───────────────────
 api.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    const config = res.config;
+
+    // Store successful GET responses in cache
+    if (config.method === "get" && res.status >= 200 && res.status < 300) {
+      const cacheUrl = (config as any)._cacheUrl as string | undefined;
+      if (cacheUrl && isCacheable(cacheUrl)) {
+        setInCache(cacheUrl, res.data);
+
+        // Resolve dedup promise
+        const resolve = (config as any)._cacheResolve as ((data: unknown) => void) | undefined;
+        if (resolve) resolve(res.data);
+      }
+    }
+
+    // Invalidate related caches on mutations
+    if (config.method && ["post", "put", "patch", "delete"].includes(config.method)) {
+      const mutationPath = (config.url || "").replace(apiBaseUrl, "");
+      invalidateOnMutation(mutationPath);
+    }
+
+    return res;
+  },
   async (error) => {
-    const original = error.config;
-    if (error.response?.status === 401 && !original._retry) {
+    const config = error.config;
+
+    // Reject dedup promise on error
+    if (config) {
+      const reject = (config as any)._cacheReject as ((err: unknown) => void) | undefined;
+      if (reject) reject(error);
+    }
+
+    // Auto-refresh on 401
+    const original = config;
+    if (error.response?.status === 401 && original && !original._retry) {
       original._retry = true;
       const refreshToken = localStorage.getItem("refresh_token");
       if (refreshToken) {

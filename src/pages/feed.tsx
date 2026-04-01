@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/auth-hook";
 import api from "../lib/api";
 import { getApiErrorMessage } from "../lib/errors";
+import { motion, AnimatePresence } from "framer-motion";
+import { Heart, MessageCircle, Sparkles, Users, PartyPopper, ChevronDown, Loader2 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -37,53 +39,42 @@ interface FeedComment {
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const s = Math.floor(diff / 1000);
-  if (s < 60)  return `${s}s ago`;
+  if (s < 60)  return `${s}s`;
   const m = Math.floor(s / 60);
-  if (m < 60)  return `${m}m ago`;
+  if (m < 60)  return `${m}m`;
   const h = Math.floor(m / 60);
-  if (h < 24)  return `${h}h ago`;
+  if (h < 24)  return `${h}h`;
   const d = Math.floor(h / 24);
-  if (d < 7)   return `${d}d ago`;
+  if (d < 7)   return `${d}d`;
   return new Date(dateStr).toLocaleDateString();
 }
 
 function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  return name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function AvatarPlaceholder({ name }: { name: string }) {
-  return (
-    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-bg text-sm font-bold flex-shrink-0">
-      {getInitials(name)}
-    </div>
-  );
-}
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 function SkeletonCard() {
   return (
-    <div className="bg-surface rounded-2xl overflow-hidden border border-white/5 animate-pulse">
+    <div className="glass-panel rounded-2xl overflow-hidden">
       <div className="flex items-center gap-3 p-4">
-        <div className="w-10 h-10 rounded-full bg-surface-light" />
+        <div className="w-10 h-10 rounded-full shimmer" />
         <div className="flex-1 space-y-2">
-          <div className="h-3 bg-surface-light rounded w-32" />
-          <div className="h-2 bg-surface-light rounded w-20" />
+          <div className="h-3.5 shimmer rounded-lg w-28" />
+          <div className="h-2.5 shimmer rounded-lg w-20" />
         </div>
       </div>
-      <div className="w-full aspect-square bg-surface-light" />
+      <div className="w-full aspect-square shimmer" />
       <div className="p-4 space-y-2">
-        <div className="h-3 bg-surface-light rounded w-3/4" />
-        <div className="h-2 bg-surface-light rounded w-1/2" />
+        <div className="h-3.5 shimmer rounded-lg w-3/4" />
+        <div className="h-2.5 shimmer rounded-lg w-1/2" />
       </div>
     </div>
   );
 }
+
+// ─── Post Card ────────────────────────────────────────────────────────────────
 
 interface PostCardProps {
   post: FeedPost;
@@ -98,6 +89,7 @@ function PostCard({ post, onLikeToggle }: PostCardProps) {
   const [commentText, setCommentText] = useState("");
   const [postingComment, setPostingComment] = useState(false);
   const [commentError, setCommentError] = useState("");
+  const [showHeart, setShowHeart] = useState(false);
 
   async function loadComments() {
     setLoadingComments(true);
@@ -115,7 +107,6 @@ function PostCard({ post, onLikeToggle }: PostCardProps) {
 
   async function handleAddComment() {
     if (!commentText.trim()) return;
-
     setPostingComment(true);
     setCommentError("");
     try {
@@ -139,142 +130,178 @@ function PostCard({ post, onLikeToggle }: PostCardProps) {
     }
   }
 
+  function handleDoubleTap() {
+    if (!post.liked_by_me) {
+      onLikeToggle(post.id, false);
+      setShowHeart(true);
+      setTimeout(() => setShowHeart(false), 800);
+    }
+  }
+
   return (
-    <article className="glass-panel rounded-2xl overflow-hidden transition-shadow duration-300 hover:shadow-[0_16px_35px_rgba(0,0,0,0.35)]">
+    <motion.article
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="glass-panel rounded-2xl overflow-hidden"
+    >
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-4 pb-3">
-        <Link
-          to={`/profile/${post.user_id}`}
-          className="flex items-center gap-3 group"
-        >
-          {post.avatar_url ? (
-            <img
-              src={post.avatar_url}
-              alt={post.display_name}
-              className="w-10 h-10 rounded-full object-cover border-2 border-transparent group-hover:border-primary transition-colors"
-            />
-          ) : (
-            <AvatarPlaceholder name={post.display_name} />
-          )}
+        <Link to={`/profile/${post.user_id}`} className="flex items-center gap-3 group">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary via-accent to-hot p-[2px]">
+            <div className="w-full h-full rounded-full bg-bg overflow-hidden flex items-center justify-center">
+              {post.avatar_url ? (
+                <img src={post.avatar_url} alt={post.display_name} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-sm font-bold text-text">{getInitials(post.display_name)}</span>
+              )}
+            </div>
+          </div>
           <div>
             <p className="text-text font-semibold text-sm group-hover:text-primary transition-colors leading-tight">
               {post.display_name}
             </p>
-            <p className="text-text-muted text-xs">@{post.username}</p>
+            <p className="text-text-dim text-xs">@{post.username}</p>
           </div>
         </Link>
-        <span className="text-text-muted text-xs">{timeAgo(post.created_at)}</span>
+        <span className="text-text-dim text-xs font-medium">{timeAgo(post.created_at)}</span>
       </div>
 
       {/* Photo */}
-      <div className="relative w-full bg-surface-light min-h-[260px]">
+      <div className="relative w-full bg-surface min-h-[260px] cursor-pointer" onDoubleClick={handleDoubleTap}>
         {!imgLoaded && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-          </div>
+          <div className="absolute inset-0 shimmer" />
         )}
         <img
           src={post.image_url}
           alt={post.caption ?? "Party photo"}
           onLoad={() => setImgLoaded(true)}
-          className={`w-full object-cover max-h-[520px] transition-opacity duration-300 ${imgLoaded ? "opacity-100" : "opacity-0"}`}
+          className={`w-full object-cover max-h-[520px] transition-opacity duration-500 ${imgLoaded ? "opacity-100" : "opacity-0"}`}
         />
-        {/* Party tag badge */}
+        {/* Party tag */}
         {post.party_id && (
           <Link
             to={`/parties/${post.party_id}`}
-            className="absolute top-3 left-3 bg-black/60 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-full flex items-center gap-1 hover:bg-primary/80 transition-colors"
+            className="absolute top-3 left-3 bg-bg/70 backdrop-blur-md text-text text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5 hover:bg-primary/80 transition border border-primary/15"
           >
-            🎉 Party Photo
+            <PartyPopper className="w-3 h-3 text-primary" />
+            Party Photo
           </Link>
         )}
+        {/* Double tap heart animation */}
+        <AnimatePresence>
+          {showHeart && (
+            <motion.div
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 1.5, opacity: 0 }}
+              transition={{ duration: 0.4 }}
+              className="absolute inset-0 flex items-center justify-center pointer-events-none"
+            >
+              <Heart className="w-20 h-20 text-hot fill-hot drop-shadow-2xl" />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Footer */}
       <div className="px-4 py-3">
-        {/* Like row */}
-        <div className="flex items-center gap-3 mb-2">
+        {/* Action row */}
+        <div className="flex items-center gap-4 mb-2">
           <button
             onClick={() => onLikeToggle(post.id, post.liked_by_me)}
-            className={`flex items-center gap-1.5 text-sm font-medium transition-all duration-150 hover:scale-110 ${
-              post.liked_by_me ? "text-error" : "text-text-muted hover:text-error"
+            className={`flex items-center gap-1.5 text-sm font-semibold transition-all duration-200 hover:scale-110 active:scale-95 ${
+              post.liked_by_me ? "text-hot" : "text-text-muted hover:text-hot"
             }`}
           >
-            <span className="text-lg">{post.liked_by_me ? "❤️" : "🤍"}</span>
+            <Heart className={`w-5 h-5 ${post.liked_by_me ? "fill-current" : ""}`} />
             <span>{post.like_count}</span>
           </button>
           <button
             onClick={toggleComments}
-            className="flex items-center gap-1.5 text-sm font-medium text-text-muted hover:text-primary transition-all duration-150 hover:scale-110"
+            className="flex items-center gap-1.5 text-sm font-semibold text-text-muted hover:text-primary transition-all duration-200 hover:scale-110"
           >
-            <span className="text-lg">💬</span>
+            <MessageCircle className="w-5 h-5" />
             <span>Comment</span>
           </button>
         </div>
 
-        {showComments && (
-          <div className="mt-3 mb-2 space-y-3">
-            {commentError && (
-              <div className="text-error text-xs bg-error/10 px-3 py-2 rounded-lg">{commentError}</div>
-            )}
+        {/* Comments section */}
+        <AnimatePresence>
+          {showComments && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="overflow-hidden"
+            >
+              <div className="mt-3 mb-2 space-y-3 border-t border-primary/[0.06] pt-3">
+                {commentError && (
+                  <div className="text-error text-xs bg-error/10 px-3 py-2 rounded-lg">{commentError}</div>
+                )}
 
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleAddComment();
-                  }
-                }}
-                placeholder="Write a comment..."
-                disabled={postingComment}
-                className="input-luxe flex-1 rounded-lg px-3 py-2 text-sm"
-              />
-              <button
-                onClick={handleAddComment}
-                disabled={postingComment || !commentText.trim()}
-                className="btn-primary-luxe px-3 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
-              >
-                {postingComment ? "..." : "Post"}
-              </button>
-            </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleAddComment();
+                      }
+                    }}
+                    placeholder="Add a comment..."
+                    disabled={postingComment}
+                    className="input-luxe flex-1 rounded-xl px-4 py-2.5 text-sm"
+                  />
+                  <button
+                    onClick={handleAddComment}
+                    disabled={postingComment || !commentText.trim()}
+                    className="btn-primary-luxe px-4 py-2.5 rounded-xl text-sm font-bold disabled:opacity-40"
+                  >
+                    {postingComment ? <Loader2 className="w-4 h-4 animate-spin" /> : "Post"}
+                  </button>
+                </div>
 
-            {loadingComments ? (
-              <p className="text-text-muted text-xs">Loading comments...</p>
-            ) : comments.length > 0 ? (
-              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                {comments.map((comment) => (
-                  <div key={comment.id} className="text-sm">
-                    <p className="text-text-muted text-xs">
-                      {comment.display_name || comment.username || "User"}
-                    </p>
-                    <p className="text-text">{comment.comment_text}</p>
+                {loadingComments ? (
+                  <div className="flex items-center gap-2 py-2">
+                    <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
+                    <span className="text-text-muted text-xs">Loading comments...</span>
                   </div>
-                ))}
+                ) : comments.length > 0 ? (
+                  <div className="space-y-2.5 max-h-48 overflow-y-auto pr-1">
+                    {comments.map((comment) => (
+                      <div key={comment.id} className="text-sm">
+                        <span className="font-semibold text-text text-xs mr-1.5">
+                          {comment.display_name || comment.username || "User"}
+                        </span>
+                        <span className="text-text-muted text-xs">{comment.comment_text}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-text-dim text-xs py-1">No comments yet. Be the first!</p>
+                )}
               </div>
-            ) : (
-              <p className="text-text-muted text-xs">No comments yet</p>
-            )}
-          </div>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Caption */}
         {post.caption && (
-          <p className="text-text text-sm leading-relaxed">
+          <p className="text-text text-sm leading-relaxed mt-1">
             <Link
               to={`/profile/${post.user_id}`}
-              className="font-semibold text-primary hover:underline mr-1"
+              className="font-bold text-text hover:text-primary transition mr-1.5"
             >
               {post.username}
             </Link>
-            {post.caption}
+            <span className="text-text-muted">{post.caption}</span>
           </p>
         )}
       </div>
-    </article>
+    </motion.article>
   );
 }
 
@@ -282,27 +309,35 @@ function PostCard({ post, onLikeToggle }: PostCardProps) {
 
 function EmptyFeed() {
   return (
-    <div className="flex flex-col items-center justify-center py-24 text-center px-4">
-      <div className="text-6xl mb-6 select-none">🎭</div>
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="flex flex-col items-center justify-center py-24 text-center px-4"
+    >
+      <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary/20 via-accent/15 to-hot/10 border border-primary/10 flex items-center justify-center mb-6">
+        <Sparkles className="w-10 h-10 text-primary" />
+      </div>
       <h2 className="text-text text-2xl font-bold mb-3">Your feed is empty</h2>
-      <p className="text-text-muted text-base max-w-sm mb-8">
-        Connect with friends to start seeing their party photos right here.
+      <p className="text-text-muted text-sm max-w-sm mb-8 leading-relaxed">
+        Connect with friends and discover parties to start seeing their moments here.
       </p>
       <div className="flex gap-3 flex-wrap justify-center">
         <Link
           to="/search"
-          className="btn-primary-luxe font-semibold px-6 py-2.5 rounded-xl transition-colors"
+          className="btn-primary-luxe font-bold px-6 py-3 rounded-xl flex items-center gap-2"
         >
+          <Users className="w-4 h-4" />
           Find Friends
         </Link>
         <Link
           to="/parties"
-          className="btn-secondary-luxe font-semibold px-6 py-2.5 rounded-xl transition-colors"
+          className="btn-secondary-luxe font-semibold px-6 py-3 rounded-xl flex items-center gap-2"
         >
+          <PartyPopper className="w-4 h-4" />
           Discover Parties
         </Link>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -348,7 +383,6 @@ export default function FeedPage() {
   }
 
   function handleLikeToggle(postId: string, currentLiked: boolean) {
-    // Optimistic UI update
     setPosts((prev) =>
       prev.map((p) =>
         p.id === postId
@@ -361,14 +395,10 @@ export default function FeedPage() {
       )
     );
 
-    // API call (fire and forget, revert on failure)
-    const endpoint = currentLiked
-      ? `/photos/${postId}/like`
-      : `/photos/${postId}/like`;
+    const endpoint = `/photos/${postId}/like`;
     const method = currentLiked ? "delete" : "post";
 
     api[method](endpoint).catch(() => {
-      // Revert optimistic update on error
       setPosts((prev) =>
         prev.map((p) =>
           p.id === postId
@@ -386,39 +416,41 @@ export default function FeedPage() {
   return (
     <div className="min-h-screen bg-bg">
       {/* Page header */}
-      <div className="max-w-2xl mx-auto px-4 pt-8 pb-4">
-        <div className="glass-panel rounded-2xl p-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
+      <div className="max-w-2xl mx-auto px-4 pt-6 md:pt-8 pb-2">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-panel rounded-2xl p-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6"
+        >
           <div>
-            <h1 className="text-2xl font-bold text-text">
+            <h1 className="text-2xl font-bold text-text tracking-tight">
               Hey,{" "}
               <span className="brand-gradient-text">
                 {user?.display_name?.split(" ")[0]}
               </span>{" "}
               👋
             </h1>
-            <p className="text-text-muted text-sm mt-0.5">
+            <p className="text-text-muted text-sm mt-1">
               Here's what your friends have been up to.
             </p>
           </div>
           <Link
             to="/parties/create"
-            className="btn-primary-luxe text-sm font-semibold px-4 py-2 rounded-xl transition-colors whitespace-nowrap text-center"
+            className="btn-hot-luxe text-sm font-bold px-5 py-2.5 rounded-xl flex items-center gap-2 justify-center whitespace-nowrap"
           >
-            + Host Party
+            <PartyPopper className="w-4 h-4" />
+            Host Party
           </Link>
-        </div>
+        </motion.div>
       </div>
 
       {/* Feed content */}
-      <div className="max-w-2xl mx-auto px-4 pb-16">
+      <div className="max-w-2xl mx-auto px-4 pb-28 md:pb-16">
         {/* Error */}
         {error && (
-          <div className="bg-error/10 border border-error/30 rounded-xl p-4 text-error text-sm mb-6">
-            {error}{" "}
-            <button
-              onClick={() => fetchFeed(1, false)}
-              className="underline ml-1 hover:text-error/80"
-            >
+          <div className="bg-error/10 border border-error/20 rounded-xl p-4 text-error text-sm mb-6 flex items-center justify-between">
+            <span>{error}</span>
+            <button onClick={() => fetchFeed(1, false)} className="underline ml-2 hover:text-error/80 font-semibold">
               Retry
             </button>
           </div>
@@ -446,28 +478,34 @@ export default function FeedPage() {
 
             {/* Load more */}
             {hasMore && (
-              <div className="flex justify-center pt-2">
+              <div className="flex justify-center pt-4">
                 <button
                   onClick={handleLoadMore}
                   disabled={loadingMore}
-                  className="btn-secondary-luxe font-medium px-8 py-3 rounded-xl transition-colors disabled:opacity-50 flex items-center gap-2"
+                  className="btn-secondary-luxe font-semibold px-8 py-3 rounded-xl flex items-center gap-2"
                 >
                   {loadingMore ? (
                     <>
-                      <span className="w-4 h-4 border-2 border-text-muted/30 border-t-text-muted rounded-full animate-spin" />
+                      <Loader2 className="w-4 h-4 animate-spin" />
                       Loading…
                     </>
                   ) : (
-                    "Load more"
+                    <>
+                      <ChevronDown className="w-4 h-4" />
+                      Load more
+                    </>
                   )}
                 </button>
               </div>
             )}
 
             {!hasMore && (
-              <p className="text-center text-text-muted text-sm py-6">
-                You're all caught up! 🎉
-              </p>
+              <div className="text-center py-8">
+                <p className="text-text-dim text-sm flex items-center justify-center gap-2">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  You're all caught up!
+                </p>
+              </div>
             )}
           </div>
         )}

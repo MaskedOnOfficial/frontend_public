@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import api from "../lib/api";
 import type { Party } from "../types";
+import { motion } from "framer-motion";
+import { Plus, Calendar, MapPin, Users, Star, ChevronDown, ChevronUp, LayoutDashboard, Loader2, PartyPopper } from "lucide-react";
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("en-IN", {
@@ -12,43 +14,49 @@ function formatDate(dateStr: string) {
   });
 }
 
+function getStatusClasses(status: string) {
+  switch (status) {
+    case "upcoming": return "status-upcoming";
+    case "ongoing": return "status-ongoing";
+    case "completed": return "status-completed";
+    default: return "status-cancelled";
+  }
+}
+
 function PartyRow({ party }: { party: Party }) {
   return (
-    <div className="glass-panel rounded-xl p-4 flex items-center justify-between">
-      <div className="flex-1">
-        <div className="flex items-center gap-3">
-          <Link to={`/parties/${party.id}`} className="text-text font-semibold hover:text-primary transition">
+    <div className="glass-panel rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center gap-4">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2.5 mb-1.5">
+          <Link to={`/parties/${party.id}`} className="text-text font-bold hover:text-primary transition truncate">
             {party.title}
           </Link>
-          <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
-            party.status === "upcoming" ? "bg-success/20 text-success" :
-            party.status === "ongoing" ? "bg-primary/20 text-primary" :
-            party.status === "cancelled" ? "bg-error/20 text-error" :
-            party.status === "completed" ? "bg-accent/20 text-accent-hover" :
-            "bg-text-muted/20 text-text-muted"
-          }`}>
+          <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full shrink-0 ${getStatusClasses(party.status)}`}>
             {party.status}
           </span>
         </div>
-        <p className="text-text-muted text-sm mt-1">
-          📅 {formatDate(party.date_time)} · 📍 {party.location_city} · 👥 {party.current_attendees}/{party.max_capacity}
-        </p>
+        <div className="flex items-center gap-4 text-text-muted text-xs">
+          <span className="flex items-center gap-1"><Calendar className="w-3 h-3 text-primary" />{formatDate(party.date_time)}</span>
+          <span className="flex items-center gap-1"><MapPin className="w-3 h-3 text-accent" />{party.location_city}</span>
+          <span className="flex items-center gap-1"><Users className="w-3 h-3" />{party.current_attendees}/{party.max_capacity}</span>
+        </div>
       </div>
-      <div className="flex items-center gap-2 ml-4 shrink-0">
+      <div className="flex items-center gap-2 shrink-0">
         {party.status === "upcoming" && (
           <Link
             to={`/dashboard/${party.id}/requests`}
-            className="btn-secondary-luxe font-semibold text-sm px-4 py-2 rounded-lg transition"
+            className="btn-secondary-luxe font-bold text-xs px-4 py-2.5 rounded-xl"
           >
-            Requests
+            Manage Requests
           </Link>
         )}
         {party.status !== "cancelled" && new Date(party.date_time) < new Date() && (
           <Link
             to={`/parties/${party.id}/rate`}
-            className="bg-warning/10 hover:bg-warning/20 text-warning font-semibold text-sm px-4 py-2 rounded-lg border border-warning/20 transition"
+            className="bg-warning/10 hover:bg-warning/20 text-warning font-bold text-xs px-4 py-2.5 rounded-xl border border-warning/15 transition flex items-center gap-1.5"
           >
-            ⭐ Rate
+            <Star className="w-3.5 h-3.5" />
+            Rate
           </Link>
         )}
       </div>
@@ -57,9 +65,7 @@ function PartyRow({ party }: { party: Party }) {
 }
 
 function isPartyActive(party: Party): boolean {
-  // A party is "active" if it's upcoming/ongoing and its date hasn't passed
   if (party.status === "cancelled" || party.status === "completed" || party.status === "archived") return false;
-  // Also treat parties whose date has passed as inactive even if status wasn't updated
   if (new Date(party.date_time) < new Date() && party.status === "upcoming") return false;
   return true;
 }
@@ -80,63 +86,108 @@ export default function DashboardPage() {
   const pastParties = parties.filter((p) => !isPartyActive(p));
 
   if (loading) {
-    return <div className="min-h-screen bg-bg flex items-center justify-center text-text-muted">Loading...</div>;
+    return (
+      <div className="min-h-screen bg-bg flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-bg">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
+    <div className="min-h-screen bg-bg pb-28 md:pb-12">
+      <div className="max-w-4xl mx-auto px-4 py-6 md:py-8">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col sm:flex-row sm:items-center gap-4 mb-8"
+        >
           <div className="glass-panel rounded-2xl p-6 flex-1">
-            <h1 className="text-3xl font-bold text-text">Host Dashboard</h1>
-            <p className="text-text-muted mt-1">Manage your parties with confidence.</p>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/20">
+                <LayoutDashboard className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold text-text tracking-tight">Host Dashboard</h1>
+                <p className="text-text-muted text-sm">Manage your parties & requests</p>
+              </div>
+            </div>
+            {/* Stats */}
+            <div className="flex gap-6 mt-4 pt-4 border-t border-primary/[0.06]">
+              <div>
+                <p className="text-2xl font-bold text-primary">{activeParties.length}</p>
+                <p className="text-text-dim text-[10px] uppercase tracking-wider font-bold">Active</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-text-muted">{pastParties.length}</p>
+                <p className="text-text-dim text-[10px] uppercase tracking-wider font-bold">Past</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-accent">{parties.length}</p>
+                <p className="text-text-dim text-[10px] uppercase tracking-wider font-bold">Total</p>
+              </div>
+            </div>
           </div>
-          <div className="ml-4">
-            <Link
-              to="/parties/create"
-              className="btn-primary-luxe font-semibold px-6 py-3 rounded-lg transition block text-center"
-            >
-              + New Party
-            </Link>
-          </div>
-        </div>
+          <Link
+            to="/parties/create"
+            className="btn-primary-luxe font-bold px-6 py-3.5 rounded-xl flex items-center gap-2 justify-center whitespace-nowrap"
+          >
+            <Plus className="w-5 h-5" />
+            New Party
+          </Link>
+        </motion.div>
 
         {parties.length === 0 ? (
-          <div className="text-center py-20">
-            <p className="text-text-muted text-lg mb-4">You haven't hosted any parties yet</p>
-            <Link to="/parties/create" className="text-primary hover:underline">
-              Host your first party
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center py-20"
+          >
+            <div className="w-16 h-16 rounded-2xl bg-surface-light flex items-center justify-center mx-auto mb-4">
+              <PartyPopper className="w-8 h-8 text-text-dim" />
+            </div>
+            <p className="text-text-muted text-lg font-semibold mb-2">No parties yet</p>
+            <Link to="/parties/create" className="text-primary hover:text-accent transition font-semibold">
+              Host your first party →
             </Link>
-          </div>
+          </motion.div>
         ) : (
           <div className="space-y-8">
-            {/* Active Parties */}
+            {/* Active */}
             <div>
-              <h2 className="text-lg font-semibold text-text mb-3">Active Parties</h2>
+              <h2 className="text-[11px] font-bold text-text-dim uppercase tracking-[0.15em] mb-3 flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                Active Parties
+              </h2>
               {activeParties.length === 0 ? (
-                <p className="text-text-muted text-sm">No active parties. <Link to="/parties/create" className="text-primary hover:underline">Host one?</Link></p>
+                <p className="text-text-muted text-sm glass-panel rounded-xl p-4">
+                  No active parties.{" "}
+                  <Link to="/parties/create" className="text-primary hover:text-accent transition font-semibold">Host one?</Link>
+                </p>
               ) : (
                 <div className="space-y-3">
-                  {activeParties.map((party) => (
-                    <PartyRow key={party.id} party={party} />
+                  {activeParties.map((party, i) => (
+                    <motion.div key={party.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                      <PartyRow party={party} />
+                    </motion.div>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* Past Parties */}
+            {/* Past */}
             {pastParties.length > 0 && (
               <div>
                 <button
                   onClick={() => setShowPast((v) => !v)}
-                  className="flex items-center gap-2 text-text-muted hover:text-text transition mb-3"
+                  className="flex items-center gap-2 text-text-muted hover:text-text transition mb-3 group"
                 >
-                  <span className="text-lg font-semibold">Past Parties</span>
-                  <span className="text-xs bg-text-muted/20 px-2 py-0.5 rounded-full">{pastParties.length}</span>
-                  <span className="text-xs">{showPast ? "▲" : "▼"}</span>
+                  <span className="text-[11px] font-bold uppercase tracking-[0.15em]">Past Parties</span>
+                  <span className="text-[10px] bg-surface-light px-2.5 py-1 rounded-full font-bold">{pastParties.length}</span>
+                  {showPast ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                 </button>
                 {showPast && (
-                  <div className="space-y-3 opacity-60">
+                  <div className="space-y-3 opacity-70">
                     {pastParties.map((party) => (
                       <PartyRow key={party.id} party={party} />
                     ))}

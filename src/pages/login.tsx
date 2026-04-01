@@ -4,6 +4,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/auth-hook";
 import { getApiErrorMessage } from "../lib/errors";
 import { ensureBackendAwake } from "../lib/api";
+import { motion } from "framer-motion";
+import { Eye, EyeOff, Sparkles, ArrowRight, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -16,10 +18,7 @@ export default function LoginPage() {
   const [wakingUp, setWakingUp] = useState(false);
 
   useEffect(() => {
-    // Start warming the backend as soon as the login page opens.
-    void ensureBackendAwake(45000).catch(() => {
-      // Ignore here; submit flow handles user-visible retry states.
-    });
+    void ensureBackendAwake(45000).catch(() => {});
   }, []);
 
   async function handleSubmit(e: FormEvent) {
@@ -53,36 +52,53 @@ export default function LoginPage() {
 
   return (
     <div className="auth-ambient min-h-screen bg-bg flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-md relative z-10 fade-rise">
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+        className="w-full max-w-md relative z-10"
+      >
         {/* Logo / Brand */}
-        <div className="text-center mb-8">
-          <div className="text-5xl mb-3 select-none">🎭</div>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight">
-            mask<span className="brand-gradient-text">On</span>
+        <div className="text-center mb-10">
+          <motion.div
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary via-accent to-hot shadow-2xl shadow-primary/30 mb-5"
+          >
+            <Sparkles className="w-8 h-8 text-white" />
+          </motion.div>
+          <h1 className="text-4xl font-extrabold tracking-tight">
+            <span className="text-text">mask</span>
+            <span className="brand-gradient-text">On</span>
           </h1>
-          <p className="text-text-muted text-sm mt-2">
-            Curated social moments for unforgettable house parties.
+          <p className="text-text-muted text-sm mt-3 max-w-xs mx-auto leading-relaxed">
+            Where curated connections meet unforgettable nightlife.
           </p>
         </div>
 
         {/* Card */}
         <div className="glass-panel rounded-3xl p-8">
           <h2 className="text-xl font-bold text-text mb-1">Welcome back</h2>
-          <p className="text-text-muted text-sm mb-7">Sign in to view your trusted circle and latest party updates.</p>
+          <p className="text-text-muted text-sm mb-7">Sign in to your trusted circle.</p>
 
           {/* Error */}
           {error && (
-            <div className="bg-error/10 border border-error/30 rounded-xl px-4 py-3 mb-6 text-error text-sm flex items-start gap-2">
-              <span className="mt-0.5 text-base leading-none">⚠️</span>
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-error/10 border border-error/20 rounded-xl px-4 py-3 mb-6 text-error text-sm flex items-start gap-2"
+            >
+              <span className="mt-0.5">⚠️</span>
               <span>{error}</span>
-            </div>
+            </motion.div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5">
-                Email
+              <label htmlFor="email" className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">
+                Email Address
               </label>
               <input
                 id="email"
@@ -91,14 +107,14 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoComplete="email"
-                className="input-luxe w-full rounded-xl px-4 py-3 text-sm"
+                className="input-luxe w-full rounded-xl px-4 py-3.5 text-sm"
                 placeholder="you@example.com"
               />
             </div>
 
             {/* Password */}
             <div>
-              <label htmlFor="password" className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5">
+              <label htmlFor="password" className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">
                 Password
               </label>
               <div className="relative">
@@ -109,16 +125,16 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   autoComplete="current-password"
-                  className="input-luxe w-full rounded-xl px-4 py-3 pr-12 text-sm"
+                  className="input-luxe w-full rounded-xl px-4 py-3.5 pr-12 text-sm"
                   placeholder="••••••••"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text transition text-lg leading-none"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-dim hover:text-text transition p-1"
                   tabIndex={-1}
                 >
-                  {showPassword ? "🙈" : "👁"}
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
             </div>
@@ -127,31 +143,35 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="btn-primary-luxe relative w-full overflow-hidden font-bold py-3.5 rounded-xl transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+              className="btn-primary-luxe relative w-full overflow-hidden font-bold py-4 rounded-xl transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed mt-3 flex items-center justify-center gap-2"
             >
               {submitting ? (
-                <span className="flex items-center justify-center gap-2">
-                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
                   {wakingUp ? "Waking server..." : "Signing in..."}
-                </span>
+                </>
               ) : (
-                "Sign In"
+                <>
+                  Sign In
+                  <ArrowRight className="w-4 h-4" />
+                </>
               )}
             </button>
           </form>
         </div>
 
         {/* Register link */}
-        <p className="text-text-muted text-sm text-center mt-6">
-          New here?{" "}
+        <p className="text-text-muted text-sm text-center mt-8">
+          New to maskOn?{" "}
           <Link
             to="/auth/register"
-            className="text-primary font-semibold hover:text-primary-hover transition"
+            className="text-primary font-semibold hover:text-accent transition inline-flex items-center gap-1"
           >
-            Create an account →
+            Create an account
+            <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </p>
-      </div>
+      </motion.div>
     </div>
   );
 }

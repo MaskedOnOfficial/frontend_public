@@ -1,34 +1,43 @@
-import { useState } from "react";
+import { Star } from "lucide-react";
 
 interface RatingStarsProps {
-  value: number;
-  onChange?: (score: number) => void;
+  rating: number;
   size?: "sm" | "md" | "lg";
-  readonly?: boolean;
+  interactive?: boolean;
+  onChange?: (val: number) => void;
 }
 
-const sizes = { sm: "text-lg", md: "text-2xl", lg: "text-3xl" };
+const sizeMap = {
+  sm: "w-3.5 h-3.5",
+  md: "w-5 h-5",
+  lg: "w-7 h-7",
+};
 
-export default function RatingStars({ value, onChange, size = "md", readonly = false }: RatingStarsProps) {
-  const [hover, setHover] = useState(0);
+export default function RatingStars({ rating, size = "md", interactive = false, onChange }: RatingStarsProps) {
+  const iconSize = sizeMap[size];
 
   return (
-    <div className="flex gap-1">
-      {[1, 2, 3, 4, 5].map((star) => (
-        <button
-          key={star}
-          type="button"
-          disabled={readonly}
-          className={`${sizes[size]} transition-colors ${
-            readonly ? "cursor-default" : "cursor-pointer hover:scale-110"
-          } ${(hover || value) >= star ? "text-warning" : "text-text-muted/30"}`}
-          onMouseEnter={() => !readonly && setHover(star)}
-          onMouseLeave={() => !readonly && setHover(0)}
-          onClick={() => onChange?.(star)}
-        >
-          ★
-        </button>
-      ))}
+    <div className="flex items-center gap-0.5">
+      {Array.from({ length: 5 }, (_, i) => {
+        const filled = i < Math.round(rating);
+        return (
+          <button
+            key={i}
+            type="button"
+            disabled={!interactive}
+            onClick={() => interactive && onChange?.(i + 1)}
+            className={`transition-all duration-200 ${
+              interactive ? "cursor-pointer hover:scale-125 active:scale-95" : "cursor-default"
+            } ${
+              filled
+                ? "text-warning drop-shadow-[0_0_6px_rgba(245,158,11,0.5)]"
+                : "text-text-dim/30"
+            }`}
+          >
+            <Star className={iconSize} fill={filled ? "currentColor" : "none"} strokeWidth={filled ? 0 : 1.5} />
+          </button>
+        );
+      })}
     </div>
   );
 }

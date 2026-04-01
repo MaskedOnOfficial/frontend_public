@@ -4,6 +4,8 @@ import api from "../lib/api";
 import type { PartyRequest } from "../types";
 import RequestCard from "../components/request-card";
 import { getApiErrorMessage } from "../lib/errors";
+import { motion } from "framer-motion";
+import { ArrowLeft, Shield, Loader2, Inbox } from "lucide-react";
 
 export default function ManageRequestsPage() {
   const { partyId } = useParams<{ partyId: string }>();
@@ -33,44 +35,52 @@ export default function ManageRequestsPage() {
 
   async function handleAction(requestId: string, status: "approved" | "rejected") {
     await api.patch(`/parties/${partyId}/requests/${requestId}`, { status });
-    // Refresh list
     const res = await api.get(`/parties/${partyId}/requests`);
     setRequests(res.data.data.requests);
   }
 
-  const filtered = filter
-    ? requests.filter((r) => r.status === filter)
-    : requests;
-
+  const filtered = filter ? requests.filter((r) => r.status === filter) : requests;
   const pendingCount = requests.filter((r) => r.status === "pending").length;
 
   if (loading) {
-    return <div className="min-h-screen bg-bg flex items-center justify-center text-text-muted">Loading...</div>;
+    return (
+      <div className="min-h-screen bg-bg flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-bg">
-      <div className="max-w-3xl mx-auto px-4 py-8">
-        <Link to="/dashboard" className="text-text-muted hover:text-text text-sm mb-4 inline-block">
-          ← Back to Dashboard
+    <div className="min-h-screen bg-bg pb-28 md:pb-12">
+      <div className="max-w-3xl mx-auto px-4 py-6 md:py-8">
+        <Link to="/dashboard" className="text-text-muted hover:text-text text-sm mb-4 inline-flex items-center gap-1.5 transition">
+          <ArrowLeft className="w-4 h-4" />
+          Back to Dashboard
         </Link>
 
-        <div className="glass-panel rounded-2xl p-6 mb-6">
-          <p className="text-xs uppercase tracking-[0.2em] text-text-muted mb-2">Approval Console</p>
-          <h1 className="text-3xl font-bold text-text mb-1">Join Requests</h1>
-          <p className="text-text-muted">{partyTitle} · {pendingCount} pending decisions</p>
-        </div>
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="glass-panel rounded-2xl p-6 mb-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-primary flex items-center justify-center shadow-lg shadow-accent/20">
+              <Shield className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-text-muted font-bold">Approval Console</p>
+              <h1 className="text-2xl font-bold text-text tracking-tight">Join Requests</h1>
+            </div>
+          </div>
+          <p className="text-text-muted text-sm">{partyTitle} · {pendingCount} pending decision{pendingCount !== 1 ? "s" : ""}</p>
+        </motion.div>
 
         {/* Filter tabs */}
-        <div className="glass-panel flex gap-2 mb-6 p-2 rounded-xl w-fit">
+        <div className="glass-panel flex gap-1 mb-6 p-1.5 rounded-xl w-fit">
           {["", "pending", "approved", "rejected"].map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`text-sm px-4 py-2 rounded-lg transition ${
+              className={`text-sm px-4 py-2 rounded-lg font-semibold transition ${
                 filter === f
-                  ? "bg-primary text-bg"
-                  : "text-text-muted hover:text-text hover:bg-white/6"
+                  ? "bg-primary text-white shadow"
+                  : "text-text-muted hover:text-text"
               }`}
             >
               {f || "All"} {f === "pending" && pendingCount > 0 ? `(${pendingCount})` : ""}
@@ -79,7 +89,12 @@ export default function ManageRequestsPage() {
         </div>
 
         {filtered.length === 0 ? (
-          <p className="text-text-muted text-center py-10">No requests found</p>
+          <div className="text-center py-20">
+            <div className="w-16 h-16 rounded-2xl bg-surface-light flex items-center justify-center mx-auto mb-4">
+              <Inbox className="w-8 h-8 text-text-dim" />
+            </div>
+            <p className="text-text-muted text-sm">No requests found</p>
+          </div>
         ) : (
           <div className="space-y-3">
             {filtered.map((req) => (

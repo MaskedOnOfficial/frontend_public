@@ -5,6 +5,8 @@ import { useAuth } from "../context/auth-hook";
 import RatingStars from "../components/rating-stars";
 import type { Party, Attendee } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
+import { motion } from "framer-motion";
+import { ArrowLeft, Star, CheckCircle, Loader2, Send } from "lucide-react";
 
 interface RatingDraft {
   rated_id: string;
@@ -51,25 +53,18 @@ export default function RateAttendeesPage() {
     }
   }, [partyId, user?.id]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   function updateDraft(userId: string, field: keyof RatingDraft, value: string | number) {
     setDrafts((prev) => ({
       ...prev,
-      [userId]: {
-        ...prev[userId],
-        rated_id: userId,
-        [field]: value,
-      } as RatingDraft,
+      [userId]: { ...prev[userId], rated_id: userId, [field]: value } as RatingDraft,
     }));
   }
 
   async function submitRating(userId: string) {
     const draft = drafts[userId];
     if (!draft || !draft.score) return;
-
     setSubmitting(userId);
     setError("");
     try {
@@ -87,13 +82,17 @@ export default function RateAttendeesPage() {
   }
 
   if (loading) {
-    return <div className="min-h-screen bg-bg flex items-center justify-center text-text-muted">Loading...</div>;
+    return (
+      <div className="min-h-screen bg-bg flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    );
   }
 
   if (!party) {
     return (
       <div className="min-h-screen bg-bg flex items-center justify-center">
-        <p className="text-error">{error || "Party not found"}</p>
+        <p className="text-error text-lg font-semibold">{error || "Party not found"}</p>
       </div>
     );
   }
@@ -119,71 +118,94 @@ export default function RateAttendeesPage() {
   const ratingOpen = new Date(party.date_time) <= new Date();
 
   return (
-    <div className="min-h-screen bg-bg py-8 px-4">
+    <div className="min-h-screen bg-bg py-6 md:py-8 px-4 pb-28 md:pb-12">
       <div className="max-w-4xl mx-auto">
-        <Link to={`/parties/${partyId}`} className="text-text-muted text-sm hover:text-text transition mb-4 inline-block">
-          ? Back to party
+        <Link to={`/parties/${partyId}`} className="text-text-muted text-sm hover:text-text transition mb-4 inline-flex items-center gap-1.5">
+          <ArrowLeft className="w-4 h-4" /> Back to party
         </Link>
 
-        <div className="glass-panel rounded-2xl p-6 mb-6">
-          <p className="text-xs uppercase tracking-[0.2em] text-text-muted mb-2">Reputation Studio</p>
-          <h1 className="text-2xl sm:text-3xl font-bold text-text">Rate Attendees</h1>
-          <p className="text-text-muted mt-1">{party.title}</p>
-        </div>
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="glass-panel rounded-2xl p-6 mb-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-warning to-hot flex items-center justify-center shadow-lg shadow-warning/20">
+              <Star className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-text-muted font-bold">Reputation Studio</p>
+              <h1 className="text-2xl font-bold text-text tracking-tight">Rate Attendees</h1>
+            </div>
+          </div>
+          <p className="text-text-muted text-sm">{party.title}</p>
+        </motion.div>
 
-        {error && <p className="text-error text-sm mb-4 bg-error/10 px-4 py-2 rounded">{error}</p>}
+        {error && <p className="text-error text-sm mb-4 bg-error/10 border border-error/20 px-4 py-3 rounded-xl">{error}</p>}
 
         {!ratingOpen ? (
           <div className="glass-panel rounded-2xl p-8 text-center">
-            <p className="text-text-muted">Ratings open once the party has ended.</p>
+            <Star className="w-10 h-10 text-text-dim mx-auto mb-3" />
+            <p className="text-text-muted font-semibold">Ratings open once the party has ended.</p>
           </div>
         ) : rateable.length === 0 ? (
           <div className="glass-panel rounded-2xl p-8 text-center">
-            <p className="text-text-muted">No attendees to rate.</p>
+            <p className="text-text-muted font-semibold">No attendees to rate.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {rateable.map((attendee) => (
-              <div key={attendee.id} className="glass-panel rounded-2xl p-5">
+            {rateable.map((attendee, i) => (
+              <motion.div
+                key={attendee.id}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: Math.min(i * 0.05, 0.3) }}
+                className="glass-panel rounded-2xl p-5"
+              >
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-accent to-accent-hover flex items-center justify-center text-white font-bold overflow-hidden">
-                    {attendee.avatar_url ? (
-                      <img src={attendee.avatar_url} alt={attendee.display_name || "Attendee"} className="w-full h-full object-cover" />
-                    ) : (
-                      (attendee.display_name || "?").charAt(0).toUpperCase()
-                    )}
-                  </div>
+                  <Link to={`/profile/${attendee.user_id}`} className="shrink-0">
+                    <div className="w-11 h-11 rounded-full bg-gradient-to-br from-warning to-hot p-[2px]">
+                      <div className="w-full h-full rounded-full bg-bg overflow-hidden flex items-center justify-center text-text font-bold text-sm">
+                        {attendee.avatar_url ? (
+                          <img src={attendee.avatar_url} alt={attendee.display_name || "Attendee"} className="w-full h-full object-cover" />
+                        ) : (
+                          (attendee.display_name || "?").charAt(0).toUpperCase()
+                        )}
+                      </div>
+                    </div>
+                  </Link>
                   <div>
-                    <p className="text-text font-semibold">{attendee.display_name}</p>
+                    <Link to={`/profile/${attendee.user_id}`} className="text-text font-bold text-sm hover:text-primary transition">{attendee.display_name}</Link>
                     <p className="text-text-muted text-xs">@{attendee.username}</p>
                   </div>
                 </div>
 
                 {submitted.has(attendee.user_id) ? (
-                  <div className="text-success text-sm font-semibold">? Rating submitted</div>
+                  <div className="flex items-center gap-2 text-success font-bold text-sm bg-success/10 rounded-xl px-4 py-3 border border-success/15">
+                    <CheckCircle className="w-4 h-4" />
+                    Rating submitted
+                  </div>
                 ) : (
-                  <div>
+                  <div className="space-y-3">
                     <RatingStars
-                      value={drafts[attendee.user_id]?.score || 0}
+                      rating={drafts[attendee.user_id]?.score || 0}
+                      interactive
                       onChange={(score) => updateDraft(attendee.user_id, "score", score)}
+                      size="lg"
                     />
                     <textarea
                       placeholder="Optional comment..."
                       value={drafts[attendee.user_id]?.comment || ""}
                       onChange={(e) => updateDraft(attendee.user_id, "comment", e.target.value)}
-                      rows={3}
-                      className="input-luxe w-full mt-3 rounded-lg px-4 py-2 resize-none text-sm"
+                      rows={2}
+                      className="input-luxe w-full rounded-xl px-4 py-3 resize-none text-sm"
                     />
                     <button
                       onClick={() => submitRating(attendee.user_id)}
                       disabled={!drafts[attendee.user_id]?.score || submitting === attendee.user_id}
-                      className="btn-primary-luxe mt-3 px-5 py-2 rounded-lg text-sm disabled:opacity-50"
+                      className="btn-primary-luxe px-5 py-2.5 rounded-xl text-sm font-bold disabled:opacity-40 flex items-center gap-2"
                     >
-                      {submitting === attendee.user_id ? "Submitting..." : "Submit Rating"}
+                      {submitting === attendee.user_id ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Submitting...</> : <><Send className="w-3.5 h-3.5" />Submit Rating</>}
                     </button>
                   </div>
                 )}
-              </div>
+              </motion.div>
             ))}
           </div>
         )}
