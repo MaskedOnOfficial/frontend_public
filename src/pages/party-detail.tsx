@@ -7,9 +7,13 @@ import { getApiErrorMessage } from "../lib/errors";
 import { motion } from "framer-motion";
 import { ArrowLeft, MapPin, Calendar, Clock, Users, Star, Tag, Camera, MoreVertical, Ticket, Shield, CheckCircle, Loader2, Send, PartyPopper } from "lucide-react";
 
-interface MyRequestSummary {
-  party_id: string;
-  status: string;
+interface PartyDetailPayload {
+  party: Party;
+  attendees: Attendee[];
+  viewer?: {
+    request_status: string | null;
+    is_attending: boolean;
+  };
 }
 
 function formatPrice(price: number) {
@@ -41,30 +45,18 @@ export default function PartyDetailPage() {
 
   const loadParty = useCallback(async () => {
     try {
-      const [partyRes, attendeesRes] = await Promise.all([
-        api.get(`/parties/${partyId}`),
-        api.get(`/parties/${partyId}/attendees`),
-      ]);
-      setParty(partyRes.data.data.party);
-      setAttendees(attendeesRes.data.data.attendees);
+      const detailRes = await api.get(`/parties/${partyId}`);
+      const data = detailRes.data.data as PartyDetailPayload;
 
-      if (user) {
-        try {
-          const reqsRes = await api.get("/users/me/requests");
-          const myReq = (reqsRes.data.data.requests as MyRequestSummary[]).find(
-            (r) => r.party_id === partyId,
-          );
-          if (myReq) setRequestStatus(myReq.status);
-        } catch (loadError) {
-          console.error("Failed to load user request status:", getApiErrorMessage(loadError, "Unknown request status error"));
-        }
-      }
+      setParty(data.party);
+      setAttendees(data.attendees || []);
+      setRequestStatus(data.viewer?.request_status ?? null);
     } catch (loadError: unknown) {
       setError(getApiErrorMessage(loadError, "Party not found"));
     } finally {
       setLoading(false);
     }
-  }, [partyId, user]);
+  }, [partyId]);
 
   useEffect(() => {
     loadParty();

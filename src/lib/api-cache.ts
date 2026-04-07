@@ -52,29 +52,16 @@ const STORAGE_BUDGET = 2 * 1024 * 1024; // 2 MB
 
 // ─── TTL Tiers (matched via regex patterns) ─────────────────────────
 const TIERS: { pattern: RegExp; config: TierConfig }[] = [
-  // NEVER CACHE these — will be intercepted before reaching tier matching
-  // /auth/*, /users/me (exact), /health
+  // Event listing endpoints only (not event details)
+  { pattern: /^\/parties$/, config: { freshMs: 30_000, maxAgeMs: 2 * 60_000 } },
+  { pattern: /^\/users\/me\/parties$/, config: { freshMs: 30_000, maxAgeMs: 2 * 60_000 } },
 
-  // TIER 1: Static — profiles and party details (10 min fresh, 30 min max)
-  { pattern: /^\/users\/[^/]+$/, config: { freshMs: 10 * 60_000, maxAgeMs: 30 * 60_000 } },
-  { pattern: /^\/parties\/[^/]+$/, config: { freshMs: 10 * 60_000, maxAgeMs: 30 * 60_000 } },
+  // Images/photo endpoints
+  { pattern: /^\/photos(?:\/|$)/, config: { freshMs: 60_000, maxAgeMs: 5 * 60_000 } },
+  { pattern: /^\/parties\/[^/]+\/photos$/, config: { freshMs: 60_000, maxAgeMs: 5 * 60_000 } },
 
-  // TIER 2: Semi-static — friends lists, ratings, my parties (3 min fresh, 10 min max)
-  { pattern: /^\/friends\//, config: { freshMs: 3 * 60_000, maxAgeMs: 10 * 60_000 } },
-  { pattern: /\/ratings/, config: { freshMs: 3 * 60_000, maxAgeMs: 10 * 60_000 } },
-  { pattern: /^\/users\/me\/parties/, config: { freshMs: 3 * 60_000, maxAgeMs: 10 * 60_000 } },
-
-  // TIER 3: Dynamic — photos, attendees, requests, comments (1 min fresh, 5 min max)
-  { pattern: /\/photos/, config: { freshMs: 60_000, maxAgeMs: 5 * 60_000 } },
-  { pattern: /\/attendees/, config: { freshMs: 60_000, maxAgeMs: 5 * 60_000 } },
-  { pattern: /\/requests/, config: { freshMs: 60_000, maxAgeMs: 5 * 60_000 } },
-  { pattern: /\/comments/, config: { freshMs: 60_000, maxAgeMs: 5 * 60_000 } },
-
-  // TIER 4: Live — feed, notifications, search (30s fresh, 2 min max)
-  { pattern: /^\/feed/, config: { freshMs: 30_000, maxAgeMs: 2 * 60_000 } },
-  { pattern: /^\/notifications/, config: { freshMs: 30_000, maxAgeMs: 2 * 60_000 } },
-  { pattern: /^\/search/, config: { freshMs: 30_000, maxAgeMs: 2 * 60_000 } },
-  { pattern: /^\/users\/me\/requests/, config: { freshMs: 30_000, maxAgeMs: 2 * 60_000 } },
+  // Notifications list
+  { pattern: /^\/notifications$/, config: { freshMs: 30_000, maxAgeMs: 2 * 60_000 } },
 ];
 
 // URLs that should NEVER be cached
@@ -82,28 +69,19 @@ const NEVER_CACHE_PATTERNS = [
   /^\/auth\//,
   /^\/users\/me$/,       // Auth bootstrap — always fresh
   /^\/health$/,
+  /^\/parties\/[^/]+$/,  // Event detail must always hit API
 ];
 
 // ─── Mutation → Invalidation mapping ────────────────────────────────
 // After a mutation matches a pattern, all cache entries matching the invalidation
 // globs are purged.
 const INVALIDATION_RULES: { mutationPattern: RegExp; purgePatterns: RegExp[] }[] = [
-  // Photo upload/delete → purge all photo caches + feed
-  { mutationPattern: /^\/photos(\/[^/]+)?$/, purgePatterns: [/\/photos/, /^\/feed/] },
-  // Photo comments → purge comment caches
-  { mutationPattern: /\/comments/, purgePatterns: [/\/comments/] },
-  // Friend actions → purge friend caches
-  { mutationPattern: /^\/friends\//, purgePatterns: [/^\/friends\//] },
-  // Party creation → purge party lists + user parties
-  { mutationPattern: /^\/parties$/, purgePatterns: [/^\/parties/, /\/parties/] },
-  // Party request actions → purge request caches
-  { mutationPattern: /\/requests/, purgePatterns: [/\/requests/] },
-  // Rating submission → purge rating caches
-  { mutationPattern: /\/ratings/, purgePatterns: [/\/ratings/] },
-  // Profile update → purge user caches
-  { mutationPattern: /^\/users\/me/, purgePatterns: [/^\/users\//] },
-  // Notification read → purge notification caches
-  { mutationPattern: /^\/notifications\//, purgePatterns: [/^\/notifications/] },
+  // Event CRUD/actions may change event listings
+  { mutationPattern: /^\/parties(?:\/|$)/, purgePatterns: [/^\/parties$/, /^\/users\/me\/parties$/] },
+  // Photo changes affect image endpoints
+  { mutationPattern: /^\/photos(?:\/|$)|\/photos$/, purgePatterns: [/^\/photos(?:\/|$)/, /^\/parties\/[^/]+\/photos$/] },
+  // Notification read/update invalidates notifications list cache
+  { mutationPattern: /^\/notifications(?:\/|$)/, purgePatterns: [/^\/notifications$/] },
 ];
 
 // ─── Cache State ────────────────────────────────────────────────────
@@ -128,8 +106,8 @@ function getTierConfig(path: string): TierConfig | null {
   for (const tier of TIERS) {
     if (tier.pattern.test(path)) return tier.config;
   }
-  // Default: treat unknown endpoints as dynamic (1 min / 5 min)
-  return { freshMs: 60_000, maxAgeMs: 5 * 60_000 };
+  // Unknown endpoints are not cached.
+  return null;
 }
 
 /** Check if a URL should be cached */
