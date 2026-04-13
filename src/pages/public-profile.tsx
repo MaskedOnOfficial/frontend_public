@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Camera, Grid3x3, Star, Users, Heart, UserPlus, UserCheck, UserX, Clock,
   X, Loader2, ChevronLeft, ChevronRight, Edit3, Sparkles, Award,
-  MessageCircle, ArrowLeft, Send, Trash2, PartyPopper, ShieldBan, ShieldOff
+  MessageCircle, ArrowLeft, PartyPopper, ShieldBan, ShieldOff
 } from "lucide-react";
 
 type FriendStatus = "none" | "pending" | "accepted";

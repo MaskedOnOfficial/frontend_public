@@ -1,12 +1,12 @@
 ﻿import { useState, useEffect, useRef, useCallback, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useAuth } from "../context/auth-hook";
 import api from "../lib/api";
 import type { Photo, Rating, FriendUser, PendingFriendRequest } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Camera, Grid3x3, Star, Users, Heart, Loader2, X, Trash2, Send,
+  Camera, Grid3x3, Star, Users, Heart, Loader2, X, Trash2,
   Edit3, ChevronLeft, ChevronRight, Settings, LayoutDashboard,
   PartyPopper, Award, ImagePlus, Sparkles, Check, UserPlus, MessageCircle, ArrowLeft
 } from "lucide-react";
@@ -27,7 +27,6 @@ function timeAgo(dateStr: string) {
 
 export default function ProfilePage() {
   const { user, refreshUser } = useAuth();
-  const navigate = useNavigate();
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const feedContainerRef = useRef<HTMLDivElement>(null);
@@ -74,7 +73,7 @@ export default function ProfilePage() {
 
   // Toast
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
-  const toastTimer = useRef<ReturnType<typeof setTimeout>>();
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function showToast(msg: string, type: "success" | "error" = "success") {
     if (toastTimer.current) clearTimeout(toastTimer.current);
