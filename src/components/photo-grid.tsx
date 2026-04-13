@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import api from "../lib/api";
 import type { Photo } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
@@ -85,6 +85,15 @@ export default function PhotoGrid({ photos, onLike, onDelete, currentUserId, com
     setNewComment("");
     setCommentError("");
   }
+
+  // Keyboard navigation for lightbox
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape" && lightbox) handleCloseLightbox();
+    }
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [lightbox]);
 
   return (
     <>
@@ -182,6 +191,7 @@ export default function PhotoGrid({ photos, onLike, onDelete, currentUserId, com
                       {onDelete && currentUserId === lightbox.user_id && (
                         <button
                           onClick={() => { onDelete(lightbox.id); handleCloseLightbox(); }}
+                          aria-label="Delete photo"
                           className="text-error hover:text-error/80 transition text-sm flex items-center gap-1"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -240,8 +250,10 @@ export default function PhotoGrid({ photos, onLike, onDelete, currentUserId, com
                     <input
                       type="text"
                       placeholder="Add a comment..."
+                      aria-label="Add a comment"
                       value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
+                      onChange={(e) => setNewComment(e.target.value.slice(0, 500))}
+                      maxLength={500}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey && newComment.trim()) {
                           handleAddComment();
@@ -265,6 +277,7 @@ export default function PhotoGrid({ photos, onLike, onDelete, currentUserId, com
             {/* Close */}
             <button
               onClick={() => handleCloseLightbox()}
+              aria-label="Close lightbox"
               className="absolute top-4 right-4 w-10 h-10 rounded-full bg-bg/60 backdrop-blur-md border border-primary/10 flex items-center justify-center text-text hover:bg-bg/80 transition z-10"
             >
               <X className="w-5 h-5" />

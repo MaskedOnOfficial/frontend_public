@@ -5,7 +5,7 @@ import { useAuth } from "../context/auth-hook";
 import type { Party, Attendee } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
 import { motion } from "framer-motion";
-import { ArrowLeft, MapPin, Calendar, Clock, Users, Star, Tag, Camera, MoreVertical, Ticket, Shield, CheckCircle, Loader2, Send, PartyPopper } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar, Clock, Users, Star, Tag, Camera, Share2, Ticket, Shield, CheckCircle, Loader2, Send, PartyPopper, Edit3 } from "lucide-react";
 
 interface PartyDetailPayload {
   party: Party;
@@ -64,11 +64,12 @@ export default function PartyDetailPage() {
 
   async function handleJoinRequest() {
     setRequesting(true);
-    setError("");
+    setError(""); // #31
     try {
       await api.post(`/parties/${partyId}/requests`, { message: message || undefined });
       setRequestStatus("pending");
       setMessage("");
+      setError(""); // #31 — clear on success
     } catch (joinError: unknown) {
       setError(getApiErrorMessage(joinError, "Failed to send request"));
     } finally {
@@ -82,11 +83,28 @@ export default function PartyDetailPage() {
     try {
       await api.post(`/parties/${partyId}/pay`);
       setRequestStatus("paid");
+      setError(""); // #31 — clear on success
       loadParty();
     } catch (payError: unknown) {
       setError(getApiErrorMessage(payError, "Payment failed"));
     } finally {
       setPaying(false);
+    }
+  }
+
+  // Share state
+  const [shareToast, setShareToast] = useState("");
+
+  // #30 — Share / copy link
+  function handleShare() {
+    const url = window.location.href;
+    if (navigator.share) {
+      navigator.share({ title: party?.title || "maskOn Party", url }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(url).then(() => {
+        setShareToast("Link copied!");
+        setTimeout(() => setShareToast(""), 2000);
+      }).catch(() => {});
     }
   }
 
@@ -128,9 +146,9 @@ export default function PartyDetailPage() {
 
   return (
     <div className="min-h-screen bg-bg pb-32 md:pb-8">
-      {/* Hero image */}
+      {/* Hero image — #29 gradient placeholder when no cover */}
       <div className="relative h-64 md:h-96 overflow-hidden bg-surface">
-        {party.cover_image_url && (
+        {party.cover_image_url ? (
           <motion.img
             initial={{ scale: 1.1 }}
             animate={{ scale: 1 }}
@@ -139,17 +157,23 @@ export default function PartyDetailPage() {
             alt={party.title}
             className="w-full h-full object-cover"
           />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-accent/20 to-hot/10 flex items-center justify-center">
+            <PartyPopper className="w-20 h-20 text-primary/20" />
+          </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/60 to-transparent" />
         <button
           onClick={() => navigate(-1)}
+          aria-label="Go back"
           className="absolute top-4 left-4 z-10 w-10 h-10 rounded-full bg-bg/60 backdrop-blur-md border border-primary/10 flex items-center justify-center text-text hover:bg-bg/80 transition"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
+        {/* #30 — Share button instead of non-functional MoreVertical */}
         <div className="absolute top-4 right-4 z-10">
-          <button className="w-10 h-10 rounded-full bg-bg/60 backdrop-blur-md border border-primary/10 flex items-center justify-center text-text hover:bg-bg/80 transition">
-            <MoreVertical className="w-5 h-5" />
+          <button onClick={handleShare} aria-label="Share this party" title="Share" className="w-10 h-10 rounded-full bg-bg/60 backdrop-blur-md border border-primary/10 flex items-center justify-center text-text hover:bg-bg/80 transition">
+            <Share2 className="w-5 h-5" />
           </button>
         </div>
       </div>
@@ -164,9 +188,9 @@ export default function PartyDetailPage() {
                 {party.status}
               </span>
             </div>
-            {/* Capacity bar */}
+            {/* #32 — Accessibility on capacity bar */}
             <div className="flex items-center gap-3 mt-3">
-              <div className="flex-1 h-1.5 bg-surface-light rounded-full overflow-hidden">
+              <div className="flex-1 h-1.5 bg-surface-light rounded-full overflow-hidden" role="progressbar" aria-label={`${party.current_attendees} of ${party.max_capacity} spots filled`} aria-valuenow={capacityPercent} aria-valuemin={0} aria-valuemax={100}>
                 <div className="h-full rounded-full bg-gradient-to-r from-primary via-accent to-hot transition-all duration-500" style={{ width: `${capacityPercent}%` }} />
               </div>
               <span className="text-text-muted text-xs font-semibold whitespace-nowrap">
@@ -246,12 +270,22 @@ export default function PartyDetailPage() {
                   </p>
                 </div>
                 {isHost && (
-                  <button
-                    onClick={() => navigate(`/dashboard/${party.id}/requests`)}
-                    className="btn-secondary-luxe px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap"
-                  >
-                    Manage Requests
-                  </button>
+                  <div className="flex gap-2 shrink-0">
+                    {party.status === "upcoming" && (
+                      <button
+                        onClick={() => navigate(`/parties/${party.id}/edit`)}
+                        className="btn-primary-luxe px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-1.5"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" /> Edit Event
+                      </button>
+                    )}
+                    <button
+                      onClick={() => navigate(`/dashboard/${party.id}/requests`)}
+                      className="btn-secondary-luxe px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap"
+                    >
+                      Manage Requests
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -292,6 +326,18 @@ export default function PartyDetailPage() {
 
           {/* Action buttons */}
           <div className="space-y-3">
+            {/* Share toast */}
+            {shareToast && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-success/90 text-white text-sm font-semibold px-5 py-2.5 rounded-full shadow-lg"
+              >
+                {shareToast}
+              </motion.div>
+            )}
+
             {user && !isHost && (
               <>
                 {error && <p className="text-error text-sm bg-error/10 border border-error/20 px-4 py-3 rounded-xl">{error}</p>}
@@ -324,8 +370,10 @@ export default function PartyDetailPage() {
                     <textarea
                       placeholder="Write a message to the host..."
                       value={message}
-                      onChange={(e) => setMessage(e.target.value)}
+                      onChange={(e) => setMessage(e.target.value.slice(0, 300))}
+                      maxLength={300}
                       rows={2}
+                      aria-label="Message to the host"
                       className="input-luxe w-full rounded-2xl px-4 py-3.5 resize-none text-sm"
                     />
                     <button

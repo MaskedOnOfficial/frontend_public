@@ -114,6 +114,7 @@ export default function DiscoverPage() {
               <img
                 src={featured.cover_image_url!}
                 alt={featured.title}
+                loading="lazy"
                 className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/50 to-transparent" />
@@ -149,6 +150,7 @@ export default function DiscoverPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="input-luxe w-full rounded-2xl pl-12 pr-4 py-4 text-sm"
+              aria-label="Search events by name, city, or vibe"
             />
           </div>
         </motion.form>
@@ -226,9 +228,10 @@ export default function DiscoverPage() {
                       <img
                         src={party.cover_image_url}
                         alt={party.title}
+                        loading="lazy"
                         className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/40 to-transparent" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/70 to-bg/20" />
                     </>
                   ) : (
                     <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-accent/15 to-hot/10 flex items-center justify-center">

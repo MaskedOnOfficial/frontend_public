@@ -1,11 +1,15 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+﻿import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import api from "../lib/api";
 import { useAuth } from "../context/auth-hook";
 import type { User, Photo, Rating, FriendUser } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, Star, Users, Heart, UserPlus, UserCheck, UserX, Clock, X, Loader2, ChevronLeft, ChevronRight, Edit3 } from "lucide-react";
+import {
+  Camera, Grid3x3, Star, Users, Heart, UserPlus, UserCheck, UserX, Clock,
+  X, Loader2, ChevronLeft, ChevronRight, Edit3, Sparkles, Award,
+  MessageCircle, ArrowLeft, Send, Trash2, PartyPopper, ShieldBan, ShieldOff
+} from "lucide-react";
 
 type FriendStatus = "none" | "pending" | "accepted";
 type FriendDir = "incoming" | "outgoing" | null;
@@ -24,6 +28,8 @@ export default function PublicProfilePage() {
   const { userId } = useParams<{ userId: string }>();
   const { user: me } = useAuth();
   const isOwnProfile = !!(me && me.id === userId);
+  const feedContainerRef = useRef<HTMLDivElement>(null);
+  const feedPhotoRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const [profile, setProfile] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,7 +39,19 @@ export default function PublicProfilePage() {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [photosTotal, setPhotosTotal] = useState(0);
   const [photosPage, setPhotosPage] = useState(1);
-  const [lightbox, setLightbox] = useState<Photo | null>(null);
+  const [photosLoading, setPhotosLoading] = useState(true);
+
+  // Feed view (Instagram-style)
+  const [feedStartIndex, setFeedStartIndex] = useState<number | null>(null);
+  const [activeCommentPhotoId, setActiveCommentPhotoId] = useState<string | null>(null);
+  const [comments, setComments] = useState<any[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [newComment, setNewComment] = useState("");
+  const [postingComment, setPostingComment] = useState(false);
+  const [commentError, setCommentError] = useState("");
+  const [partyTitles, setPartyTitles] = useState<Record<string, string>>({});
+  const [storyPartyId, setStoryPartyId] = useState<string | null>(null);
+  const [storyIndex, setStoryIndex] = useState(0);
 
   // Ratings
   const [ratings, setRatings] = useState<Rating[]>([]);
@@ -51,6 +69,12 @@ export default function PublicProfilePage() {
   const [friendsLoading, setFriendsLoading] = useState(false);
   const [showUnfriendMenu, setShowUnfriendMenu] = useState(false);
   const unfriendRef = useRef<HTMLDivElement>(null);
+
+  // Block
+  const [blockedByMe, setBlockedByMe] = useState(false);
+  const [blockedByThem, setBlockedByThem] = useState(false);
+  const [blockLoading, setBlockLoading] = useState(false);
+  const [showBlockConfirm, setShowBlockConfirm] = useState(false);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -75,12 +99,33 @@ export default function PublicProfilePage() {
         setFriendStatus(status || "none"); setFriendDir(direction || null);
         setMutualFriends(mutualRes.data.data.mutuals || []);
       } catch (error) { console.error("Failed to load friendship state:", getApiErrorMessage(error, "Unknown friendship state error")); }
+
+      try {
+        const blockRes = await api.get(`/blocks/${userId}/status`);
+        setBlockedByMe(blockRes.data.data.blocked_by_me);
+        setBlockedByThem(blockRes.data.data.blocked_by_them);
+      } catch (error) { console.error("Failed to load block status:", getApiErrorMessage(error, "Unknown block status error")); }
     }
   }, [isOwnProfile, me, userId]);
 
   const loadPhotos = useCallback(async () => {
-    try { const res = await api.get(`/users/${userId}/photos?page=${photosPage}&limit=12`); setPhotos(res.data.data.photos); setPhotosTotal(res.data.data.total); }
+    setPhotosLoading(true);
+    try {
+      const res = await api.get(`/users/${userId}/photos?page=${photosPage}&limit=36`);
+      const loadedPhotos: Photo[] = res.data.data.photos;
+      setPhotos(loadedPhotos);
+      setPhotosTotal(res.data.data.total);
+      const uniquePartyIds = Array.from(new Set(loadedPhotos.map((p) => p.party_id).filter((pid): pid is string => Boolean(pid))));
+      if (uniquePartyIds.length > 0) {
+        const titleEntries = await Promise.all(uniquePartyIds.map(async (id) => {
+          try { const partyRes = await api.get(`/parties/${id}`); return [id, partyRes.data.data.party?.title || "Event"] as const; }
+          catch { return [id, "Event"] as const; }
+        }));
+        setPartyTitles((prev) => ({ ...prev, ...Object.fromEntries(titleEntries) }));
+      }
+    }
     catch (error) { console.error("Failed to load public photos:", getApiErrorMessage(error, "Unknown public photos error")); }
+    finally { setPhotosLoading(false); }
   }, [photosPage, userId]);
 
   const loadRatings = useCallback(async () => {
@@ -150,6 +195,112 @@ export default function PublicProfilePage() {
     finally { setFriendLoading(false); }
   }
 
+  async function handleBlock() {
+    if (!userId || blockLoading) return;
+    setBlockLoading(true);
+    try {
+      await api.post(`/blocks/${userId}`);
+      setBlockedByMe(true);
+      setFriendStatus("none");
+      setFriendDir(null);
+      setShowBlockConfirm(false);
+      setShowUnfriendMenu(false);
+    } catch (error) { console.error("Failed to block user:", getApiErrorMessage(error, "Unknown block error")); }
+    finally { setBlockLoading(false); }
+  }
+
+  async function handleUnblock() {
+    if (!userId || blockLoading) return;
+    setBlockLoading(true);
+    try {
+      await api.delete(`/blocks/${userId}`);
+      setBlockedByMe(false);
+    } catch (error) { console.error("Failed to unblock user:", getApiErrorMessage(error, "Unknown unblock error")); }
+    finally { setBlockLoading(false); }
+  }
+
+  // Comments
+  async function loadComments(photoId: string) {
+    setLoadingComments(true); setCommentError("");
+    try { const res = await api.get(`/photos/${photoId}/comments`); setComments(res.data.data.comments || []); }
+    catch { setCommentError("Failed to load comments"); setComments([]); }
+    finally { setLoadingComments(false); }
+  }
+
+  async function handleAddComment() {
+    if (!activeCommentPhotoId || !newComment.trim()) return;
+    setPostingComment(true); setCommentError("");
+    try { const res = await api.post(`/photos/${activeCommentPhotoId}/comments`, { comment_text: newComment.trim() }); setComments([res.data.data.comment, ...comments]); setNewComment(""); }
+    catch (error) { setCommentError(getApiErrorMessage(error, "Failed to post comment")); }
+    finally { setPostingComment(false); }
+  }
+
+  async function handleDeleteComment(commentId: string) {
+    try { await api.delete(`/photos/comments/${commentId}`); setComments(comments.filter((c) => c.id !== commentId)); }
+    catch (error) { setCommentError(getApiErrorMessage(error, "Failed to delete comment")); }
+  }
+
+  function closeFeed() {
+    setFeedStartIndex(null);
+    setActiveCommentPhotoId(null);
+    setComments([]);
+    setNewComment("");
+    setCommentError("");
+  }
+
+  function toggleComments(photoId: string) {
+    if (activeCommentPhotoId === photoId) {
+      setActiveCommentPhotoId(null);
+      setComments([]);
+      setNewComment("");
+      setCommentError("");
+    } else {
+      setActiveCommentPhotoId(photoId);
+      setComments([]);
+      setNewComment("");
+      setCommentError("");
+      loadComments(photoId);
+    }
+  }
+
+  // Keyboard: Escape closes story/feed
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        if (storyPartyId) { setStoryPartyId(null); setStoryIndex(0); return; }
+        if (feedStartIndex !== null) closeFeed();
+      }
+    }
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [feedStartIndex, storyPartyId]);
+
+  // Auto-advance story
+  useEffect(() => {
+    if (!storyPartyId) return;
+    const currentPhotos = photos.filter((p) => p.party_id === storyPartyId);
+    if (currentPhotos.length === 0) return;
+    const allPartyIds = [...new Set(photos.filter((p) => p.party_id).map((p) => p.party_id!))];
+    const timer = setTimeout(() => {
+      if (storyIndex < currentPhotos.length - 1) { setStoryIndex(storyIndex + 1); }
+      else {
+        const idx = allPartyIds.indexOf(storyPartyId);
+        if (idx < allPartyIds.length - 1) { setStoryPartyId(allPartyIds[idx + 1]); setStoryIndex(0); }
+        else { setStoryPartyId(null); setStoryIndex(0); }
+      }
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [storyPartyId, storyIndex, photos]);
+
+  // Auto-scroll to tapped post when feed opens
+  useEffect(() => {
+    if (feedStartIndex !== null) {
+      requestAnimationFrame(() => {
+        feedPhotoRefs.current[feedStartIndex]?.scrollIntoView({ behavior: "instant", block: "start" });
+      });
+    }
+  }, [feedStartIndex]);
+
   if (loading) {
     return <div className="min-h-screen bg-bg flex items-center justify-center"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>;
   }
@@ -159,30 +310,75 @@ export default function PublicProfilePage() {
   }
 
   const ratingVal = Number(profile.social_rating);
-  const photoPages = Math.ceil(photosTotal / 12);
+  const photoPages = Math.ceil(photosTotal / 36);
   const friendPages = Math.ceil(friendsTotal / 20);
+  const memberSince = new Date(profile.created_at).toLocaleDateString("en-IN", { month: "short", year: "numeric" });
+
+  const partyPhotos = photos.filter((photo) => photo.party_id);
+  const highlightPartyIds = Array.from(new Set(partyPhotos.map((photo) => photo.party_id).filter((partyId): partyId is string => Boolean(partyId))));
+  const storyPhotos = storyPartyId ? partyPhotos.filter((photo) => photo.party_id === storyPartyId) : [];
+
+  function storyNext() {
+    if (storyIndex < storyPhotos.length - 1) { setStoryIndex(storyIndex + 1); }
+    else {
+      const idx = highlightPartyIds.indexOf(storyPartyId!);
+      if (idx < highlightPartyIds.length - 1) { setStoryPartyId(highlightPartyIds[idx + 1]); setStoryIndex(0); }
+      else { setStoryPartyId(null); setStoryIndex(0); }
+    }
+  }
+
+  function storyPrev() {
+    if (storyIndex > 0) { setStoryIndex(storyIndex - 1); }
+    else {
+      const idx = highlightPartyIds.indexOf(storyPartyId!);
+      if (idx > 0) {
+        const prevId = highlightPartyIds[idx - 1];
+        const prevPhotos = partyPhotos.filter((p) => p.party_id === prevId);
+        setStoryPartyId(prevId);
+        setStoryIndex(Math.max(0, prevPhotos.length - 1));
+      }
+    }
+  }
 
   function renderFriendButton() {
     if (isOwnProfile) {
       return (
-        <Link to="/profile/me" className="btn-secondary-luxe text-sm font-bold px-5 py-2.5 rounded-xl transition flex items-center gap-1.5">
-          <Edit3 className="w-4 h-4" /> Edit Profile
+        <Link to="/profile/me" className="btn-secondary-luxe text-[10px] sm:text-xs font-bold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl transition flex items-center gap-1 shrink-0 tap-active">
+          <Edit3 className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> <span className="hidden sm:inline">Edit</span>
         </Link>
       );
     }
     if (!me) return null;
 
+    // If I blocked this user, show unblock button
+    if (blockedByMe) {
+      return (
+        <button onClick={handleUnblock} disabled={blockLoading}
+          className="bg-error/15 hover:bg-error/25 text-error border border-error/20 text-[10px] sm:text-xs font-bold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl transition flex items-center gap-1 disabled:opacity-50 shrink-0 tap-active">
+          {blockLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldOff className="w-3 h-3 sm:w-3.5 sm:h-3.5" />} Unblock
+        </button>
+      );
+    }
+
+    // If they blocked me, show nothing / disabled state
+    if (blockedByThem) {
+      return null;
+    }
+
     if (friendStatus === "accepted") {
       return (
         <div className="relative" ref={unfriendRef}>
           <button onClick={() => setShowUnfriendMenu((v) => !v)} disabled={friendLoading}
-            className="bg-success/15 hover:bg-success/25 text-success border border-success/20 text-sm font-bold px-5 py-2.5 rounded-xl transition flex items-center gap-2 disabled:opacity-50">
-            <UserCheck className="w-4 h-4" /> Friends <span className="text-success/60 text-xs">▾</span>
+            className="bg-success/15 hover:bg-success/25 text-success border border-success/20 text-[10px] sm:text-xs font-bold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl transition flex items-center gap-1 disabled:opacity-50 shrink-0 tap-active">
+            <UserCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Friends <span className="text-success/60 text-[8px]">▾</span>
           </button>
           {showUnfriendMenu && (
-            <div className="absolute top-full left-0 mt-1 glass-panel rounded-xl shadow-2xl overflow-hidden z-10 w-40">
-              <button onClick={handleUnfriend} className="w-full text-left px-4 py-3 text-sm text-error hover:bg-error/10 transition flex items-center gap-2">
-                <UserX className="w-4 h-4" /> Unfriend
+            <div className="absolute top-full right-0 mt-1 glass-panel rounded-xl shadow-2xl overflow-hidden z-10 w-40">
+              <button onClick={handleUnfriend} className="w-full text-left px-4 py-2.5 text-xs text-error hover:bg-error/10 transition flex items-center gap-2">
+                <UserX className="w-3.5 h-3.5" /> Unfriend
+              </button>
+              <button onClick={() => { setShowUnfriendMenu(false); setShowBlockConfirm(true); }} className="w-full text-left px-4 py-2.5 text-xs text-error hover:bg-error/10 transition flex items-center gap-2 border-t border-primary/[0.06]">
+                <ShieldBan className="w-3.5 h-3.5" /> Block
               </button>
             </div>
           )}
@@ -193,22 +389,22 @@ export default function PublicProfilePage() {
     if (friendStatus === "pending" && friendDir === "outgoing") {
       return (
         <button onClick={handleCancelRequest} disabled={friendLoading}
-          className="bg-surface-light hover:bg-error/10 text-text-muted hover:text-error border border-primary/[0.08] hover:border-error/20 text-sm font-bold px-5 py-2.5 rounded-xl transition disabled:opacity-50 flex items-center gap-2">
-          <Clock className="w-4 h-4" /> {friendLoading ? "..." : "Pending · Cancel"}
+          className="bg-surface-light hover:bg-error/10 text-text-muted hover:text-error border border-primary/[0.08] hover:border-error/20 text-[10px] sm:text-xs font-bold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl transition disabled:opacity-50 flex items-center gap-1 shrink-0 tap-active">
+          <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> {friendLoading ? "..." : "Pending"}
         </button>
       );
     }
 
     if (friendStatus === "pending" && friendDir === "incoming") {
       return (
-        <div className="flex gap-2">
+        <div className="flex gap-1.5">
           <button onClick={handleAcceptFriend} disabled={friendLoading}
-            className="bg-success/15 hover:bg-success/25 text-success border border-success/20 text-sm font-bold px-4 py-2.5 rounded-xl transition disabled:opacity-50 flex items-center gap-1.5">
-            <UserCheck className="w-4 h-4" /> Accept
+            className="bg-success/15 hover:bg-success/25 text-success border border-success/20 text-[10px] sm:text-xs font-bold px-2.5 py-1.5 rounded-xl transition disabled:opacity-50 flex items-center gap-1 tap-active">
+            <UserCheck className="w-3 h-3" /> Accept
           </button>
           <button onClick={handleDeclineFriend} disabled={friendLoading}
-            className="bg-error/10 hover:bg-error/20 text-error border border-error/15 text-sm font-bold px-4 py-2.5 rounded-xl transition disabled:opacity-50 flex items-center gap-1.5">
-            <UserX className="w-4 h-4" /> Decline
+            className="bg-error/10 hover:bg-error/20 text-error border border-error/15 text-[10px] sm:text-xs font-bold px-2.5 py-1.5 rounded-xl transition disabled:opacity-50 flex items-center gap-1 tap-active">
+            <UserX className="w-3 h-3" /> Decline
           </button>
         </div>
       );
@@ -216,33 +412,40 @@ export default function PublicProfilePage() {
 
     return (
       <button onClick={handleAddFriend} disabled={friendLoading}
-        className="btn-primary-luxe text-sm font-bold px-5 py-2.5 rounded-xl transition disabled:opacity-50 flex items-center gap-1.5">
-        <UserPlus className="w-4 h-4" /> {friendLoading ? "..." : "Add Friend"}
+        className="btn-primary-luxe text-[10px] sm:text-xs font-bold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl transition disabled:opacity-50 flex items-center gap-1 shrink-0 tap-active">
+        <UserPlus className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> {friendLoading ? "..." : "Add Friend"}
       </button>
     );
   }
 
   return (
     <div className="min-h-screen bg-bg pb-28 md:pb-12">
-      {/* Hero banner */}
-      <div className="h-48 bg-gradient-to-br from-accent via-primary/40 to-hot/40 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_50%,rgba(83,52,131,0.4),transparent_60%)]" />
-        <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-bg to-transparent" />
+
+      {/* HERO BANNER */}
+      <div className="profile-hero h-48 sm:h-56 md:h-64">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-bg" />
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 -mt-20 relative z-10">
-        {/* Profile header card */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="glass-panel rounded-3xl overflow-hidden">
-          <div className="p-6 sm:p-8">
-            <div className="flex flex-col sm:flex-row items-center sm:items-end gap-5">
+      <div className="max-w-2xl mx-auto px-4 -mt-24 sm:-mt-28 relative z-10">
+
+        {/* PROFILE HEADER CARD */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          className="glass-panel rounded-3xl overflow-hidden shadow-2xl"
+        >
+          <div className="px-5 pt-5 pb-6 sm:px-7 sm:pt-6 sm:pb-7">
+            {/* Top section: Avatar + Info */}
+            <div className="flex items-start gap-4 sm:gap-5">
               {/* Avatar */}
-              <div className="relative -mt-20 sm:-mt-24 shrink-0">
-                <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-gradient-to-br from-primary via-accent to-hot p-[3px] shadow-2xl shadow-primary/20">
-                  <div className="w-full h-full rounded-full bg-bg overflow-hidden">
+              <div className="relative shrink-0">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-br from-primary via-accent to-hot p-[2.5px] shadow-xl shadow-primary/25 rotate-3 hover:rotate-0 transition-transform duration-500">
+                  <div className="w-full h-full rounded-[14px] sm:rounded-[18px] bg-bg overflow-hidden -rotate-3 hover:rotate-0 transition-transform duration-500">
                     {profile.avatar_url ? (
                       <img src={profile.avatar_url} alt={profile.display_name} className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-4xl sm:text-5xl text-text font-bold">
+                      <div className="w-full h-full flex items-center justify-center text-2xl sm:text-3xl text-text font-bold bg-gradient-to-br from-surface to-surface-light">
                         {profile.display_name.charAt(0).toUpperCase()}
                       </div>
                     )}
@@ -250,174 +453,261 @@ export default function PublicProfilePage() {
                 </div>
               </div>
 
-              {/* Name + bio + mutuals */}
-              <div className="flex-1 text-center sm:text-left">
-                <h1 className="text-2xl sm:text-3xl font-bold text-text tracking-tight">{profile.display_name}</h1>
-                <p className="text-text-muted text-sm">@{profile.username}</p>
-                {profile.bio && <p className="text-text-muted/80 text-sm mt-2 max-w-md">{profile.bio}</p>}
-                {!isOwnProfile && mutualFriends.length > 0 && (
-                  <div className="flex items-center gap-2 mt-3 justify-center sm:justify-start">
-                    <div className="flex -space-x-2">
-                      {mutualFriends.slice(0, 3).map((f) => (
-                        <div key={f.id} className="w-6 h-6 rounded-full border-2 border-surface bg-gradient-to-br from-primary to-accent overflow-hidden shrink-0 flex items-center justify-center text-[10px] text-white font-bold">
-                          {f.avatar_url ? <img src={f.avatar_url} alt={f.display_name} className="w-full h-full object-cover" /> : f.display_name.charAt(0).toUpperCase()}
-                        </div>
-                      ))}
-                    </div>
-                    <span className="text-text-dim text-xs font-medium">{mutualFriends.length} mutual {mutualFriends.length === 1 ? "friend" : "friends"}</span>
+              {/* Name + meta */}
+              <div className="flex-1 min-w-0 pt-1">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <h1 className="text-lg sm:text-xl font-extrabold text-text tracking-tight truncate leading-tight">{profile.display_name}</h1>
+                    <p className="text-text-muted text-xs sm:text-sm mt-0.5">@{profile.username}</p>
                   </div>
-                )}
-              </div>
+                  {renderFriendButton()}
+                </div>
 
-              {/* Rating + friend button */}
-              <div className="flex flex-col items-center gap-3 shrink-0">
-                {profile.total_ratings >= 3 ? (
-                  <div className="bg-warning/10 border border-warning/15 rounded-xl px-5 py-3 text-center">
-                    <div className="text-2xl font-bold text-warning flex items-center gap-1"><Star className="w-5 h-5 fill-current" />{ratingVal.toFixed(1)}</div>
-                    <div className="text-[10px] text-text-dim uppercase tracking-wider font-bold">{profile.total_ratings} ratings</div>
-                  </div>
-                ) : (
-                  <div className="bg-surface-light rounded-xl px-5 py-3 text-center">
-                    <div className="text-sm text-text-dim font-semibold">No rating yet</div>
-                  </div>
+                {profile.bio && (
+                  <p className="text-text-muted/80 text-xs sm:text-sm mt-2 line-clamp-2 leading-relaxed">{profile.bio}</p>
                 )}
-                {renderFriendButton()}
+
+                <div className="flex items-center gap-3 mt-2 flex-wrap">
+                  <p className="text-text-dim text-[10px] sm:text-xs flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" /> Member since {memberSince}
+                  </p>
+
+                  {!isOwnProfile && mutualFriends.length > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <div className="flex -space-x-1.5">
+                        {mutualFriends.slice(0, 3).map((f) => (
+                          <div key={f.id} className="w-5 h-5 rounded-full border-[1.5px] border-surface bg-gradient-to-br from-primary to-accent overflow-hidden shrink-0 flex items-center justify-center text-[8px] text-white font-bold">
+                            {f.avatar_url ? <img src={f.avatar_url} alt={f.display_name} className="w-full h-full object-cover" /> : f.display_name.charAt(0).toUpperCase()}
+                          </div>
+                        ))}
+                      </div>
+                      <span className="text-text-dim text-[10px] font-medium">{mutualFriends.length} mutual {mutualFriends.length === 1 ? "friend" : "friends"}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Stats */}
-            <div className="flex items-center justify-center sm:justify-start gap-5 mt-6 pt-6 border-t border-primary/[0.06] flex-wrap">
+            {/* STATS ROW */}
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-1 mt-5 pt-5 border-t border-primary/[0.06]">
               {[
-                { label: "Hosted", value: profile.parties_hosted },
-                { label: "Attended", value: profile.parties_attended },
-                { label: "Photos", value: photosTotal },
-                { label: "Reviews", value: profile.total_ratings },
+                { label: "Posts", value: photosTotal, color: "text-text" },
+                { label: "Friends", value: friendCount, color: "text-text" },
+                { label: "Hosted", value: profile.parties_hosted, color: "text-accent" },
+                { label: "Joined", value: profile.parties_attended, color: "text-primary" },
+                { label: "Rating", value: profile.total_ratings >= 3 ? ratingVal.toFixed(1) : (profile.total_ratings > 0 ? ratingVal.toFixed(1) : "New"), color: profile.total_ratings >= 3 ? "text-warning" : "text-text-dim", icon: profile.total_ratings >= 3 ? Star : undefined },
               ].map((stat) => (
-                <div key={stat.label} className="text-center">
-                  <div className="text-xl font-bold text-text">{stat.value}</div>
-                  <div className="text-[10px] text-text-dim uppercase tracking-wider font-bold">{stat.label}</div>
+                <div key={stat.label} className="text-center py-2 rounded-xl hover:bg-primary/[0.03] transition">
+                  <div className={`text-base sm:text-lg font-bold ${stat.color} flex items-center justify-center gap-0.5`}>
+                    {'icon' in stat && stat.icon && <stat.icon className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-current" />}
+                    {stat.value}
+                  </div>
+                  <div className="text-[8px] sm:text-[10px] text-text-dim uppercase tracking-wider font-bold mt-0.5">{stat.label}</div>
                 </div>
               ))}
-              <button onClick={() => setTab("friends")} className="text-center hover:opacity-80 transition">
-                <div className="text-xl font-bold text-text">{friendCount}</div>
-                <div className="text-[10px] text-text-dim uppercase tracking-wider font-bold">Friends</div>
-              </button>
             </div>
           </div>
         </motion.div>
 
-        {/* Tabs */}
-        <div className="glass-panel flex gap-1 mt-6 rounded-xl p-1.5">
-          {(["photos", "ratings", "friends"] as const).map((t) => (
-            <button key={t} onClick={() => setTab(t)}
-              className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition flex items-center justify-center gap-1.5 ${
-                tab === t ? "bg-primary text-white shadow" : "text-text-muted hover:text-text"
-              }`}>
-              {t === "photos" ? <><Camera className="w-4 h-4" /> Photos ({photosTotal})</>
-              : t === "ratings" ? <><Star className="w-4 h-4" /> Ratings ({profile.total_ratings})</>
-              : <><Users className="w-4 h-4" /> Friends ({friendCount})</>}
+        {/* TAB BAR */}
+        {!blockedByMe && !blockedByThem && (
+        <div className="flex border-b border-primary/[0.06] mt-5">
+          {([
+            { key: "photos" as const, icon: Grid3x3, label: "Posts" },
+            { key: "ratings" as const, icon: Award, label: "Reviews" },
+            { key: "friends" as const, icon: Users, label: "Friends" },
+          ]).map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`flex-1 py-3 transition flex items-center justify-center gap-1.5 text-[11px] sm:text-xs font-bold uppercase tracking-wider tap-active relative ${
+                tab === t.key ? "text-text" : "text-text-dim hover:text-text"
+              }`}
+            >
+              <t.icon className="w-4 h-4" />
+              {t.label}
+              {tab === t.key && (
+                <motion.div layoutId="public-profile-tab-indicator" className="absolute bottom-0 left-[20%] right-[20%] h-[2px] bg-primary rounded-full" />
+              )}
             </button>
           ))}
         </div>
+        )
 
-        {/* Tab content */}
-        <div className="mt-6">
-          {/* PHOTOS */}
+        {/* TAB CONTENT */}
+        {!blockedByMe && !blockedByThem && (
+        <div className="mt-4">
+
+          {/* PHOTOS TAB */}
           {tab === "photos" && (
-            <div>
-              {photos.length === 0 ? (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+              {/* Event Highlights */}
+              {highlightPartyIds.length > 0 && (
+                <div className="mb-5">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-text-dim font-bold mb-3 flex items-center gap-1.5">
+                    <PartyPopper className="w-3 h-3" /> Highlights
+                  </p>
+                  <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide scroll-smooth-x">
+                    {highlightPartyIds.map((partyId) => {
+                      const eventPhotos = partyPhotos.filter((photo) => photo.party_id === partyId);
+                      const cover = eventPhotos[0];
+                      const isActive = storyPartyId === partyId;
+                      return (
+                        <button key={partyId} onClick={() => { setStoryPartyId(partyId); setStoryIndex(0); }}
+                          className="shrink-0 flex flex-col items-center gap-1.5 group tap-active" title={partyTitles[partyId] || "Event"}>
+                          <div className={`p-[2.5px] rounded-full transition-all duration-300 ${isActive ? "bg-gradient-to-br from-primary via-warning to-accent shadow-lg shadow-primary/20 scale-105" : "bg-text-dim/20 group-hover:bg-primary/40"}`}>
+                            <div className="w-16 h-16 rounded-full overflow-hidden border-[3px] border-bg bg-surface">
+                              {cover ? <img src={cover.image_url} alt={partyTitles[partyId] || "Event"} className="w-full h-full object-cover" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center text-text-dim"><PartyPopper className="w-5 h-5" /></div>}
+                            </div>
+                          </div>
+                          <span className="text-[10px] text-text-dim max-w-[72px] truncate text-center font-medium">{partyTitles[partyId] || "Event"}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {photosLoading ? (
+                <div className="grid grid-cols-3 gap-1 rounded-xl overflow-hidden">
+                  {Array.from({ length: 9 }).map((_, i) => (
+                    <div key={i} className="aspect-square shimmer" />
+                  ))}
+                </div>
+              ) : photos.length === 0 ? (
                 <div className="text-center py-16 glass-panel rounded-2xl">
-                  <Camera className="w-10 h-10 text-text-dim mx-auto mb-3" />
-                  <p className="text-text-dim font-semibold">No photos yet</p>
+                  <div className="w-14 h-14 rounded-2xl bg-surface-light mx-auto mb-3 flex items-center justify-center">
+                    <Camera className="w-7 h-7 text-text-dim/30" />
+                  </div>
+                  <p className="text-text-dim font-semibold">No posts yet</p>
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {photos.map((photo, i) => (
-                      <motion.div key={photo.id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: Math.min(i * 0.03, 0.25) }}
-                        className="relative aspect-square rounded-2xl overflow-hidden cursor-pointer group shadow-md bg-surface"
-                        onClick={() => setLightbox(photo)}>
-                        <img src={photo.image_url} alt={photo.caption || "Photo"} className="w-full h-full object-cover transition group-hover:scale-110 duration-500" loading="lazy" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-bg/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end">
-                          <div className="p-3 w-full flex items-center justify-between">
-                            <span className="text-white text-xs font-semibold flex items-center gap-1"><Heart className="w-3 h-3" /> {photo.like_count}</span>
-                            {photo.caption && <span className="text-white/80 text-xs truncate max-w-[60%]">{photo.caption}</span>}
+                  <div className="grid grid-cols-3 gap-[2px] sm:gap-1 rounded-xl overflow-hidden">
+                    {photos.map((photo, idx) => (
+                      <div key={photo.id} className="aspect-square bg-surface overflow-hidden cursor-pointer group relative tap-active"
+                        onClick={() => setFeedStartIndex(idx)}>
+                        <img src={photo.image_url} alt={photo.caption || "Photo"} className="w-full h-full object-cover transition group-hover:scale-105 duration-300" loading="lazy" />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition flex items-center justify-center opacity-0 group-hover:opacity-100">
+                          <div className="flex gap-4">
+                            <span className="text-white text-sm font-bold flex items-center gap-1"><Heart className="w-4 h-4 fill-white" /> {photo.like_count}</span>
                           </div>
                         </div>
-                      </motion.div>
+                      </div>
                     ))}
                   </div>
                   {photoPages > 1 && (
                     <div className="flex justify-center items-center gap-3 mt-6">
-                      <button onClick={() => setPhotosPage((p) => Math.max(1, p - 1))} disabled={photosPage === 1} className="btn-secondary-luxe p-2.5 rounded-xl disabled:opacity-30"><ChevronLeft className="w-4 h-4" /></button>
-                      <span className="text-text-muted text-sm font-semibold">{photosPage} / {photoPages}</span>
-                      <button onClick={() => setPhotosPage((p) => Math.min(photoPages, p + 1))} disabled={photosPage === photoPages} className="btn-secondary-luxe p-2.5 rounded-xl disabled:opacity-30"><ChevronRight className="w-4 h-4" /></button>
+                      <button onClick={() => setPhotosPage((p) => Math.max(1, p - 1))} disabled={photosPage === 1} className="btn-secondary-luxe p-2.5 rounded-xl disabled:opacity-30 tap-active" aria-label="Previous page"><ChevronLeft className="w-4 h-4" /></button>
+                      <span className="text-text-muted text-sm font-semibold tabular-nums">{photosPage} / {photoPages}</span>
+                      <button onClick={() => setPhotosPage((p) => Math.min(photoPages, p + 1))} disabled={photosPage === photoPages} className="btn-secondary-luxe p-2.5 rounded-xl disabled:opacity-30 tap-active" aria-label="Next page"><ChevronRight className="w-4 h-4" /></button>
                     </div>
                   )}
                 </>
               )}
-            </div>
+            </motion.div>
           )}
 
-          {/* RATINGS */}
+          {/* RATINGS TAB */}
           {tab === "ratings" && (
-            <div>
-              {ratingsLoading ? <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 text-primary animate-spin" /></div>
-              : ratings.length === 0 ? (
-                <div className="text-center py-16 glass-panel rounded-2xl">
-                  <Star className="w-10 h-10 text-text-dim mx-auto mb-3" />
-                  <p className="text-text-dim font-semibold">No ratings yet</p>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+              {/* Rating summary card */}
+              {ratings.length > 0 && (
+                <div className="glass-panel rounded-2xl p-5 mb-4 flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-warning/10 border border-warning/15 flex items-center justify-center shrink-0">
+                    <Star className="w-7 h-7 text-warning fill-current" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-warning">{ratingVal.toFixed(1)}<span className="text-text-dim text-sm font-semibold">/5</span></div>
+                    <p className="text-text-dim text-xs">{ratings.length} review{ratings.length !== 1 ? "s" : ""} from party attendees</p>
+                  </div>
+                  <div className="ml-auto flex gap-0.5">
+                    {Array.from({ length: 5 }, (_, i) => (
+                      <Star key={i} className={`w-4 h-4 ${i < Math.round(ratingVal) ? "text-warning fill-current" : "text-text-dim/20"}`} />
+                    ))}
+                  </div>
                 </div>
-              ) : (
+              )}
+
+              {ratingsLoading ? (
                 <div className="space-y-3">
-                  {ratings.map((r, i) => (
-                    <motion.div key={r.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.04, 0.25) }}
-                      className="glass-panel rounded-2xl p-5 flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-warning to-hot p-[1.5px] shrink-0">
-                        <div className="w-full h-full rounded-full bg-bg flex items-center justify-center text-sm font-bold text-text">
-                          {(r.rater_display_name || "?").charAt(0).toUpperCase()}
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="glass-panel rounded-2xl p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-full shimmer" />
+                        <div className="flex-1 space-y-2">
+                          <div className="h-3.5 shimmer rounded-lg w-28" />
+                          <div className="h-3 shimmer rounded-lg w-20" />
+                          <div className="h-3 shimmer rounded-lg w-3/4" />
                         </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-text font-bold text-sm">{r.rater_display_name}</span>
-                          {r.rater_username && <span className="text-text-dim text-xs">@{r.rater_username}</span>}
-                          <span className="text-text-dim/40 text-xs ml-auto">{timeAgo(r.created_at)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : ratings.length === 0 ? (
+                <div className="text-center py-16 glass-panel rounded-2xl">
+                  <div className="w-14 h-14 rounded-2xl bg-surface-light mx-auto mb-3 flex items-center justify-center">
+                    <Star className="w-7 h-7 text-text-dim/30" />
+                  </div>
+                  <p className="text-text-dim font-semibold">No reviews yet</p>
+                  <p className="text-text-dim/60 text-sm mt-1">This user hasn't been rated yet</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {ratings.map((r, i) => (
+                    <motion.div key={r.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.04, 0.25) }} className="glass-panel rounded-2xl p-4">
+                      <div className="flex items-start gap-3">
+                        <Link to={`/profile/${r.rater_id}`} className="shrink-0">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-warning to-hot p-[1.5px]">
+                            <div className="w-full h-full rounded-full bg-bg flex items-center justify-center text-sm font-bold text-text overflow-hidden">
+                              {r.rater_avatar_url ? <img src={r.rater_avatar_url} alt={r.rater_display_name || ""} className="w-full h-full object-cover" /> : (r.rater_display_name || "?").charAt(0).toUpperCase()}
+                            </div>
+                          </div>
+                        </Link>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Link to={`/profile/${r.rater_id}`} className="text-text font-bold text-sm hover:text-primary transition">{r.rater_display_name}</Link>
+                            <span className="text-text-dim text-[10px] ml-auto shrink-0">{timeAgo(r.created_at)}</span>
+                          </div>
+                          <div className="flex gap-0.5 mb-1.5">
+                            {Array.from({ length: 5 }, (_, i) => (
+                              <Star key={i} className={`w-3.5 h-3.5 ${i < r.score ? "text-warning fill-current" : "text-text-dim/20"}`} />
+                            ))}
+                          </div>
+                          {r.comment && <p className="text-text-muted text-xs leading-relaxed">{r.comment}</p>}
                         </div>
-                        <div className="flex gap-0.5 mb-2">
-                          {Array.from({ length: 5 }, (_, i) => (
-                            <Star key={i} className={`w-3.5 h-3.5 ${i < r.score ? "text-warning fill-current" : "text-text-dim/20"}`} />
-                          ))}
-                        </div>
-                        {r.comment && <p className="text-text-muted text-sm">{r.comment}</p>}
                       </div>
                     </motion.div>
                   ))}
                 </div>
               )}
-            </div>
+            </motion.div>
           )}
 
-          {/* FRIENDS */}
+          {/* FRIENDS TAB */}
           {tab === "friends" && (
-            <div>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+              {/* Mutual friends section */}
               {!isOwnProfile && mutualFriends.length > 0 && (
-                <div className="glass-panel rounded-2xl p-5 mb-4">
-                  <h3 className="text-[10px] font-bold text-text-dim uppercase tracking-[0.15em] mb-3 flex items-center gap-1.5">
-                    <Users className="w-3 h-3" />
+                <div className="mb-5">
+                  <h3 className="text-[10px] font-bold text-text-dim uppercase tracking-[0.15em] mb-3 flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-accent" />
                     {mutualFriends.length} Mutual {mutualFriends.length === 1 ? "Friend" : "Friends"}
                   </h3>
-                  <div className="flex flex-wrap gap-3">
+                  <div className="space-y-2">
                     {mutualFriends.map((f) => (
-                      <Link key={f.id} to={`/profile/${f.id}`} className="flex items-center gap-2 bg-surface-light rounded-xl px-3 py-2 hover:bg-primary/10 transition">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent p-[1px] shrink-0">
-                          <div className="w-full h-full rounded-full bg-bg overflow-hidden flex items-center justify-center text-white text-xs font-bold">
+                      <Link key={f.id} to={`/profile/${f.id}`} className="glass-panel rounded-2xl p-4 flex items-center gap-3 hover:border-primary/15 transition tap-active block">
+                        <div className="w-11 h-11 rounded-full bg-gradient-to-br from-primary to-accent p-[1.5px] shrink-0">
+                          <div className="w-full h-full rounded-full bg-bg overflow-hidden flex items-center justify-center text-text font-bold text-sm">
                             {f.avatar_url ? <img src={f.avatar_url} alt={f.display_name} className="w-full h-full object-cover" /> : f.display_name.charAt(0).toUpperCase()}
                           </div>
                         </div>
-                        <div>
-                          <p className="text-text text-xs font-bold leading-tight">{f.display_name}</p>
-                          <p className="text-text-dim text-[10px]">@{f.username}</p>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-text font-bold text-sm truncate">{f.display_name}</p>
+                          <p className="text-text-muted text-xs">@{f.username}</p>
+                        </div>
+                        <div className="text-warning text-xs font-bold shrink-0 flex items-center gap-0.5">
+                          <Star className="w-3 h-3 fill-current" /> {Number(f.social_rating).toFixed(1)}
                         </div>
                       </Link>
                     ))}
@@ -425,20 +715,31 @@ export default function PublicProfilePage() {
                 </div>
               )}
 
-              {friendsLoading ? <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 text-primary animate-spin" /></div>
-              : friends.length === 0 ? (
+              {/* All friends */}
+              {friendsLoading ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="glass-panel rounded-2xl p-4 flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-full shimmer" />
+                      <div className="flex-1 space-y-2"><div className="h-3.5 shimmer rounded-lg w-24" /><div className="h-3 shimmer rounded-lg w-16" /></div>
+                    </div>
+                  ))}
+                </div>
+              ) : friends.length === 0 ? (
                 <div className="text-center py-16 glass-panel rounded-2xl">
-                  <Users className="w-10 h-10 text-text-dim mx-auto mb-3" />
+                  <div className="w-14 h-14 rounded-2xl bg-surface-light mx-auto mb-3 flex items-center justify-center">
+                    <Users className="w-7 h-7 text-text-dim/30" />
+                  </div>
                   <p className="text-text-dim font-semibold">No friends yet</p>
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-2">
                     {friends.map((f, i) => (
                       <motion.div key={f.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: Math.min(i * 0.03, 0.2) }}>
-                        <Link to={`/profile/${f.id}`} className="glass-panel flex items-center gap-3 rounded-2xl p-4 hover:border-primary/15 transition">
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent p-[1.5px] shrink-0">
-                            <div className="w-full h-full rounded-full bg-bg overflow-hidden flex items-center justify-center text-text text-lg font-bold">
+                        <Link to={`/profile/${f.id}`} className="glass-panel rounded-2xl p-4 flex items-center gap-3 hover:border-primary/15 transition tap-active block">
+                          <div className="w-11 h-11 rounded-full bg-gradient-to-br from-primary to-accent p-[1.5px] shrink-0">
+                            <div className="w-full h-full rounded-full bg-bg overflow-hidden flex items-center justify-center text-text font-bold text-sm">
                               {f.avatar_url ? <img src={f.avatar_url} alt={f.display_name} className="w-full h-full object-cover" /> : f.display_name.charAt(0).toUpperCase()}
                             </div>
                           </div>
@@ -455,38 +756,320 @@ export default function PublicProfilePage() {
                   </div>
                   {friendPages > 1 && (
                     <div className="flex justify-center items-center gap-3 mt-6">
-                      <button onClick={() => setFriendsPage((p) => Math.max(1, p - 1))} disabled={friendsPage === 1} className="btn-secondary-luxe p-2.5 rounded-xl disabled:opacity-30"><ChevronLeft className="w-4 h-4" /></button>
-                      <span className="text-text-muted text-sm font-semibold">{friendsPage} / {friendPages}</span>
-                      <button onClick={() => setFriendsPage((p) => Math.min(friendPages, p + 1))} disabled={friendsPage === friendPages} className="btn-secondary-luxe p-2.5 rounded-xl disabled:opacity-30"><ChevronRight className="w-4 h-4" /></button>
+                      <button onClick={() => setFriendsPage((p) => Math.max(1, p - 1))} disabled={friendsPage === 1} className="btn-secondary-luxe p-2.5 rounded-xl disabled:opacity-30 tap-active" aria-label="Previous page"><ChevronLeft className="w-4 h-4" /></button>
+                      <span className="text-text-muted text-sm font-semibold tabular-nums">{friendsPage} / {friendPages}</span>
+                      <button onClick={() => setFriendsPage((p) => Math.min(friendPages, p + 1))} disabled={friendsPage === friendPages} className="btn-secondary-luxe p-2.5 rounded-xl disabled:opacity-30 tap-active" aria-label="Next page"><ChevronRight className="w-4 h-4" /></button>
                     </div>
                   )}
                 </>
               )}
-            </div>
+            </motion.div>
           )}
         </div>
+        )}
       </div>
 
-      {/* Lightbox */}
+      {/* BLOCKED BANNER */}
+      {blockedByThem && !isOwnProfile && me && (
+        <div className="max-w-2xl mx-auto px-4 mt-4">
+          <div className="glass-panel rounded-2xl p-5 text-center border border-error/10">
+            <ShieldBan className="w-8 h-8 text-error/50 mx-auto mb-2" />
+            <p className="text-text-dim font-semibold text-sm">This content is not available</p>
+          </div>
+        </div>
+      )}
+
+      {blockedByMe && !isOwnProfile && me && (
+        <div className="max-w-2xl mx-auto px-4 mt-4">
+          <div className="glass-panel rounded-2xl p-5 text-center border border-error/10">
+            <ShieldBan className="w-8 h-8 text-error/40 mx-auto mb-2" />
+            <p className="text-text-dim font-semibold text-sm">You have blocked this user</p>
+            <p className="text-text-dim/60 text-xs mt-1">Unblock them to see their content</p>
+          </div>
+        </div>
+      )}
+
+      {/* BLOCK CONFIRMATION MODAL */}
       <AnimatePresence>
-        {lightbox && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-bg/95 backdrop-blur-lg z-50 flex items-center justify-center p-4"
-            onClick={() => setLightbox(null)}>
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="max-w-3xl w-full glass-panel rounded-3xl overflow-hidden shadow-2xl"
-              onClick={(e) => e.stopPropagation()}>
-              <img src={lightbox.image_url} alt={lightbox.caption || "Photo"} className="w-full max-h-[70vh] object-contain bg-black" />
-              <div className="p-5 flex items-center justify-between">
-                <div>{lightbox.caption && <p className="text-text text-sm">{lightbox.caption}</p>}</div>
-                <button onClick={() => handleLike(lightbox.id)} className="text-hot hover:scale-110 transition-transform text-sm font-bold flex items-center gap-1.5">
-                  <Heart className="w-4 h-4" /> {lightbox.like_count}
+        {showBlockConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4"
+            onClick={() => setShowBlockConfirm(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="glass-panel rounded-3xl overflow-hidden max-w-sm w-full shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-error/10 border border-error/15 mx-auto mb-4 flex items-center justify-center">
+                  <ShieldBan className="w-7 h-7 text-error" />
+                </div>
+                <h3 className="text-text font-bold text-lg mb-1">Block {profile.display_name}?</h3>
+                <p className="text-text-muted text-sm leading-relaxed">
+                  They won't be able to find your profile, see your posts, or send you friend requests. Any existing friendship will be removed.
+                </p>
+              </div>
+              <div className="flex border-t border-primary/[0.06]">
+                <button onClick={() => setShowBlockConfirm(false)} className="flex-1 py-3.5 text-sm font-semibold text-text-muted hover:bg-surface-light transition tap-active">
+                  Cancel
+                </button>
+                <button onClick={handleBlock} disabled={blockLoading} className="flex-1 py-3.5 text-sm font-bold text-error hover:bg-error/10 transition border-l border-primary/[0.06] tap-active disabled:opacity-50">
+                  {blockLoading ? "Blocking…" : "Block"}
                 </button>
               </div>
             </motion.div>
-            <button onClick={() => setLightbox(null)} className="absolute top-4 right-4 w-10 h-10 rounded-full bg-bg/60 backdrop-blur-md border border-primary/10 flex items-center justify-center text-text hover:bg-bg/80 transition z-10">
-              <X className="w-5 h-5" />
-            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* INSTAGRAM-STYLE SCROLLABLE FEED */}
+      <AnimatePresence>
+        {feedStartIndex !== null && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-bg z-50 flex flex-col"
+          >
+            {/* Sticky header */}
+            <div className="sticky top-0 z-10 bg-bg/80 backdrop-blur-lg border-b border-primary/[0.06] px-4 py-3 flex items-center gap-3">
+              <button onClick={closeFeed} className="w-9 h-9 rounded-full bg-surface-light flex items-center justify-center text-text hover:bg-surface transition tap-active" aria-label="Back to grid">
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-accent p-[1px] shrink-0">
+                  <div className="w-full h-full rounded-full bg-bg overflow-hidden flex items-center justify-center text-[10px] font-bold text-text">
+                    {profile.avatar_url
+                      ? <img src={profile.avatar_url} alt={profile.display_name} className="w-full h-full object-cover" />
+                      : profile.display_name.charAt(0).toUpperCase()}
+                  </div>
+                </div>
+                <h2 className="font-bold text-text text-sm truncate">{profile.display_name}</h2>
+              </div>
+            </div>
+
+            {/* Snap-scroll feed */}
+            <div ref={feedContainerRef} className="flex-1 overflow-y-auto snap-feed">
+              <div className="max-w-lg mx-auto">
+                {photos.map((photo, idx) => (
+                  <div
+                    key={photo.id}
+                    ref={(el) => { feedPhotoRefs.current[idx] = el; }}
+                    className="border-b border-primary/[0.06] snap-feed-item"
+                  >
+                    {/* Post header */}
+                    <div className="px-4 py-3 flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent p-[1.5px] shrink-0">
+                        <div className="w-full h-full rounded-full bg-bg overflow-hidden flex items-center justify-center text-sm font-bold text-text">
+                          {profile.avatar_url
+                            ? <img src={profile.avatar_url} alt={profile.display_name} className="w-full h-full object-cover" />
+                            : profile.display_name.charAt(0).toUpperCase()}
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-text text-sm font-bold truncate">{profile.display_name}</p>
+                      </div>
+                    </div>
+
+                    {/* Image */}
+                    <div className="w-full bg-black">
+                      <img src={photo.image_url} alt={photo.caption || "Photo"} className="w-full max-h-[70vh] object-contain" loading={idx > 2 ? "lazy" : undefined} />
+                    </div>
+
+                    {/* Instagram-style actions & info */}
+                    <div className="px-4 pt-3 pb-3">
+                      <div className="flex items-center gap-4 mb-2">
+                        <button onClick={() => handleLike(photo.id)} className="tap-active" aria-label="Like">
+                          <Heart className="w-6 h-6 text-text hover:text-hot transition" />
+                        </button>
+                        <button onClick={() => toggleComments(photo.id)} className="tap-active" aria-label="Comment">
+                          <MessageCircle className="w-6 h-6 text-text hover:text-primary transition" />
+                        </button>
+                      </div>
+                      <p className="text-text text-sm font-bold">{photo.like_count.toLocaleString()} {photo.like_count === 1 ? "like" : "likes"}</p>
+                      {photo.caption && (
+                        <p className="text-text text-sm mt-1">
+                          <span className="font-bold">{profile.display_name}</span>{" "}
+                          <span className="text-text-muted">{photo.caption}</span>
+                        </p>
+                      )}
+                      <button onClick={() => toggleComments(photo.id)} className="text-text-dim text-sm mt-1 hover:text-text-muted transition block">
+                        View all comments
+                      </button>
+                      {me && (
+                        <button onClick={() => toggleComments(photo.id)} className="flex items-center gap-2.5 mt-2 w-full tap-active">
+                          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-accent p-[1px] shrink-0">
+                            <div className="w-full h-full rounded-full bg-bg overflow-hidden flex items-center justify-center text-[8px] font-bold text-text">
+                              {me.avatar_url
+                                ? <img src={me.avatar_url} alt="" className="w-full h-full object-cover" />
+                                : me.display_name.charAt(0).toUpperCase()}
+                            </div>
+                          </div>
+                          <span className="text-text-dim text-sm">Add a comment…</span>
+                        </button>
+                      )}
+                      <p className="text-text-dim text-[10px] uppercase mt-2">
+                        {new Date(photo.created_at).toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* COMMENTS BOTTOM SHEET */}
+      <AnimatePresence>
+        {activeCommentPhotoId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60]"
+          >
+            <div className="absolute inset-0 bg-black/50" onClick={() => { setActiveCommentPhotoId(null); setComments([]); setNewComment(""); setCommentError(""); }} />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="absolute bottom-0 left-0 right-0 max-h-[75vh] bg-bg rounded-t-3xl flex flex-col shadow-2xl border-t border-primary/[0.08]"
+            >
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 rounded-full bg-text-dim/30" />
+              </div>
+              <div className="px-4 pb-3 border-b border-primary/[0.06] flex items-center justify-between">
+                <h3 className="font-bold text-text text-base">Comments</h3>
+                <button onClick={() => { setActiveCommentPhotoId(null); setComments([]); setNewComment(""); setCommentError(""); }} className="w-8 h-8 rounded-full bg-surface-light flex items-center justify-center text-text-dim hover:text-text transition tap-active" aria-label="Close comments">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto px-4 py-3 min-h-[200px]">
+                {commentError && <div className="text-error text-xs bg-error/10 px-3 py-2 rounded-xl mb-3">{commentError}</div>}
+                {loadingComments ? (
+                  <div className="flex items-center justify-center gap-2 py-8"><Loader2 className="w-5 h-5 text-primary animate-spin" /><span className="text-text-muted text-sm">Loading…</span></div>
+                ) : comments.length === 0 ? (
+                  <div className="text-center py-12">
+                    <p className="text-text font-bold text-lg mb-1">No comments yet</p>
+                    <p className="text-text-dim text-sm">Start the conversation.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {comments.map((comment) => (
+                      <div key={comment.id} className="flex gap-3">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent p-[1px] shrink-0">
+                          <div className="w-full h-full rounded-full bg-bg overflow-hidden flex items-center justify-center text-[10px] font-bold text-text">
+                            {comment.avatar_url ? <img src={comment.avatar_url} alt="" className="w-full h-full object-cover" /> : (comment.display_name || "?").charAt(0).toUpperCase()}
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm leading-snug">
+                            <span className="text-text font-bold mr-1.5">{comment.display_name || comment.username || "User"}</span>
+                            <span className="text-text-muted">{comment.comment_text}</span>
+                          </p>
+                          <div className="flex items-center gap-4 mt-1.5 text-xs text-text-dim">
+                            <span>{timeAgo(comment.created_at)}</span>
+                            {comment.like_count > 0 && <span>{comment.like_count} {comment.like_count === 1 ? "like" : "likes"}</span>}
+                            {me && me.id === comment.user_id && <button onClick={() => handleDeleteComment(comment.id)} className="text-error hover:text-error/80 transition font-medium">Delete</button>}
+                          </div>
+                        </div>
+                        <div className="shrink-0 pt-1">
+                          <Heart className="w-3 h-3 text-text-dim/40" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {me && (
+                <div className="p-3 border-t border-primary/[0.06] shrink-0 bg-bg rounded-b-3xl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent p-[1px] shrink-0">
+                      <div className="w-full h-full rounded-full bg-bg overflow-hidden flex items-center justify-center text-[10px] font-bold text-text">
+                        {me.avatar_url ? <img src={me.avatar_url} alt="" className="w-full h-full object-cover" /> : me.display_name.charAt(0).toUpperCase()}
+                      </div>
+                    </div>
+                    <input type="text" aria-label="Add a comment" placeholder="Add a comment…" value={newComment} onChange={(e) => setNewComment(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && newComment.trim()) handleAddComment(); }} disabled={postingComment} className="flex-1 bg-transparent text-text text-sm placeholder:text-text-dim outline-none min-w-0 py-2" />
+                    <button onClick={handleAddComment} disabled={postingComment || !newComment.trim()} className="text-primary font-bold text-sm disabled:opacity-40 transition tap-active shrink-0" aria-label="Post comment">
+                      {postingComment ? <Loader2 className="w-4 h-4 animate-spin" /> : "Post"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* INSTAGRAM-STYLE STORY VIEWER */}
+      <AnimatePresence>
+        {storyPartyId && storyPhotos.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black z-[70] flex flex-col"
+          >
+            {/* Progress bars */}
+            <div className="absolute top-0 left-0 right-0 z-20 px-2 pt-2 flex gap-1">
+              {storyPhotos.map((_, i) => (
+                <div key={i} className="flex-1 h-[2px] bg-white/30 rounded-full overflow-hidden">
+                  {i < storyIndex ? (
+                    <div className="h-full bg-white rounded-full w-full" />
+                  ) : i === storyIndex ? (
+                    <div key={`sp-${storyPartyId}-${storyIndex}`} className="h-full bg-white rounded-full story-progress-bar" />
+                  ) : null}
+                </div>
+              ))}
+            </div>
+
+            {/* Header */}
+            <div className="absolute top-5 left-0 right-0 z-20 px-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent p-[1.5px]">
+                  <div className="w-full h-full rounded-full bg-black overflow-hidden flex items-center justify-center text-sm font-bold text-white">
+                    {profile.avatar_url ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" /> : profile.display_name.charAt(0).toUpperCase()}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-white text-sm font-bold">{partyTitles[storyPartyId] || "Event"}</p>
+                  <p className="text-white/60 text-[10px]">{storyPhotos[storyIndex]?.created_at ? timeAgo(storyPhotos[storyIndex].created_at) : ""}</p>
+                </div>
+              </div>
+              <button onClick={() => { setStoryPartyId(null); setStoryIndex(0); }} className="w-9 h-9 flex items-center justify-center text-white/80 hover:text-white transition rounded-full" aria-label="Close story">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Story image + tap zones */}
+            <div className="flex-1 flex items-center justify-center relative select-none">
+              <img
+                src={storyPhotos[storyIndex]?.image_url}
+                alt={storyPhotos[storyIndex]?.caption || "Story"}
+                className="max-w-full max-h-full object-contain"
+                draggable={false}
+              />
+              <div className="absolute inset-0 flex">
+                <button className="w-1/3 h-full cursor-default" onClick={storyPrev} aria-label="Previous" />
+                <div className="w-1/3 h-full" />
+                <button className="w-1/3 h-full cursor-default" onClick={storyNext} aria-label="Next" />
+              </div>
+            </div>
+
+            {/* Caption overlay */}
+            {storyPhotos[storyIndex]?.caption && (
+              <div className="absolute bottom-0 left-0 right-0 z-20 px-4 pb-6 pt-12 bg-gradient-to-t from-black/80 to-transparent">
+                <p className="text-white text-sm">{storyPhotos[storyIndex].caption}</p>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

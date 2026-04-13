@@ -192,10 +192,14 @@ export default function RateAttendeesPage() {
                     <textarea
                       placeholder="Optional comment..."
                       value={drafts[attendee.user_id]?.comment || ""}
-                      onChange={(e) => updateDraft(attendee.user_id, "comment", e.target.value)}
+                      onChange={(e) => updateDraft(attendee.user_id, "comment", e.target.value.slice(0, 500))}
                       rows={2}
+                      maxLength={500}
                       className="input-luxe w-full rounded-xl px-4 py-3 resize-none text-sm"
                     />
+                    {(drafts[attendee.user_id]?.comment?.length || 0) > 400 && (
+                      <p className="text-text-dim text-[10px] text-right mt-1">{drafts[attendee.user_id]?.comment?.length || 0}/500</p>
+                    )}
                     <button
                       onClick={() => submitRating(attendee.user_id)}
                       disabled={!drafts[attendee.user_id]?.score || submitting === attendee.user_id}

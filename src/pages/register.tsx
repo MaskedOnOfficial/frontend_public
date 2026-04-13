@@ -95,7 +95,7 @@ export default function RegisterPage() {
             </motion.div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} noValidate className="space-y-4">
             {fields.map((f, i) => {
               const Icon = f.icon;
               return (
@@ -131,7 +131,7 @@ export default function RegisterPage() {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5 }}
               type="submit"
-              disabled={submitting}
+              disabled={submitting || !email.trim() || !username.trim() || !displayName.trim() || password.length < 8}
               className="btn-primary-luxe w-full font-bold py-4 rounded-xl transition disabled:opacity-50 mt-3 flex items-center justify-center gap-2"
             >
               {submitting ? (

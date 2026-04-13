@@ -180,11 +180,11 @@ export default function PartyPhotosPage() {
 
         {totalPages > 1 && (
           <div className="flex justify-center items-center gap-3 mt-8">
-            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="btn-secondary-luxe p-2.5 rounded-xl disabled:opacity-30">
+            <button aria-label="Previous page" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="btn-secondary-luxe p-2.5 rounded-xl disabled:opacity-30">
               <ChevronLeft className="w-4 h-4" />
             </button>
             <span className="text-text-muted text-sm font-semibold">{page} / {totalPages}</span>
-            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="btn-secondary-luxe p-2.5 rounded-xl disabled:opacity-30">
+            <button aria-label="Next page" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="btn-secondary-luxe p-2.5 rounded-xl disabled:opacity-30">
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>

@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, Link } from "react-router-dom";
+import { useEffect, Component, type ReactNode } from "react";
 import { AuthProvider } from "./context/auth-context";
 import { ThemeProvider } from "./context/theme-context";
 import { useAuth } from "./context/auth-hook";
@@ -7,9 +8,11 @@ import FeedPage from "./pages/feed";
 import LoginPage from "./pages/login";
 import RegisterPage from "./pages/register";
 import ProfilePage from "./pages/profile";
+import SettingsPage from "./pages/settings";
 import DiscoverPage from "./pages/discover";
 import PartyDetailPage from "./pages/party-detail";
 import CreatePartyPage from "./pages/create-party";
+import EditPartyPage from "./pages/edit-party";
 import MyRequestsPage from "./pages/my-requests";
 import DashboardPage from "./pages/dashboard";
 import ManageRequestsPage from "./pages/manage-requests";
@@ -20,6 +23,71 @@ import NotificationsPage from "./pages/notifications";
 import PublicProfilePage from "./pages/public-profile";
 import SearchPage from "./pages/search";
 import BottomTabNav from "./components/bottom-tab-nav.tsx";
+
+// ─── Error Boundary ───────────────────────────────────────────────────────────
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryState> {
+  state: ErrorBoundaryState = { hasError: false, error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-bg flex items-center justify-center px-4">
+          <div className="text-center max-w-md">
+            <div className="w-16 h-16 rounded-2xl bg-error/10 border border-error/20 flex items-center justify-center mx-auto mb-4">
+              <span className="text-3xl">⚠️</span>
+            </div>
+            <h1 className="text-xl font-bold text-text mb-2">Something went wrong</h1>
+            <p className="text-text-muted text-sm mb-6">{this.state.error?.message || "An unexpected error occurred."}</p>
+            <button
+              onClick={() => { this.setState({ hasError: false, error: null }); window.location.href = "/"; }}
+              className="btn-primary-luxe font-bold px-6 py-3 rounded-xl"
+            >
+              Back to Home
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// ─── 404 Page ─────────────────────────────────────────────────────────────────
+
+function NotFoundPage() {
+  return (
+    <div className="min-h-[70vh] flex items-center justify-center px-4">
+      <div className="text-center max-w-md">
+        <div className="text-8xl font-black brand-gradient-text mb-4 leading-none">404</div>
+        <h1 className="text-xl font-bold text-text mb-2">Page not found</h1>
+        <p className="text-text-muted text-sm mb-6">The page you're looking for doesn't exist or has been moved.</p>
+        <Link to="/" className="btn-primary-luxe font-bold px-6 py-3 rounded-xl inline-flex items-center gap-2">
+          Go Home
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+// ─── Scroll Restoration (#21) ─────────────────────────────────────────────────
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
+  }, [pathname]);
+  return null;
+}
 
 // ─── Auth Guards ──────────────────────────────────────────────────────────────
 
@@ -75,11 +143,16 @@ function GuestOnlyRoute() {
 
 function AppShell() {
   const { user } = useAuth();
+  const location = useLocation();
+
+  // #22 — Hide navbar on auth pages
+  const isAuthPage = location.pathname.startsWith("/auth");
 
   return (
     <div className="premium-shell min-h-screen text-text">
-      <Navbar />
-      <main className="relative z-10 pb-24 md:pb-0">
+      <ScrollToTop />
+      {!isAuthPage && <Navbar />}
+      <main className={`relative z-10 ${!isAuthPage && user ? "pb-24 md:pb-0" : ""}`}>
         <Routes>
         {/* ── Guest-only (login / register) ── */}
         <Route element={<GuestOnlyRoute />}>
@@ -93,6 +166,7 @@ function AppShell() {
           <Route path="/parties"                        element={<DiscoverPage />} />
           <Route path="/parties/create"                 element={<CreatePartyPage />} />
           <Route path="/parties/:partyId"               element={<PartyDetailPage />} />
+          <Route path="/parties/:partyId/edit"            element={<EditPartyPage />} />
           <Route path="/parties/:partyId/rate"          element={<RateAttendeesPage />} />
           <Route path="/parties/:partyId/photos"        element={<PartyPhotosPage />} />
           <Route path="/my-requests"                    element={<MyRequestsPage />} />
@@ -104,13 +178,14 @@ function AppShell() {
           <Route path="/profile/:userId/photos"         element={<UserPhotosPage />} />
           <Route path="/notifications"                  element={<NotificationsPage />} />
           <Route path="/search"                         element={<SearchPage />} />
+          <Route path="/settings"                       element={<SettingsPage />} />
         </Route>
 
-        {/* ── Catch-all: redirect to feed (or login if not auth'd) ── */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* ── Catch-all: 404 page ── */}
+        <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>
-      {user && <BottomTabNav />}
+      {user && !isAuthPage && <BottomTabNav />}
     </div>
   );
 }
@@ -120,7 +195,9 @@ function App() {
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
-          <AppShell />
+          <ErrorBoundary>
+            <AppShell />
+          </ErrorBoundary>
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>

@@ -110,6 +110,7 @@ export default function RequestCard({ request, onAction, showMutuals = false }: 
           <button
             onClick={() => handleAction("approved")}
             disabled={loading}
+            aria-label={`Approve ${request.display_name || request.username}`}
             className="flex-1 bg-success/15 hover:bg-success/25 text-success border border-success/20 font-bold text-sm py-2.5 rounded-xl transition disabled:opacity-50 flex items-center justify-center gap-1.5"
           >
             {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
@@ -118,6 +119,7 @@ export default function RequestCard({ request, onAction, showMutuals = false }: 
           <button
             onClick={() => handleAction("rejected")}
             disabled={loading}
+            aria-label={`Reject ${request.display_name || request.username}`}
             className="flex-1 bg-error/10 hover:bg-error/20 text-error border border-error/20 font-bold text-sm py-2.5 rounded-xl transition disabled:opacity-50 flex items-center justify-center gap-1.5"
           >
             {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}

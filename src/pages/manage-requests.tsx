@@ -13,6 +13,7 @@ export default function ManageRequestsPage() {
   const [partyTitle, setPartyTitle] = useState("");
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("");
+  const [actionError, setActionError] = useState("");
 
   const loadData = useCallback(async () => {
     try {
@@ -34,9 +35,14 @@ export default function ManageRequestsPage() {
   }, [loadData]);
 
   async function handleAction(requestId: string, status: "approved" | "rejected") {
-    await api.patch(`/parties/${partyId}/requests/${requestId}`, { status });
-    const res = await api.get(`/parties/${partyId}/requests`);
-    setRequests(res.data.data.requests);
+    setActionError("");
+    try {
+      await api.patch(`/parties/${partyId}/requests/${requestId}`, { status });
+      const res = await api.get(`/parties/${partyId}/requests`);
+      setRequests(res.data.data.requests);
+    } catch (error) {
+      setActionError(getApiErrorMessage(error, `Failed to ${status} request`));
+    }
   }
 
   const filtered = filter ? requests.filter((r) => r.status === filter) : requests;
@@ -72,7 +78,7 @@ export default function ManageRequestsPage() {
         </motion.div>
 
         {/* Filter tabs */}
-        <div className="glass-panel flex gap-1 mb-6 p-1.5 rounded-xl w-fit">
+        <div className="glass-panel flex gap-1 mb-6 p-1.5 rounded-xl w-full sm:w-fit overflow-x-auto scrollbar-hide">
           {["", "pending", "approved", "rejected"].map((f) => (
             <button
               key={f}
@@ -87,6 +93,16 @@ export default function ManageRequestsPage() {
             </button>
           ))}
         </div>
+
+        {actionError && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-error/10 border border-error/20 rounded-xl px-4 py-3 mb-4 text-error text-sm"
+          >
+            {actionError}
+          </motion.div>
+        )}
 
         {filtered.length === 0 ? (
           <div className="text-center py-20">

@@ -127,13 +127,14 @@ export default function SearchPage() {
               }
             }}
             className="input-luxe w-full rounded-2xl pl-12 pr-12 py-4 text-sm"
+            aria-label="Search users and parties"
           />
           {loading && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted animate-spin" />}
         </div>
 
         {/* Tabs */}
         {results && totalAll > 0 && (
-          <div className="glass-panel flex gap-1 mb-6 rounded-xl p-1 w-fit">
+          <div className="glass-panel flex gap-1 mb-6 rounded-xl p-1 w-full sm:w-fit overflow-x-auto scrollbar-hide">
             {(["all", "users", "parties"] as Tab[]).map((t) => {
               const count = t === "all" ? totalAll : t === "users" ? totalUsers : totalParties;
               return (
@@ -190,7 +191,7 @@ export default function SearchPage() {
                     <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent p-[2px] shrink-0">
                       <div className="w-full h-full rounded-full bg-bg overflow-hidden flex items-center justify-center text-text font-bold">
                         {u.avatar_url
-                          ? <img src={u.avatar_url} alt={u.display_name} className="w-full h-full object-cover" />
+                          ? <img src={u.avatar_url} alt={u.display_name} loading="lazy" className="w-full h-full object-cover" />
                           : u.display_name.charAt(0).toUpperCase()}
                       </div>
                     </div>
@@ -231,7 +232,7 @@ export default function SearchPage() {
                     >
                       <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-accent/20 to-primary/15 shrink-0 overflow-hidden">
                         {p.cover_image_url && (
-                          <img src={p.cover_image_url} alt={p.title} className="w-full h-full object-cover" />
+                          <img src={p.cover_image_url} alt={p.title} loading="lazy" className="w-full h-full object-cover" />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">

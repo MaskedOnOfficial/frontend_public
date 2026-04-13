@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import api from "../lib/api";
 import type { PartyRequest } from "../types";
 import { motion } from "framer-motion";
-import { MapPin, Calendar, Star, Send, Loader2, Inbox } from "lucide-react";
+import { MapPin, Calendar, Star, Send, Loader2, Inbox, RefreshCw } from "lucide-react";
 
 const statusStyles: Record<string, string> = {
   pending: "status-upcoming",
@@ -16,11 +16,17 @@ export default function MyRequestsPage() {
   const [requests, setRequests] = useState<PartyRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    api.get("/users/me/requests")
+  const [refreshing, setRefreshing] = useState(false);
+
+  function loadRequests() {
+    return api.get("/users/me/requests")
       .then((res) => setRequests(res.data.data.requests))
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => { setLoading(false); setRefreshing(false); });
+  }
+
+  useEffect(() => {
+    loadRequests();
   }, []);
 
   if (loading) {
@@ -43,6 +49,14 @@ export default function MyRequestsPage() {
               <h1 className="text-2xl font-bold text-text tracking-tight">My Requests</h1>
               <p className="text-text-muted text-sm">Track every invite you have requested.</p>
             </div>
+            <button
+              onClick={() => { setRefreshing(true); loadRequests(); }}
+              disabled={refreshing}
+              aria-label="Refresh requests"
+              className="btn-secondary-luxe p-2.5 rounded-xl ml-auto shrink-0"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            </button>
           </div>
         </motion.div>
 

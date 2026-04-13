@@ -3,7 +3,42 @@ import { useNavigate } from "react-router-dom";
 import api from "../lib/api";
 import { getApiErrorMessage } from "../lib/errors";
 import { motion } from "framer-motion";
-import { Image, MapPin, Clock, Users, Ticket, Shield, Tag, Loader2, Sparkles, X } from "lucide-react";
+import { Image, MapPin, Clock, Users, Ticket, Shield, Tag, Loader2, Sparkles, X, ChevronDown, Eye } from "lucide-react";
+
+interface PreviewForm {
+  title: string;
+  location_city: string;
+  date_time: string;
+  max_capacity: number;
+  ticket_price: number;
+  min_rating: number;
+}
+
+function PreviewCard({ form, isFree }: { form: PreviewForm; isFree: boolean }) {
+  return (
+    <>
+      <p className="text-[10px] uppercase tracking-[0.2em] text-text-dim font-bold mb-1.5">Live Preview</p>
+      <h3 className="text-lg font-bold text-text mb-5 tracking-tight">{form.title.trim() || "Untitled Experience"}</h3>
+      <div className="space-y-3.5 text-sm">
+        {[
+          { icon: MapPin, label: "City", value: form.location_city || "—", color: "text-accent" },
+          { icon: Clock, label: "When", value: form.date_time ? new Date(form.date_time).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "—", color: "text-primary" },
+          { icon: Users, label: "Capacity", value: `${form.max_capacity} guests`, color: "text-text-muted" },
+          { icon: Ticket, label: "Entry", value: isFree ? "Free" : `₹${Number(form.ticket_price || 0)}`, color: "text-hot" },
+          { icon: Shield, label: "Trust gate", value: Number(form.min_rating) > 0 ? `★ ${Number(form.min_rating).toFixed(1)}+` : "Open", color: "text-warning" },
+        ].map((item) => (
+          <div key={item.label} className="flex items-center justify-between">
+            <span className="text-text-muted flex items-center gap-2"><item.icon className={`w-3.5 h-3.5 ${item.color}`} />{item.label}</span>
+            <span className="text-text font-semibold">{item.value}</span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-5 pt-5 border-t border-primary/[0.06]">
+        <p className="text-sm text-text-dim leading-relaxed">Your listing goes live instantly after publish.</p>
+      </div>
+    </>
+  );
+}
 
 export default function CreatePartyPage() {
   const navigate = useNavigate();
@@ -26,9 +61,21 @@ export default function CreatePartyPage() {
 
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [coverImagePreview, setCoverImagePreview] = useState<string>("");
+  const [showMobilePreview, setShowMobilePreview] = useState(false);
+  // #34 — Track which fields have been touched for validation
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     setForm({ ...form, [e.target.name]: e.target.value });
+  }
+
+  function handleBlur(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) {
+    setTouched((prev) => ({ ...prev, [e.target.name]: true }));
+  }
+
+  // #34 — Validation helper
+  function fieldError(name: string, value: string): boolean {
+    return touched[name] === true && !value.trim();
   }
 
   function handleCoverImageChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -54,7 +101,14 @@ export default function CreatePartyPage() {
       formData.append("location_name", form.location_name);
       formData.append("location_city", form.location_city);
       formData.append("date_time", new Date(form.date_time).toISOString());
-      if (form.end_time) formData.append("end_time", new Date(form.end_time).toISOString());
+      if (form.end_time) {
+      if (new Date(form.end_time) <= new Date(form.date_time)) {
+        setError("End time must be after start time");
+        setLoading(false);
+        return;
+      }
+      formData.append("end_time", new Date(form.end_time).toISOString());
+    }
       formData.append("max_capacity", String(form.max_capacity));
       formData.append("ticket_price", String(Math.round(Number(form.ticket_price) * 100)));
       if (form.tags) {
@@ -110,7 +164,9 @@ export default function CreatePartyPage() {
               <h2 className="text-base font-bold text-text flex items-center gap-2"><Tag className="w-4 h-4 text-primary" />Identity</h2>
               <div>
                 <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Party Title *</label>
-                <input name="title" value={form.title} onChange={handleChange} placeholder="e.g., Rooftop Vibes Vol. 3" required className="input-luxe w-full rounded-xl px-4 py-3.5" />
+                <input name="title" value={form.title} onChange={handleChange} onBlur={handleBlur} placeholder="e.g., Rooftop Vibes Vol. 3" required
+                  className={`input-luxe w-full rounded-xl px-4 py-3.5 ${fieldError('title', form.title) ? 'ring-2 ring-error/50' : ''}`} />
+                {fieldError('title', form.title) && <p className="text-error text-[10px] mt-1 font-semibold">Title is required</p>}
               </div>
               <div>
                 <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Description</label>
@@ -129,7 +185,7 @@ export default function CreatePartyPage() {
               {coverImagePreview && (
                 <div className="relative rounded-2xl overflow-hidden bg-surface">
                   <img src={coverImagePreview} alt="Cover preview" className="w-full h-48 object-cover" />
-                  <button type="button" onClick={() => { setCoverImage(null); setCoverImagePreview(""); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                  <button type="button" aria-label="Remove cover image" onClick={() => { setCoverImage(null); setCoverImagePreview(""); if (fileInputRef.current) fileInputRef.current.value = ""; }}
                     className="absolute top-3 right-3 bg-error/80 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-error transition">
                     <X className="w-4 h-4" />
                   </button>
@@ -149,11 +205,15 @@ export default function CreatePartyPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Location Name *</label>
-                  <input name="location_name" value={form.location_name} onChange={handleChange} placeholder="Skydeck, Indiranagar" required className="input-luxe w-full rounded-xl px-4 py-3.5" />
+                  <input name="location_name" value={form.location_name} onChange={handleChange} onBlur={handleBlur} placeholder="Skydeck, Indiranagar" required
+                    className={`input-luxe w-full rounded-xl px-4 py-3.5 ${fieldError('location_name', form.location_name) ? 'ring-2 ring-error/50' : ''}`} />
+                  {fieldError('location_name', form.location_name) && <p className="text-error text-[10px] mt-1 font-semibold">Location is required</p>}
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">City *</label>
-                  <input name="location_city" value={form.location_city} onChange={handleChange} placeholder="Bangalore" required className="input-luxe w-full rounded-xl px-4 py-3.5" />
+                  <input name="location_city" value={form.location_city} onChange={handleChange} onBlur={handleBlur} placeholder="Bangalore" required
+                    className={`input-luxe w-full rounded-xl px-4 py-3.5 ${fieldError('location_city', form.location_city) ? 'ring-2 ring-error/50' : ''}`} />
+                  {fieldError('location_city', form.location_city) && <p className="text-error text-[10px] mt-1 font-semibold">City is required</p>}
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -163,7 +223,10 @@ export default function CreatePartyPage() {
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">End</label>
-                  <input type="datetime-local" name="end_time" value={form.end_time} onChange={handleChange} className="input-luxe w-full rounded-xl px-4 py-3.5" aria-label="End date and time" />
+                  <input type="datetime-local" name="end_time" value={form.end_time} onChange={handleChange} min={form.date_time || undefined} className="input-luxe w-full rounded-xl px-4 py-3.5" aria-label="End date and time" />
+                  {form.end_time && form.date_time && new Date(form.end_time) <= new Date(form.date_time) && (
+                    <p className="text-error text-[10px] mt-1 font-semibold">End time must be after start time</p>
+                  )}
                 </div>
               </div>
             </section>
@@ -178,7 +241,7 @@ export default function CreatePartyPage() {
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Ticket Price (₹)</label>
-                  <input type="number" name="ticket_price" value={form.ticket_price} onChange={handleChange} min={0} step="1" className="input-luxe w-full rounded-xl px-4 py-3.5" aria-label="Ticket price in rupees" />
+                  <input type="number" name="ticket_price" value={form.ticket_price} onChange={(e) => setForm({ ...form, ticket_price: Math.max(0, Number(e.target.value)) })} min={0} step="1" className="input-luxe w-full rounded-xl px-4 py-3.5" aria-label="Ticket price in rupees" />
                   <span className="text-text-dim text-xs mt-1.5 block">0 = Free entry</span>
                 </div>
                 <div>
@@ -194,34 +257,28 @@ export default function CreatePartyPage() {
             </button>
           </form>
 
-          {/* Live Preview */}
+          {/* #33 — Mobile preview (collapsible) */}
+          <div className="lg:hidden">
+            <button type="button" onClick={() => setShowMobilePreview(!showMobilePreview)}
+              className="w-full btn-secondary-luxe py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 mb-4 tap-active">
+              <Eye className="w-4 h-4" /> Preview
+              <ChevronDown className={`w-4 h-4 transition-transform ${showMobilePreview ? 'rotate-180' : ''}`} />
+            </button>
+            {showMobilePreview && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="overflow-hidden mb-6">
+                <PreviewCard form={form} isFree={isFree} />
+              </motion.div>
+            )}
+          </div>
+
+          {/* Desktop Preview sidebar */}
           <motion.aside
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2 }}
-            className="glass-panel rounded-2xl p-5 lg:sticky lg:top-24"
+            className="hidden lg:block glass-panel rounded-2xl p-5 lg:sticky lg:top-24"
           >
-            <p className="text-[10px] uppercase tracking-[0.2em] text-text-dim font-bold mb-1.5">Live Preview</p>
-            <h3 className="text-lg font-bold text-text mb-5 tracking-tight">{form.title.trim() || "Untitled Experience"}</h3>
-            <div className="space-y-3.5 text-sm">
-              {[
-                { icon: MapPin, label: "City", value: form.location_city || "—", color: "text-accent" },
-                { icon: Clock, label: "When", value: form.date_time ? new Date(form.date_time).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "—", color: "text-primary" },
-                { icon: Users, label: "Capacity", value: `${form.max_capacity} guests`, color: "text-text-muted" },
-                { icon: Ticket, label: "Entry", value: isFree ? "Free" : `₹${Number(form.ticket_price || 0)}`, color: "text-hot" },
-                { icon: Shield, label: "Trust gate", value: Number(form.min_rating) > 0 ? `★ ${Number(form.min_rating).toFixed(1)}+` : "Open", color: "text-warning" },
-              ].map((item) => (
-                <div key={item.label} className="flex items-center justify-between">
-                  <span className="text-text-muted flex items-center gap-2"><item.icon className={`w-3.5 h-3.5 ${item.color}`} />{item.label}</span>
-                  <span className="text-text font-semibold">{item.value}</span>
-                </div>
-              ))}
-            </div>
-            <div className="mt-5 pt-5 border-t border-primary/[0.06]">
-              <p className="text-sm text-text-dim leading-relaxed">
-                Your listing goes live instantly after publish.
-              </p>
-            </div>
+            <PreviewCard form={form} isFree={isFree} />
           </motion.aside>
         </div>
       </div>

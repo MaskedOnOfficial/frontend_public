@@ -127,7 +127,11 @@ export default function NotificationsPage() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: Math.min(i * 0.03, 0.3) }}
                 onClick={() => handleClick(n)}
-                className={`w-full text-left p-4 rounded-2xl border transition-all hover:translate-x-1 ${
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleClick(n); } }}
+                role="button"
+                tabIndex={0}
+                aria-label={`${n.is_read ? "" : "Unread: "}${n.title}`}
+                className={`w-full text-left p-4 rounded-2xl border transition-all hover:translate-x-1 tap-active focus-visible:ring-2 focus-visible:ring-primary/40 outline-none ${
                   n.is_read
                     ? "glass-panel border-primary/[0.05] hover:border-primary/10"
                     : "glass-panel border-primary/20 hover:border-primary/30 bg-primary/[0.03]"
@@ -162,6 +166,7 @@ export default function NotificationsPage() {
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
+              aria-label="Previous page"
               className="btn-secondary-luxe p-2.5 rounded-xl disabled:opacity-30"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -170,6 +175,7 @@ export default function NotificationsPage() {
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
+              aria-label="Next page"
               className="btn-secondary-luxe p-2.5 rounded-xl disabled:opacity-30"
             >
               <ChevronRight className="w-4 h-4" />

@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState, useRef, type KeyboardEvent } from "react";
 import { useAuth } from "../context/auth-hook";
 import { useNotifications } from "../context/use-notifications-hook";
@@ -30,9 +30,19 @@ export default function Navbar() {
   const searchRef = useRef<HTMLDivElement>(null);
   const debouncedQuery = useDebounce(searchQuery, 300);
 
+  // #13 — Clear search state on route navigation
+  const location = useLocation();
+  useEffect(() => {
+    setShowDropdown(false);
+    setSearchQuery("");
+    setResults(null);
+    setSearching(false);
+  }, [location.pathname]);
+
   // Live search
   useEffect(() => {
     if (debouncedQuery.length < 2) {
+      setSearching(false); // #14 — Reset searching for short queries
       return;
     }
     api
@@ -111,6 +121,7 @@ export default function Navbar() {
                 }}
                 onFocus={() => { if (results && searchQuery.length >= 2) setShowDropdown(true); }}
                 onKeyDown={onSearchKeyDown}
+                aria-label="Search people, parties"
                 className="input-luxe w-full rounded-xl pl-10 pr-4 py-2.5 text-sm"
               />
             </div>
@@ -192,22 +203,22 @@ export default function Navbar() {
           {user ? (
             <>
               {/* Desktop nav links */}
-              <Link to="/" className="hidden xl:flex items-center gap-1.5 text-text-muted hover:text-primary transition text-sm font-medium px-3 py-2 rounded-lg hover:bg-primary/[0.06]">
+              <Link to="/" aria-label="Feed" className="hidden xl:flex items-center gap-1.5 text-text-muted hover:text-primary transition text-sm font-medium px-3 py-2 rounded-lg hover:bg-primary/[0.06]">
                 Feed
               </Link>
-              <Link to="/parties" className="hidden md:flex items-center gap-1.5 text-text-muted hover:text-accent transition text-sm font-medium px-3 py-2 rounded-lg hover:bg-accent/[0.06]">
+              <Link to="/parties" aria-label="Discover events" className="hidden md:flex items-center gap-1.5 text-text-muted hover:text-accent transition text-sm font-medium px-3 py-2 rounded-lg hover:bg-accent/[0.06]">
                 <Compass className="w-4 h-4" />
                 <span className="hidden lg:inline">Discover</span>
               </Link>
-              <Link to="/parties/create" className="hidden md:flex items-center gap-1.5 text-text-muted hover:text-hot transition text-sm font-medium px-3 py-2 rounded-lg hover:bg-hot/[0.06]">
+              <Link to="/parties/create" aria-label="Host a party" className="hidden md:flex items-center gap-1.5 text-text-muted hover:text-hot transition text-sm font-medium px-3 py-2 rounded-lg hover:bg-hot/[0.06]">
                 <Plus className="w-4 h-4" />
                 <span className="hidden lg:inline">Host</span>
               </Link>
-              <Link to="/my-requests" className="hidden lg:flex items-center gap-1.5 text-text-muted hover:text-text transition text-sm font-medium px-3 py-2 rounded-lg hover:bg-white/[0.04]">
+              <Link to="/my-requests" aria-label="My requests" className="hidden lg:flex items-center gap-1.5 text-text-muted hover:text-text transition text-sm font-medium px-3 py-2 rounded-lg hover:bg-white/[0.04]">
                 <Inbox className="w-4 h-4" />
                 <span className="hidden xl:inline">Requests</span>
               </Link>
-              <Link to="/dashboard" className="hidden lg:flex items-center gap-1.5 text-text-muted hover:text-text transition text-sm font-medium px-3 py-2 rounded-lg hover:bg-white/[0.04]">
+              <Link to="/dashboard" aria-label="Host dashboard" className="hidden lg:flex items-center gap-1.5 text-text-muted hover:text-text transition text-sm font-medium px-3 py-2 rounded-lg hover:bg-white/[0.04]">
                 <LayoutDashboard className="w-4 h-4" />
                 <span className="hidden xl:inline">Dashboard</span>
               </Link>
@@ -218,17 +229,17 @@ export default function Navbar() {
               </Link>
 
               {/* Notifications */}
-              <Link to="/notifications" className="relative text-text-muted hover:text-primary transition p-2 rounded-lg hover:bg-primary/[0.06]">
+              <Link to="/notifications" aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`} className="relative text-text-muted hover:text-primary transition p-2 rounded-lg hover:bg-primary/[0.06]">
                 <Bell className="w-5 h-5" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 bg-gradient-to-r from-hot to-primary text-white text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-lg shadow-hot/30 animate-pulse">
+                  <span className="absolute -top-0.5 -right-0.5 bg-gradient-to-r from-hot to-primary text-white text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-lg shadow-hot/30" style={{ animation: 'badge-pop 0.3s ease-out' }}>
                     {unreadCount > 9 ? "9+" : unreadCount}
                   </span>
                 )}
               </Link>
 
               {/* Profile avatar */}
-              <Link to="/profile/me" className="ml-1">
+              <Link to="/profile/me" aria-label="My profile" className="ml-1">
                 <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary via-accent to-hot p-[2px] hover:shadow-lg hover:shadow-primary/25 transition-shadow">
                   <div className="w-full h-full rounded-full bg-bg flex items-center justify-center text-sm text-text font-bold overflow-hidden">
                     {user.avatar_url

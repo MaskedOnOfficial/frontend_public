@@ -26,6 +26,7 @@ export default function RatingStars({ rating, size = "md", interactive = false, 
             type="button"
             disabled={!interactive}
             onClick={() => interactive && onChange?.(i + 1)}
+            aria-label={`${i + 1} star${i > 0 ? 's' : ''}`}
             className={`transition-all duration-200 ${
               interactive ? "cursor-pointer hover:scale-125 active:scale-95" : "cursor-default"
             } ${

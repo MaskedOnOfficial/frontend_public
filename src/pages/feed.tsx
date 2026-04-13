@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/auth-hook";
 import api from "../lib/api";
 import { getApiErrorMessage } from "../lib/errors";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, MessageCircle, Sparkles, Users, PartyPopper, ChevronDown, Loader2 } from "lucide-react";
+import { Heart, MessageCircle, Sparkles, Users, PartyPopper, ChevronDown, Loader2, RefreshCw } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -65,8 +65,13 @@ function SkeletonCard() {
           <div className="h-2.5 shimmer rounded-lg w-20" />
         </div>
       </div>
-      <div className="w-full aspect-square shimmer" />
-      <div className="p-4 space-y-2">
+      {/* #28 — Match skeleton to actual card aspect ratio */}
+      <div className="w-full aspect-[4/3] shimmer" />
+      <div className="p-4 space-y-3">
+        <div className="flex items-center gap-4">
+          <div className="h-5 w-14 shimmer rounded-lg" />
+          <div className="h-5 w-20 shimmer rounded-lg" />
+        </div>
         <div className="h-3.5 shimmer rounded-lg w-3/4" />
         <div className="h-2.5 shimmer rounded-lg w-1/2" />
       </div>
@@ -90,6 +95,23 @@ function PostCard({ post, onLikeToggle }: PostCardProps) {
   const [postingComment, setPostingComment] = useState(false);
   const [commentError, setCommentError] = useState("");
   const [showHeart, setShowHeart] = useState(false);
+
+  // #23 — Proper double-tap detection for mobile
+  const lastTapRef = useRef(0);
+  function handleTap() {
+    const now = Date.now();
+    if (now - lastTapRef.current < 350) {
+      // Double tap detected
+      if (!post.liked_by_me) {
+        onLikeToggle(post.id, false);
+        setShowHeart(true);
+        setTimeout(() => setShowHeart(false), 800);
+      }
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+    }
+  }
 
   async function loadComments() {
     setLoadingComments(true);
@@ -130,14 +152,6 @@ function PostCard({ post, onLikeToggle }: PostCardProps) {
     }
   }
 
-  function handleDoubleTap() {
-    if (!post.liked_by_me) {
-      onLikeToggle(post.id, false);
-      setShowHeart(true);
-      setTimeout(() => setShowHeart(false), 800);
-    }
-  }
-
   return (
     <motion.article
       initial={{ opacity: 0, y: 20 }}
@@ -167,7 +181,7 @@ function PostCard({ post, onLikeToggle }: PostCardProps) {
       </div>
 
       {/* Photo */}
-      <div className="relative w-full bg-surface min-h-[260px] cursor-pointer" onDoubleClick={handleDoubleTap}>
+      <div className="relative w-full bg-surface min-h-[200px] cursor-pointer" onClick={handleTap}>
         {!imgLoaded && (
           <div className="absolute inset-0 shimmer" />
         )}
@@ -175,7 +189,7 @@ function PostCard({ post, onLikeToggle }: PostCardProps) {
           src={post.image_url}
           alt={post.caption ?? "Party photo"}
           onLoad={() => setImgLoaded(true)}
-          className={`w-full object-cover max-h-[520px] transition-opacity duration-500 ${imgLoaded ? "opacity-100" : "opacity-0"}`}
+          className={`w-full object-cover max-h-[480px] transition-opacity duration-500 ${imgLoaded ? "opacity-100" : "opacity-0"}`}
         />
         {/* Party tag */}
         {post.party_id && (
@@ -243,6 +257,7 @@ function PostCard({ post, onLikeToggle }: PostCardProps) {
                 <div className="flex gap-2">
                   <input
                     type="text"
+                    aria-label="Add a comment"
                     value={commentText}
                     onChange={(e) => setCommentText(e.target.value)}
                     onKeyDown={(e) => {
@@ -295,7 +310,7 @@ function PostCard({ post, onLikeToggle }: PostCardProps) {
               to={`/profile/${post.user_id}`}
               className="font-bold text-text hover:text-primary transition mr-1.5"
             >
-              {post.username}
+              {post.display_name}
             </Link>
             <span className="text-text-muted">{post.caption}</span>
           </p>
@@ -382,6 +397,7 @@ export default function FeedPage() {
     fetchFeed(nextPage, true);
   }
 
+  // #26 — Clamp like count to >= 0
   function handleLikeToggle(postId: string, currentLiked: boolean) {
     setPosts((prev) =>
       prev.map((p) =>
@@ -389,7 +405,7 @@ export default function FeedPage() {
           ? {
               ...p,
               liked_by_me: !currentLiked,
-              like_count: currentLiked ? p.like_count - 1 : p.like_count + 1,
+              like_count: Math.max(0, currentLiked ? p.like_count - 1 : p.like_count + 1),
             }
           : p
       )
@@ -405,12 +421,21 @@ export default function FeedPage() {
             ? {
                 ...p,
                 liked_by_me: currentLiked,
-                like_count: currentLiked ? p.like_count + 1 : p.like_count - 1,
+                like_count: Math.max(0, currentLiked ? p.like_count + 1 : p.like_count - 1),
               }
             : p
         )
       );
     });
+  }
+
+  // #27 — Refresh feed
+  const [refreshing, setRefreshing] = useState(false);
+  async function handleRefresh() {
+    setRefreshing(true);
+    setPage(1);
+    await fetchFeed(1, false);
+    setRefreshing(false);
   }
 
   return (
@@ -434,13 +459,21 @@ export default function FeedPage() {
               Here's what your friends have been up to.
             </p>
           </div>
-          <Link
-            to="/parties/create"
-            className="btn-hot-luxe text-sm font-bold px-5 py-2.5 rounded-xl flex items-center gap-2 justify-center whitespace-nowrap"
-          >
-            <PartyPopper className="w-4 h-4" />
-            Host Party
-          </Link>
+          {/* #27 — Refresh button */}
+          <div className="flex gap-2 w-full sm:w-auto">
+            <button onClick={handleRefresh} disabled={refreshing}
+              className="btn-secondary-luxe text-sm font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 justify-center whitespace-nowrap disabled:opacity-50 tap-active flex-1 sm:flex-initial">
+              <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
+            <Link
+              to="/parties/create"
+              className="btn-hot-luxe text-sm font-bold px-5 py-2.5 rounded-xl flex items-center gap-2 justify-center whitespace-nowrap flex-1 sm:flex-initial"
+            >
+              <PartyPopper className="w-4 h-4" />
+              Host Party
+            </Link>
+          </div>
         </motion.div>
       </div>
 
