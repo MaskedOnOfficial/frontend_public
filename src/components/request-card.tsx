@@ -84,7 +84,7 @@ export default function RequestCard({ request, onAction, showMutuals = false }: 
                       {m.avatar_url ? (
                         <img src={m.avatar_url} alt={m.display_name} className="w-full h-full object-cover" />
                       ) : (
-                        m.display_name.charAt(0).toUpperCase()
+                        (m.display_name ?? "?").charAt(0).toUpperCase()
                       )}
                     </div>
                   ))}

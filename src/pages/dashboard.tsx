@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import api from "../lib/api";
+import { getApiErrorMessage } from "../lib/errors";
 import type { Party } from "../types";
 import { motion } from "framer-motion";
 import { Plus, Calendar, MapPin, Users, Star, ChevronDown, ChevronUp, LayoutDashboard, Loader2, PartyPopper } from "lucide-react";
@@ -74,11 +75,14 @@ export default function DashboardPage() {
   const [parties, setParties] = useState<Party[]>([]);
   const [loading, setLoading] = useState(true);
   const [showPast, setShowPast] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     api.get("/users/me/parties")
       .then((res) => setParties(res.data.data.parties))
-      .catch(() => {})
+      .catch((err) => {
+        setLoadError(getApiErrorMessage(err, "Failed to load your parties"));
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -136,6 +140,13 @@ export default function DashboardPage() {
             New Party
           </Link>
         </motion.div>
+
+        {loadError && (
+          <div className="bg-error/10 border border-error/20 rounded-xl p-4 text-error text-sm mb-6 flex items-center justify-between">
+            <span>{loadError}</span>
+            <button onClick={() => { setLoadError(""); setLoading(true); api.get("/users/me/parties").then((res) => setParties(res.data.data.parties)).catch((err) => setLoadError(getApiErrorMessage(err, "Failed to load your parties"))).finally(() => setLoading(false)); }} className="underline ml-2 font-semibold">Retry</button>
+          </div>
+        )}
 
         {parties.length === 0 ? (
           <motion.div

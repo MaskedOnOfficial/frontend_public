@@ -21,19 +21,21 @@ export default function NotificationsPage() {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [unread, setUnread] = useState(0);
   const limit = 20;
 
   const fetchNotifications = useCallback(async () => {
+    setFetchError("");
     try {
       const res = await api.get("/notifications", { params: { page, limit } });
       setNotifications(res.data.data.notifications);
       setTotal(res.data.data.total);
       setUnread(res.data.data.unread);
     } catch (error) {
-      console.error("Failed to fetch notifications:", getApiErrorMessage(error, "Unknown notification error"));
+      setFetchError(getApiErrorMessage(error, "Failed to load notifications"));
     } finally {
       setLoading(false);
     }
@@ -44,17 +46,25 @@ export default function NotificationsPage() {
   }, [fetchNotifications]);
 
   async function markRead(id: string) {
-    await api.patch(`/notifications/${id}/read`);
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, is_read: 1 } : n))
-    );
-    setUnread((u) => Math.max(0, u - 1));
+    try {
+      await api.patch(`/notifications/${id}/read`);
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, is_read: 1 } : n))
+      );
+      setUnread((u) => Math.max(0, u - 1));
+    } catch (error) {
+      console.error("Failed to mark notification read:", getApiErrorMessage(error, "Unknown error"));
+    }
   }
 
   async function markAllRead() {
-    await api.patch("/notifications/read-all");
-    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: 1 })));
-    setUnread(0);
+    try {
+      await api.patch("/notifications/read-all");
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: 1 })));
+      setUnread(0);
+    } catch (error) {
+      console.error("Failed to mark all read:", getApiErrorMessage(error, "Unknown error"));
+    }
   }
 
   function handleClick(n: Notification) {
@@ -110,7 +120,14 @@ export default function NotificationsPage() {
           )}
         </motion.div>
 
-        {notifications.length === 0 ? (
+        {fetchError && (
+          <div className="bg-error/10 border border-error/20 rounded-xl p-4 text-error text-sm mb-6 flex items-center justify-between">
+            <span>{fetchError}</span>
+            <button onClick={fetchNotifications} className="underline ml-2 font-semibold">Retry</button>
+          </div>
+        )}
+
+        {notifications.length === 0 && !fetchError ? (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-20">
             <div className="w-16 h-16 rounded-2xl bg-surface-light flex items-center justify-center mx-auto mb-4">
               <Bell className="w-8 h-8 text-text-dim" />

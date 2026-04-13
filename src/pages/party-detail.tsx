@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import api from "../lib/api";
 import { useAuth } from "../context/auth-hook";
@@ -94,6 +94,11 @@ export default function PartyDetailPage() {
 
   // Share state
   const [shareToast, setShareToast] = useState("");
+  const shareTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  useEffect(() => {
+    return () => clearTimeout(shareTimerRef.current);
+  }, []);
 
   // #30 — Share / copy link
   function handleShare() {
@@ -103,7 +108,8 @@ export default function PartyDetailPage() {
     } else {
       navigator.clipboard.writeText(url).then(() => {
         setShareToast("Link copied!");
-        setTimeout(() => setShareToast(""), 2000);
+        clearTimeout(shareTimerRef.current);
+        shareTimerRef.current = setTimeout(() => setShareToast(""), 2000);
       }).catch(() => {});
     }
   }

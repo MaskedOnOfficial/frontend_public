@@ -52,6 +52,10 @@ export default function UserPhotosPage() {
   }, [page, resolvedUserId]);
 
   useEffect(() => {
+    setPage(1);
+  }, [resolvedUserId]);
+
+  useEffect(() => {
     if (resolvedUserId) {
       loadPhotos();
       loadUserInfo();
@@ -78,7 +82,10 @@ export default function UserPhotosPage() {
     }
   }
 
+  const likeInFlightRef = useRef<Set<string>>(new Set());
   async function handleLike(photoId: string) {
+    if (likeInFlightRef.current.has(photoId)) return;
+    likeInFlightRef.current.add(photoId);
     try {
       await api.post(`/photos/${photoId}/like`);
       setPhotos((prev) => prev.map((p) => (p.id === photoId ? { ...p, like_count: p.like_count + 1 } : p)));
@@ -90,6 +97,8 @@ export default function UserPhotosPage() {
       } catch (unlikeError) {
         console.error("Failed to unlike photo:", getApiErrorMessage(unlikeError, "Unknown unlike error"));
       }
+    } finally {
+      likeInFlightRef.current.delete(photoId);
     }
   }
 

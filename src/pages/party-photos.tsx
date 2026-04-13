@@ -50,7 +50,7 @@ export default function PartyPhotosPage() {
     }
   }, [page, partyId]);
 
-  useEffect(() => { loadParty(); }, [loadParty]);
+  useEffect(() => { if (partyId) loadParty(); }, [loadParty, partyId]);
   useEffect(() => { if (partyId) loadPhotos(); }, [loadPhotos, partyId]);
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -74,7 +74,10 @@ export default function PartyPhotosPage() {
     }
   }
 
+  const likeInFlightRef = useRef<Set<string>>(new Set());
   async function handleLike(photoId: string) {
+    if (likeInFlightRef.current.has(photoId)) return;
+    likeInFlightRef.current.add(photoId);
     try {
       await api.post(`/photos/${photoId}/like`);
       setPhotos((prev) => prev.map((p) => (p.id === photoId ? { ...p, like_count: p.like_count + 1 } : p)));
@@ -86,6 +89,8 @@ export default function PartyPhotosPage() {
       } catch (unlikeError) {
         console.error("Failed to unlike photo:", getApiErrorMessage(unlikeError, "Unknown unlike error"));
       }
+    } finally {
+      likeInFlightRef.current.delete(photoId);
     }
   }
 

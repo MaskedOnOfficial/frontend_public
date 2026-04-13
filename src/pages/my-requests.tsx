@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import api from "../lib/api";
 import type { PartyRequest } from "../types";
+import { getApiErrorMessage } from "../lib/errors";
 import { motion } from "framer-motion";
 import { MapPin, Calendar, Star, Send, Loader2, Inbox, RefreshCw } from "lucide-react";
 
@@ -15,13 +16,15 @@ const statusStyles: Record<string, string> = {
 export default function MyRequestsPage() {
   const [requests, setRequests] = useState<PartyRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   const [refreshing, setRefreshing] = useState(false);
 
   function loadRequests() {
+    setLoadError("");
     return api.get("/users/me/requests")
       .then((res) => setRequests(res.data.data.requests))
-      .catch(() => {})
+      .catch((err) => { setLoadError(getApiErrorMessage(err, "Failed to load requests")); })
       .finally(() => { setLoading(false); setRefreshing(false); });
   }
 
@@ -60,7 +63,14 @@ export default function MyRequestsPage() {
           </div>
         </motion.div>
 
-        {requests.length === 0 ? (
+        {loadError && (
+          <div className="bg-error/10 border border-error/20 rounded-xl p-4 text-error text-sm mb-6 flex items-center justify-between">
+            <span>{loadError}</span>
+            <button onClick={() => { setRefreshing(true); loadRequests(); }} className="underline ml-2 font-semibold">Retry</button>
+          </div>
+        )}
+
+        {requests.length === 0 && !loadError ? (
           <div className="text-center py-20">
             <div className="w-16 h-16 rounded-2xl bg-surface-light flex items-center justify-center mx-auto mb-4">
               <Inbox className="w-8 h-8 text-text-dim" />

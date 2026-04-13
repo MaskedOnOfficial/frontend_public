@@ -18,17 +18,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    let cancelled = false;
+
     const bootstrapAuth = async () => {
       try {
         const res = await api.get("/users/me");
-        setUser(res.data.data.user);
+        if (!cancelled) setUser(res.data.data.user);
         return;
       } catch (error) {
         if (axios.isAxiosError(error) && !error.response) {
           try {
             await ensureBackendAwake(65000);
             const retryRes = await api.get("/users/me");
-            setUser(retryRes.data.data.user);
+            if (!cancelled) setUser(retryRes.data.data.user);
             return;
           } catch (retryError) {
             console.error("Failed to bootstrap auth user:", getApiErrorMessage(retryError, "Unknown auth error"));
@@ -39,11 +41,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem("access_token");
         localStorage.removeItem("refresh_token");
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     void bootstrapAuth();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function login(email: string, password: string) {

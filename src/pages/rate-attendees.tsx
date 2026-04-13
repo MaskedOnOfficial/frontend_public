@@ -74,6 +74,11 @@ export default function RateAttendeesPage() {
         comment: draft.comment || undefined,
       });
       setSubmitted((prev) => new Set(prev).add(userId));
+      setDrafts((prev) => {
+        const updated = { ...prev };
+        delete updated[userId];
+        return updated;
+      });
     } catch (submitError: unknown) {
       setError(getApiErrorMessage(submitError, "Failed to submit rating"));
     } finally {

@@ -11,6 +11,7 @@ import {
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim() || "/api/v1";
 const healthUrl = `${apiBaseUrl}/health`;
 let wakePromise: Promise<void> | null = null;
+let tokenRefreshPromise: Promise<void> | null = null;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -195,26 +196,53 @@ api.interceptors.response.use(
       if (reject) reject(error);
     }
 
-    // Auto-refresh on 401
+    // Auto-refresh on 401 (with deduplication to prevent parallel refreshes)
     const original = config;
     if (error.response?.status === 401 && original && !original._retry) {
       original._retry = true;
       const refreshToken = localStorage.getItem("refresh_token");
-      if (refreshToken) {
+      if (!refreshToken) {
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        window.location.href = "/auth/login";
+        return Promise.reject(error);
+      }
+
+      // If a refresh is already in progress, wait for it then retry
+      if (tokenRefreshPromise) {
         try {
-          const res = await axios.post(`${apiBaseUrl}/auth/refresh`, {
-            refresh_token: refreshToken,
-          });
+          await tokenRefreshPromise;
+          original.headers.Authorization = `Bearer ${localStorage.getItem("access_token") || ""}`;
+          return api(original);
+        } catch {
+          return Promise.reject(error);
+        }
+      }
+
+      // Be the refresh leader
+      tokenRefreshPromise = axios
+        .post(`${apiBaseUrl}/auth/refresh`, { refresh_token: refreshToken })
+        .then((res) => {
           const { access_token, refresh_token: newRefresh } = res.data.data.tokens;
           localStorage.setItem("access_token", access_token);
           localStorage.setItem("refresh_token", newRefresh);
-          original.headers.Authorization = `Bearer ${access_token}`;
-          return api(original);
-        } catch {
+        })
+        .catch((refreshErr) => {
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");
           window.location.href = "/auth/login";
-        }
+          throw refreshErr;
+        })
+        .finally(() => {
+          tokenRefreshPromise = null;
+        });
+
+      try {
+        await tokenRefreshPromise;
+        original.headers.Authorization = `Bearer ${localStorage.getItem("access_token") || ""}`;
+        return api(original);
+      } catch {
+        return Promise.reject(error);
       }
     }
     return Promise.reject(error);

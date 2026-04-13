@@ -143,7 +143,7 @@ export default function Navbar() {
                             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-accent shrink-0 flex items-center justify-center text-white text-sm font-bold overflow-hidden ring-2 ring-primary/20">
                               {u.avatar_url
                                 ? <img src={u.avatar_url} alt={u.display_name} className="w-full h-full object-cover" />
-                                : u.display_name.charAt(0).toUpperCase()}
+                                : (u.display_name ?? "?").charAt(0).toUpperCase()}
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-text text-sm font-semibold truncate">{u.display_name}</p>
@@ -244,7 +244,7 @@ export default function Navbar() {
                   <div className="w-full h-full rounded-full bg-bg flex items-center justify-center text-sm text-text font-bold overflow-hidden">
                     {user.avatar_url
                       ? <img src={user.avatar_url} alt={user.display_name} className="w-full h-full object-cover" />
-                      : user.display_name.charAt(0).toUpperCase()}
+                      : (user.display_name ?? "?").charAt(0).toUpperCase()}
                   </div>
                 </div>
               </Link>
@@ -256,7 +256,7 @@ export default function Navbar() {
                   navigate("/auth/login", { replace: true });
                 }}
                 className="hidden md:flex items-center text-text-dim hover:text-error transition p-2 rounded-lg hover:bg-error/[0.06]"
-                title="Sign Out"
+                aria-label="Sign out"
               >
                 <LogOut className="w-4 h-4" />
               </button>

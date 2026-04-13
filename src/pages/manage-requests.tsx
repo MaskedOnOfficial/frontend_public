@@ -16,6 +16,10 @@ export default function ManageRequestsPage() {
   const [actionError, setActionError] = useState("");
 
   const loadData = useCallback(async () => {
+    if (!partyId) {
+      setLoading(false);
+      return;
+    }
     try {
       const [reqsRes, partyRes] = await Promise.all([
         api.get(`/parties/${partyId}/requests`),

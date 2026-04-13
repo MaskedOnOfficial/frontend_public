@@ -82,6 +82,12 @@ export default function ProfilePage() {
   }
 
   useEffect(() => {
+    return () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    };
+  }, []);
+
+  useEffect(() => {
     if (user) { setDisplayName(user.display_name); setBio(user.bio || ""); }
   }, [user]);
 

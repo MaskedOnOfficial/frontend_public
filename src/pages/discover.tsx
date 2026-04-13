@@ -200,7 +200,20 @@ export default function DiscoverPage() {
           </div>
         ) : loadError ? (
           <div className="text-center py-20">
-            <p className="text-error text-sm">{loadError}</p>
+            <p className="text-error text-sm mb-3">{loadError}</p>
+            <button
+              onClick={() => {
+                setLoadError("");
+                setLoading(true);
+                api.get("/parties?limit=1000&page=1&sort=date_asc")
+                  .then((res) => setAllParties(res.data.data.parties || []))
+                  .catch((error) => setLoadError(getApiErrorMessage(error, "Failed to load events")))
+                  .finally(() => setLoading(false));
+              }}
+              className="btn-secondary-luxe px-5 py-2.5 rounded-xl text-sm font-bold"
+            >
+              Retry
+            </button>
           </div>
         ) : parties.length === 0 ? (
           <div className="text-center py-20">

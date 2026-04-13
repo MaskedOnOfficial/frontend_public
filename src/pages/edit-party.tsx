@@ -82,6 +82,11 @@ export default function EditPartyPage() {
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const loadParty = useCallback(async () => {
+    if (!partyId) {
+      setError("Invalid party ID");
+      setPageLoading(false);
+      return;
+    }
     try {
       const res = await api.get(`/parties/${partyId}`);
       const p: Party = res.data.data.party;

@@ -54,15 +54,17 @@ export default function SearchPage() {
   const [results, setResults] = useState<SearchResults | null>(null);
   const [loading, setLoading] = useState(initialQuery.length >= 2);
   const [tab, setTab] = useState<Tab>("all");
+  const [searchError, setSearchError] = useState("");
 
   const debouncedQuery = useDebounce(inputValue, 350);
 
   const fetchSearch = useCallback((query: string) => {
+    setSearchError("");
     api
       .get("/search", { params: { q: query, limit: 20 } })
       .then((r) => setResults(r.data.data))
       .catch((error) => {
-        console.error("Search request failed:", getApiErrorMessage(error, "Unknown search error"));
+        setSearchError(getApiErrorMessage(error, "Search failed. Please try again."));
       })
       .finally(() => setLoading(false));
   }, []);
@@ -79,6 +81,7 @@ export default function SearchPage() {
       if (debouncedQuery.length === 0) setSearchParams({}, { replace: true });
       return;
     }
+    setTab("all");
     setSearchParams({ q: debouncedQuery }, { replace: true });
     fetchSearch(debouncedQuery);
   }, [debouncedQuery, fetchSearch, initialQuery, results, setSearchParams]);
@@ -156,12 +159,18 @@ export default function SearchPage() {
         )}
 
         {/* Empty prompt */}
-        {!results && !loading && debouncedQuery.length < 2 && (
+        {!results && !loading && !searchError && debouncedQuery.length < 2 && (
           <div className="text-center py-20">
             <div className="w-16 h-16 rounded-2xl bg-surface-light flex items-center justify-center mx-auto mb-4">
               <Search className="w-8 h-8 text-text-dim/30" />
             </div>
             <p className="text-text-muted text-sm">Type at least 2 characters to search</p>
+          </div>
+        )}
+
+        {searchError && (
+          <div className="bg-error/10 border border-error/20 rounded-xl p-4 text-error text-sm mb-6">
+            {searchError}
           </div>
         )}
 

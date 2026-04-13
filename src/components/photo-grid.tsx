@@ -127,7 +127,7 @@ export default function PhotoGrid({ photos, onLike, onDelete, currentUserId, com
                 )}
               </div>
               {photo.caption && (
-                <p className="text-white/80 text-xs text-center px-3 max-w-[90%] truncate bg-bg/40 px-3 py-1 rounded-full">
+                <p className="text-white/80 text-xs text-center max-w-[90%] truncate bg-bg/40 px-3 py-1 rounded-full">
                   {photo.caption}
                 </p>
               )}
@@ -265,6 +265,7 @@ export default function PhotoGrid({ photos, onLike, onDelete, currentUserId, com
                     <button
                       onClick={handleAddComment}
                       disabled={postingComment || !newComment.trim()}
+                      aria-label="Send comment"
                       className="btn-primary-luxe px-4 py-2.5 rounded-xl text-sm font-bold disabled:opacity-40 flex items-center gap-1"
                     >
                       {postingComment ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}

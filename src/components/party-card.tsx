@@ -36,7 +36,9 @@ function getStatusClasses(status: string) {
 
 export default function PartyCard({ party }: { party: Party }) {
   const tags = parseTags(party.tags);
-  const capacityPercent = Math.min(100, Math.round((party.current_attendees / party.max_capacity) * 100));
+  const capacityPercent = party.max_capacity > 0
+    ? Math.min(100, Math.round((party.current_attendees / party.max_capacity) * 100))
+    : 0;
 
   return (
     <Link

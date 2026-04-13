@@ -98,6 +98,7 @@ function PostCard({ post, onLikeToggle }: PostCardProps) {
 
   // #23 — Proper double-tap detection for mobile
   const lastTapRef = useRef(0);
+  const heartTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   function handleTap() {
     const now = Date.now();
     if (now - lastTapRef.current < 350) {
@@ -105,13 +106,18 @@ function PostCard({ post, onLikeToggle }: PostCardProps) {
       if (!post.liked_by_me) {
         onLikeToggle(post.id, false);
         setShowHeart(true);
-        setTimeout(() => setShowHeart(false), 800);
+        clearTimeout(heartTimerRef.current);
+        heartTimerRef.current = setTimeout(() => setShowHeart(false), 800);
       }
       lastTapRef.current = 0;
     } else {
       lastTapRef.current = now;
     }
   }
+
+  useEffect(() => {
+    return () => clearTimeout(heartTimerRef.current);
+  }, []);
 
   async function loadComments() {
     setLoadingComments(true);
@@ -397,8 +403,12 @@ export default function FeedPage() {
     fetchFeed(nextPage, true);
   }
 
-  // #26 — Clamp like count to >= 0
+  // #26 — Clamp like count to >= 0, debounce to prevent race condition
+  const likeInFlightRef = useRef<Set<string>>(new Set());
   function handleLikeToggle(postId: string, currentLiked: boolean) {
+    if (likeInFlightRef.current.has(postId)) return;
+    likeInFlightRef.current.add(postId);
+
     setPosts((prev) =>
       prev.map((p) =>
         p.id === postId
@@ -426,6 +436,8 @@ export default function FeedPage() {
             : p
         )
       );
+    }).finally(() => {
+      likeInFlightRef.current.delete(postId);
     });
   }
 

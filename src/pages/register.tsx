@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/auth-hook";
@@ -17,9 +17,11 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [wakingUp, setWakingUp] = useState(false);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
     void ensureBackendAwake(45000).catch(() => {});
+    return () => { mountedRef.current = false; };
   }, []);
 
   async function handleSubmit(e: FormEvent) {
@@ -47,7 +49,7 @@ export default function RegisterPage() {
         setError(getApiErrorMessage(error, "Registration failed"));
       }
     } finally {
-      setSubmitting(false);
+      if (mountedRef.current) setSubmitting(false);
     }
   }
 
