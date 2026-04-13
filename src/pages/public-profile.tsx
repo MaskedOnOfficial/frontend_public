@@ -532,7 +532,7 @@ export default function PublicProfilePage() {
             </button>
           ))}
         </div>
-        )
+        )}
 
         {/* TAB CONTENT */}
         {!blockedByMe && !blockedByThem && (
