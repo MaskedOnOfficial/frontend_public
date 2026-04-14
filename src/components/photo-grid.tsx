@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import api from "../lib/api";
 import type { Photo } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
+import { useBackButton } from "../lib/use-back-button";
 import { motion, AnimatePresence } from "framer-motion";
 import { Heart, MessageCircle, Trash2, X, Loader2, Send } from "lucide-react";
 
@@ -85,6 +86,9 @@ export default function PhotoGrid({ photos, onLike, onDelete, currentUserId, com
     setNewComment("");
     setCommentError("");
   }
+
+  // Android back button closes lightbox
+  useBackButton(!!lightbox, useCallback(() => { setLightbox(null); setComments([]); setNewComment(""); setCommentError(""); }, []));
 
   // Keyboard navigation for lightbox
   useEffect(() => {

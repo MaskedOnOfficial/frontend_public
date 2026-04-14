@@ -85,6 +85,14 @@
     min-height: 100%;
   }
 
+  /* Capacitor safe-area support for notch devices */
+  body {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
   body {
     font-family: "Inter", -apple-system, "Segoe UI", sans-serif;
     color: var(--color-text);
@@ -145,6 +153,11 @@
   }
   ::-webkit-scrollbar-thumb:hover {
     background: rgba(139, 92, 246, 0.5);
+  }
+
+  /* Capacitor: hide bottom nav when keyboard is open */
+  body.keyboard-visible nav[class*="fixed bottom-0"] {
+    display: none !important;
   }
 }
 
@@ -719,4 +732,29 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .tap-active:active {
   transform: scale(0.96);
   transition: transform 100ms;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SKELETON SHIMMER (for image loading)
+   ═══════════════════════════════════════════════════════════════ */
+.skeleton-shimmer {
+  background: linear-gradient(90deg, var(--color-surface) 25%, var(--color-surface-light) 50%, var(--color-surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PREMIUM MOBILE OVERSCROLL
+   ═══════════════════════════════════════════════════════════════ */
+html {
+  overscroll-behavior-y: contain;
+}
+
+/* Smooth page transitions */
+main {
+  animation: page-fade-in 300ms ease-out;
+}
+@keyframes page-fade-in {
+  from { opacity: 0.7; }
+  to { opacity: 1; }
 }

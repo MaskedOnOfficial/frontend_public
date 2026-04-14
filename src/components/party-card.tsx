@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useState } from "react";
 import type { Party } from "../types";
 import { MapPin, Calendar, Users, Ticket } from "lucide-react";
 
@@ -39,6 +40,8 @@ export default function PartyCard({ party }: { party: Party }) {
   const capacityPercent = party.max_capacity > 0
     ? Math.min(100, Math.round((party.current_attendees / party.max_capacity) * 100))
     : 0;
+  const isSoldOut = party.max_capacity > 0 && party.current_attendees >= party.max_capacity;
+  const [imgLoaded, setImgLoaded] = useState(false);
 
   return (
     <Link
@@ -49,10 +52,13 @@ export default function PartyCard({ party }: { party: Party }) {
       <div className="relative h-44 overflow-hidden bg-gradient-to-br from-primary/20 via-accent/15 to-hot/10">
         {party.cover_image_url ? (
           <>
+            {!imgLoaded && <div className="absolute inset-0 skeleton-shimmer" />}
             <img
               src={party.cover_image_url}
               alt={party.title}
-              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+              loading="lazy"
+              onLoad={() => setImgLoaded(true)}
+              className={`w-full h-full object-cover group-hover:scale-105 transition-all duration-700 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/30 to-transparent" />
           </>
@@ -76,6 +82,13 @@ export default function PartyCard({ party }: { party: Party }) {
             {party.status}
           </span>
         </div>
+
+        {/* Sold out overlay */}
+        {isSoldOut && party.status === "upcoming" && (
+          <div className="absolute inset-0 bg-bg/50 backdrop-blur-[2px] flex items-center justify-center">
+            <span className="text-xs font-black uppercase tracking-widest text-hot bg-bg/80 px-4 py-2 rounded-full border border-hot/30">Sold Out</span>
+          </div>
+        )}
       </div>
 
       {/* Content */}

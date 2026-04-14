@@ -82,7 +82,7 @@ export default function Navbar() {
   const hasResults = results && (results.users.length > 0 || results.parties.length > 0);
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-primary/[0.08] bg-bg/70 backdrop-blur-2xl">
+    <nav className="sticky z-50 border-b border-primary/[0.08] bg-bg/70 backdrop-blur-2xl" style={{ top: 'env(safe-area-inset-top, 0px)' }}>
       <div className="max-w-6xl mx-auto px-3 md:px-5 h-16 md:h-[4.5rem] flex items-center gap-3 md:gap-5">
 
         {/* Logo */}

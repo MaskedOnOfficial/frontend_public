@@ -2,6 +2,8 @@ import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../lib/api";
 import { getApiErrorMessage } from "../lib/errors";
+import { isNative } from "../lib/capacitor";
+import { takePhoto } from "../lib/native-camera";
 import { motion } from "framer-motion";
 import { Image, MapPin, Clock, Users, Ticket, Shield, Tag, Loader2, Sparkles, X, ChevronDown, Eye } from "lucide-react";
 
@@ -81,12 +83,26 @@ export default function CreatePartyPage() {
   function handleCoverImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    applyCoverImage(file);
+  }
+
+  function applyCoverImage(file: File) {
+    if (file.size > 5 * 1024 * 1024) { setError("Cover image too large (max 5 MB)"); return; }
     setCoverImage(file);
     const reader = new FileReader();
     reader.onload = (event) => {
       setCoverImagePreview(event.target?.result as string);
     };
     reader.readAsDataURL(file);
+  }
+
+  async function triggerCoverUpload() {
+    if (isNative()) {
+      const file = await takePhoto();
+      if (file) applyCoverImage(file);
+    } else {
+      fileInputRef.current?.click();
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -164,17 +180,17 @@ export default function CreatePartyPage() {
               <h2 className="text-base font-bold text-text flex items-center gap-2"><Tag className="w-4 h-4 text-primary" />Identity</h2>
               <div>
                 <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Party Title *</label>
-                <input name="title" value={form.title} onChange={handleChange} onBlur={handleBlur} placeholder="e.g., Rooftop Vibes Vol. 3" required
+                <input name="title" value={form.title} onChange={handleChange} onBlur={handleBlur} placeholder="e.g., Rooftop Vibes Vol. 3" required maxLength={100}
                   className={`input-luxe w-full rounded-xl px-4 py-3.5 ${fieldError('title', form.title) ? 'ring-2 ring-error/50' : ''}`} />
                 {fieldError('title', form.title) && <p className="text-error text-[10px] mt-1 font-semibold">Title is required</p>}
               </div>
               <div>
                 <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Description</label>
-                <textarea name="description" value={form.description} onChange={handleChange} placeholder="Set the mood, dress code, music profile..." rows={4} className="input-luxe w-full rounded-xl px-4 py-3.5 resize-none" />
+                <textarea name="description" value={form.description} onChange={handleChange} placeholder="Set the mood, dress code, music profile..." rows={4} maxLength={2000} className="input-luxe w-full rounded-xl px-4 py-3.5 resize-none" />
               </div>
               <div>
                 <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Tags</label>
-                <input name="tags" value={form.tags} onChange={handleChange} placeholder="rooftop, afro-house, intimate" className="input-luxe w-full rounded-xl px-4 py-3.5" />
+                <input name="tags" value={form.tags} onChange={handleChange} placeholder="rooftop, afro-house, intimate" maxLength={500} className="input-luxe w-full rounded-xl px-4 py-3.5" />
                 <p className="text-text-dim text-xs mt-1.5">{tagCount} tag{tagCount === 1 ? "" : "s"} · Separate with commas</p>
               </div>
             </section>
@@ -192,7 +208,7 @@ export default function CreatePartyPage() {
                 </div>
               )}
               <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleCoverImageChange} aria-label="Upload cover image" className="hidden" />
-              <button type="button" onClick={() => fileInputRef.current?.click()} className="btn-secondary-luxe w-full px-4 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2">
+              <button type="button" onClick={triggerCoverUpload} className="btn-secondary-luxe w-full px-4 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2">
                 <Image className="w-4 h-4" />
                 {coverImage ? "Change Image" : "Choose Cover Image"}
               </button>

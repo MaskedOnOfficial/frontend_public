@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/auth-hook";
 import api from "../lib/api";
 import { getApiErrorMessage } from "../lib/errors";
+import { hapticsMedium } from "../lib/haptics";
 import { motion, AnimatePresence } from "framer-motion";
 import { Heart, MessageCircle, Sparkles, Users, PartyPopper, ChevronDown, Loader2, RefreshCw } from "lucide-react";
 
@@ -105,6 +106,7 @@ function PostCard({ post, onLikeToggle }: PostCardProps) {
       // Double tap detected
       if (!post.liked_by_me) {
         onLikeToggle(post.id, false);
+        hapticsMedium();
         setShowHeart(true);
         clearTimeout(heartTimerRef.current);
         heartTimerRef.current = setTimeout(() => setShowHeart(false), 800);
@@ -408,6 +410,7 @@ export default function FeedPage() {
   function handleLikeToggle(postId: string, currentLiked: boolean) {
     if (likeInFlightRef.current.has(postId)) return;
     likeInFlightRef.current.add(postId);
+    hapticsMedium();
 
     setPosts((prev) =>
       prev.map((p) =>

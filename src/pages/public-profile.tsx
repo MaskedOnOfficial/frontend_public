@@ -4,6 +4,7 @@ import api from "../lib/api";
 import { useAuth } from "../context/auth-hook";
 import type { User, Photo, Rating, FriendUser } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
+import { useBackButton } from "../lib/use-back-button";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Camera, Grid3x3, Star, Users, Heart, UserPlus, UserCheck, UserX, Clock,
@@ -75,6 +76,12 @@ export default function PublicProfilePage() {
   const [blockedByThem, setBlockedByThem] = useState(false);
   const [blockLoading, setBlockLoading] = useState(false);
   const [showBlockConfirm, setShowBlockConfirm] = useState(false);
+
+  // Android back button: close overlays in reverse z-index order
+  useBackButton(!!storyPartyId, useCallback(() => { setStoryPartyId(null); setStoryIndex(0); }, []));
+  useBackButton(!storyPartyId && activeCommentPhotoId !== null, useCallback(() => { setActiveCommentPhotoId(null); setComments([]); setNewComment(""); setCommentError(""); }, []));
+  useBackButton(!storyPartyId && activeCommentPhotoId === null && feedStartIndex !== null, useCallback(() => { setFeedStartIndex(null); setActiveCommentPhotoId(null); setComments([]); setNewComment(""); setCommentError(""); }, []));
+  useBackButton(showBlockConfirm, useCallback(() => setShowBlockConfirm(false), []));
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {

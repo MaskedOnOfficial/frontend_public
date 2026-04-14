@@ -4,7 +4,7 @@ import api from "../lib/api";
 import type { Notification } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
 import { motion } from "framer-motion";
-import { Bell, CheckCheck, PartyPopper, UserPlus, Star, Heart, MessageCircle, Loader2, ChevronLeft, ChevronRight, Inbox } from "lucide-react";
+import { Bell, CheckCheck, PartyPopper, UserPlus, Star, Heart, MessageCircle, Loader2, ChevronLeft, ChevronRight, ChevronRight as ArrowRight, Inbox } from "lucide-react";
 
 function getNotifIcon(type: string) {
   if (type.includes("request")) return <UserPlus className="w-5 h-5 text-accent" />;
@@ -67,11 +67,34 @@ export default function NotificationsPage() {
     }
   }
 
+  function getNotifLink(n: Notification): string | null {
+    const { type, reference_type, reference_id } = n;
+
+    // Friend notifications — reference_id is the other user's ID
+    if (type === "friend_request" && reference_id) return `/profile/${reference_id}`;
+    if (type === "friend_accepted" && reference_id) return `/profile/${reference_id}`;
+
+    // Rating → own profile
+    if (type === "new_rating") return "/profile/me";
+
+    // Photo interactions → own profile (photos tab)
+    if ((type === "photo_liked" || type === "photo_commented") && reference_id) return "/profile/me";
+
+    // Party notifications
+    if (reference_type === "party" && reference_id) {
+      // Host receives join_request → go to manage-requests page
+      if (type === "join_request") return `/dashboard/${reference_id}/requests`;
+      // Everything else (request_approved, request_rejected, payment_confirmed, etc.) → party detail
+      return `/parties/${reference_id}`;
+    }
+
+    return null;
+  }
+
   function handleClick(n: Notification) {
     if (!n.is_read) markRead(n.id);
-    if (n.reference_type === "party" && n.reference_id) {
-      navigate(`/parties/${n.reference_id}`);
-    }
+    const link = getNotifLink(n);
+    if (link) navigate(link);
   }
 
   function timeAgo(dateStr: string) {
@@ -148,7 +171,9 @@ export default function NotificationsPage() {
                 role="button"
                 tabIndex={0}
                 aria-label={`${n.is_read ? "" : "Unread: "}${n.title}`}
-                className={`w-full text-left p-4 rounded-2xl border transition-all hover:translate-x-1 tap-active focus-visible:ring-2 focus-visible:ring-primary/40 outline-none ${
+              className={`w-full text-left p-4 rounded-2xl border transition-all tap-active focus-visible:ring-2 focus-visible:ring-primary/40 outline-none ${
+                  getNotifLink(n) ? "hover:translate-x-1 cursor-pointer" : "cursor-default"
+                } ${
                   n.is_read
                     ? "glass-panel border-primary/[0.05] hover:border-primary/10"
                     : "glass-panel border-primary/20 hover:border-primary/30 bg-primary/[0.03]"
@@ -172,6 +197,9 @@ export default function NotificationsPage() {
                     )}
                   </div>
                   <span className="text-text-dim text-[10px] font-semibold shrink-0 mt-0.5">{timeAgo(n.created_at)}</span>
+                  {getNotifLink(n) && (
+                    <ArrowRight className="w-3.5 h-3.5 text-text-dim/40 shrink-0 mt-0.5" />
+                  )}
                 </div>
               </motion.button>
             ))}

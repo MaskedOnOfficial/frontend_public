@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { ThemeContext, type Theme } from "./theme-types";
+import { setNativeTheme } from "../lib/capacitor";
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
@@ -11,6 +12,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const root = document.documentElement;
     root.setAttribute("data-theme", theme);
     localStorage.setItem("maskOn-theme", theme);
+    // Sync native status bar color with theme
+    setNativeTheme(theme);
+    // Update the meta theme-color tag for mobile browsers
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", theme === "dark" ? "#030712" : "#F8FAFC");
   }, [theme]);
 
   const toggleTheme = (newTheme: Theme) => {

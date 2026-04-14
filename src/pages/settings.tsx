@@ -100,7 +100,7 @@ export default function SettingsPage() {
             <form onSubmit={handleSave} className="space-y-5">
               <div>
                 <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Display Name</label>
-                <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)}
+                <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={100}
                   className="input-luxe w-full rounded-xl px-4 py-3.5 text-sm" placeholder="Your name" />
               </div>
               <div>

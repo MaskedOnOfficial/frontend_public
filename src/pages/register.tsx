@@ -54,10 +54,10 @@ export default function RegisterPage() {
   }
 
   const fields = [
-    { id: "displayName", label: "Display Name", type: "text", value: displayName, setter: setDisplayName, placeholder: "Riya Sharma", icon: User, auto: "name" },
-    { id: "username", label: "Username", type: "text", value: username, setter: setUsername, placeholder: "riya_hosts", icon: AtSign, auto: "username" },
-    { id: "email", label: "Email", type: "email", value: email, setter: setEmail, placeholder: "you@example.com", icon: Mail, auto: "email" },
-    { id: "password", label: "Password", type: "password", value: password, setter: setPassword, placeholder: "Min 8 characters", icon: Lock, auto: "new-password", min: 8 },
+    { id: "displayName", label: "Display Name", type: "text", value: displayName, setter: setDisplayName, placeholder: "Riya Sharma", icon: User, auto: "name", max: 100 },
+    { id: "username", label: "Username", type: "text", value: username, setter: setUsername, placeholder: "riya_hosts", icon: AtSign, auto: "username", max: 50 },
+    { id: "email", label: "Email", type: "email", value: email, setter: setEmail, placeholder: "you@example.com", icon: Mail, auto: "email", max: 254 },
+    { id: "password", label: "Password", type: "password", value: password, setter: setPassword, placeholder: "Min 8 characters", icon: Lock, auto: "new-password", min: 8, max: 128 },
   ];
 
   return (
@@ -120,6 +120,7 @@ export default function RegisterPage() {
                       required
                       autoComplete={f.auto}
                       minLength={'min' in f ? f.min : undefined}
+                      maxLength={'max' in f ? f.max : undefined}
                       className="input-luxe w-full rounded-xl pl-10 pr-4 py-3.5 text-sm"
                       placeholder={f.placeholder}
                     />

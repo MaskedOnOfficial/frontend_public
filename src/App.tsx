@@ -1,8 +1,9 @@
-import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, Link } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useNavigate, Link } from "react-router-dom";
 import { useEffect, Component, type ReactNode } from "react";
 import { AuthProvider } from "./context/auth-context";
 import { ThemeProvider } from "./context/theme-context";
 import { useAuth } from "./context/auth-hook";
+import { initCapacitor } from "./lib/capacitor";
 import Navbar from "./components/navbar";
 import FeedPage from "./pages/feed";
 import LoginPage from "./pages/login";
@@ -144,6 +145,12 @@ function GuestOnlyRoute() {
 function AppShell() {
   const { user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+
+  // Initialize Capacitor native plugins on first mount
+  useEffect(() => {
+    initCapacitor(navigate);
+  }, [navigate]);
 
   // #22 — Hide navbar on auth pages
   const isAuthPage = location.pathname.startsWith("/auth");

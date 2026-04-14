@@ -4,7 +4,8 @@ import api from "../lib/api";
 import type { Party } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
 import { motion } from "framer-motion";
-import { Search, MapPin, Calendar, Ticket, Sparkles, Loader2, PartyPopper, TrendingUp } from "lucide-react";
+import { Search, MapPin, Calendar, Ticket, Sparkles, PartyPopper, TrendingUp } from "lucide-react";
+import { SkeletonPartyCard } from "../components/skeleton";
 
 function getStatusClasses(status: string) {
   switch (status) {
@@ -156,9 +157,10 @@ export default function DiscoverPage() {
         </motion.form>
 
         {/* City filter chips */}
-        <div className="flex overflow-x-auto gap-2 mb-8 pb-2 scrollbar-hide">
+        <div className="flex overflow-x-auto gap-2 mb-8 pb-2 scrollbar-hide scroll-smooth-x" style={{ scrollSnapType: 'x mandatory' }}>
           <button
             onClick={() => setSelectedCity("")}
+            style={{ scrollSnapAlign: 'start' }}
             className={`px-5 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${
               selectedCity === ""
                 ? "bg-primary text-white shadow-lg shadow-primary/25"
@@ -171,6 +173,7 @@ export default function DiscoverPage() {
             <button
               key={city}
               onClick={() => setSelectedCity(city)}
+              style={{ scrollSnapAlign: 'start' }}
               className={`px-5 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
                 selectedCity === city
                   ? "bg-accent text-white shadow-lg shadow-accent/25"
@@ -194,9 +197,10 @@ export default function DiscoverPage() {
 
         {/* Events grid */}
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <Loader2 className="w-8 h-8 text-primary animate-spin" />
-            <p className="text-text-muted text-sm">Loading events...</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {Array.from({ length: 6 }, (_, i) => (
+              <SkeletonPartyCard key={i} />
+            ))}
           </div>
         ) : loadError ? (
           <div className="text-center py-20">

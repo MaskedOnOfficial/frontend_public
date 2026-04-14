@@ -4,6 +4,9 @@ import { useAuth } from "../context/auth-hook";
 import api from "../lib/api";
 import type { Photo, Rating, FriendUser, PendingFriendRequest } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
+import { useBackButton } from "../lib/use-back-button";
+import { isNative } from "../lib/capacitor";
+import { takePhoto } from "../lib/native-camera";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Camera, Grid3x3, Star, Users, Heart, Loader2, X, Trash2,
@@ -87,6 +90,11 @@ export default function ProfilePage() {
     };
   }, []);
 
+  // Android back button: close overlays in reverse z-index order
+  useBackButton(!!storyPartyId, useCallback(() => { setStoryPartyId(null); setStoryIndex(0); }, []));
+  useBackButton(!storyPartyId && activeCommentPhotoId !== null, useCallback(() => { setActiveCommentPhotoId(null); setComments([]); setNewComment(""); setCommentError(""); }, []));
+  useBackButton(!storyPartyId && activeCommentPhotoId === null && feedStartIndex !== null, useCallback(() => { setFeedStartIndex(null); setActiveCommentPhotoId(null); setComments([]); setNewComment(""); setCommentError(""); }, []));
+
   useEffect(() => {
     if (user) { setDisplayName(user.display_name); setBio(user.bio || ""); }
   }, [user]);
@@ -167,18 +175,48 @@ export default function ProfilePage() {
 
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return;
+    await uploadAvatarFile(file);
+    if (avatarInputRef.current) avatarInputRef.current.value = "";
+  }
+
+  async function uploadAvatarFile(file: File) {
+    if (file.size > 5 * 1024 * 1024) { showToast("File too large (max 5 MB)", "error"); return; }
     setAvatarUploading(true);
     try { const fd = new FormData(); fd.append("avatar", file); await api.put("/users/me/avatar", fd, { headers: { "Content-Type": "multipart/form-data" } }); await refreshUser(); showToast("Avatar updated!"); }
     catch (error) { showToast(getApiErrorMessage(error, "Upload failed"), "error"); }
-    finally { setAvatarUploading(false); if (avatarInputRef.current) avatarInputRef.current.value = ""; }
+    finally { setAvatarUploading(false); }
+  }
+
+  async function handleNativeAvatarUpload() {
+    const file = await takePhoto();
+    if (file) await uploadAvatarFile(file);
+  }
+
+  function triggerAvatarUpload() {
+    if (isNative()) { handleNativeAvatarUpload(); } else { avatarInputRef.current?.click(); }
   }
 
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return;
+    await uploadPhotoFile(file);
+    if (photoInputRef.current) photoInputRef.current.value = "";
+  }
+
+  async function uploadPhotoFile(file: File) {
+    if (file.size > 5 * 1024 * 1024) { showToast("File too large (max 5 MB)", "error"); return; }
     setUploading(true);
     try { const fd = new FormData(); fd.append("image", file); if (caption.trim()) fd.append("caption", caption.trim()); await api.post("/photos", fd, { headers: { "Content-Type": "multipart/form-data" } }); setCaption(""); loadPhotos(); showToast("Photo uploaded!"); }
     catch (error) { showToast(getApiErrorMessage(error, "Upload failed"), "error"); }
-    finally { setUploading(false); if (photoInputRef.current) photoInputRef.current.value = ""; }
+    finally { setUploading(false); }
+  }
+
+  async function handleNativePhotoUpload() {
+    const file = await takePhoto();
+    if (file) await uploadPhotoFile(file);
+  }
+
+  function triggerPhotoUpload() {
+    if (isNative()) { handleNativePhotoUpload(); } else { photoInputRef.current?.click(); }
   }
 
   async function handleDeletePhoto(photoId: string) {
@@ -366,7 +404,7 @@ export default function ProfilePage() {
                   </div>
                 </div>
                 <button
-                  onClick={() => avatarInputRef.current?.click()}
+                  onClick={triggerAvatarUpload}
                   disabled={avatarUploading}
                   aria-label="Change profile photo"
                   className="absolute -bottom-1 -right-1 w-8 h-8 rounded-xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30 hover:bg-primary-hover transition tap-active opacity-0 group-hover:opacity-100 sm:opacity-100"
@@ -412,7 +450,7 @@ export default function ProfilePage() {
                   <div className="space-y-3">
                     <div>
                       <label className="block text-[10px] font-bold text-text-muted uppercase tracking-[0.12em] mb-1.5">Display Name</label>
-                      <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Your display name" className="input-luxe w-full rounded-xl px-4 py-3 text-sm" />
+                      <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={100} placeholder="Your display name" className="input-luxe w-full rounded-xl px-4 py-3 text-sm" />
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-text-muted uppercase tracking-[0.12em] mb-1.5">Bio</label>
@@ -529,7 +567,7 @@ export default function ProfilePage() {
               <div className="glass-panel rounded-2xl p-3 mb-4 flex items-center gap-2">
                 <input type="text" aria-label="Photo caption" placeholder="Write a caption\u2026" value={caption} onChange={(e) => setCaption(e.target.value)} className="input-luxe flex-1 rounded-xl px-3 py-2.5 text-sm min-w-0" />
                 <input ref={photoInputRef} type="file" aria-label="Upload profile photo" title="Upload profile photo" accept="image/jpeg,image/png,image/webp" onChange={handlePhotoUpload} className="hidden" />
-                <button onClick={() => photoInputRef.current?.click()} disabled={uploading}
+                <button onClick={triggerPhotoUpload} disabled={uploading}
                   className="btn-primary-luxe text-sm font-bold px-3.5 py-2.5 rounded-xl transition disabled:opacity-50 shrink-0 flex items-center gap-1.5 tap-active">
                   {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
                   <span className="hidden sm:inline">{uploading ? "\u2026" : "Post"}</span>
@@ -550,7 +588,7 @@ export default function ProfilePage() {
                   </div>
                   <p className="text-text-dim font-semibold">No posts yet</p>
                   <p className="text-text-dim/60 text-sm mt-1 mb-4">Share your best moments</p>
-                  <button onClick={() => photoInputRef.current?.click()} className="btn-primary-luxe text-sm font-bold px-5 py-2.5 rounded-xl tap-active inline-flex items-center gap-2">
+                  <button onClick={triggerPhotoUpload} className="btn-primary-luxe text-sm font-bold px-5 py-2.5 rounded-xl tap-active inline-flex items-center gap-2">
                     <ImagePlus className="w-4 h-4" /> Upload Photo
                   </button>
                 </div>
