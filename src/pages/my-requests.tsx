@@ -4,7 +4,7 @@ import api from "../lib/api";
 import type { PartyRequest } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
 import { motion } from "framer-motion";
-import { MapPin, Calendar, Star, Send, Loader2, Inbox, RefreshCw } from "lucide-react";
+import { MapPin, Calendar, Star, Loader2, Inbox, RefreshCw } from "lucide-react";
 
 const statusStyles: Record<string, string> = {
   pending: "status-upcoming",
@@ -43,24 +43,19 @@ export default function MyRequestsPage() {
   return (
     <div className="min-h-screen bg-bg pb-28 md:pb-12">
       <div className="max-w-3xl mx-auto px-4 py-6 md:py-8">
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="glass-panel rounded-2xl p-6 mb-8">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-hot flex items-center justify-center shadow-lg shadow-primary/20">
-              <Send className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-text tracking-tight">My Requests</h1>
-              <p className="text-text-muted text-sm">Track every invite you have requested.</p>
-            </div>
-            <button
-              onClick={() => { setRefreshing(true); loadRequests(); }}
-              disabled={refreshing}
-              aria-label="Refresh requests"
-              className="btn-secondary-luxe p-2.5 rounded-xl ml-auto shrink-0"
-            >
-              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-            </button>
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-xl font-bold text-text tracking-tight">My Requests</h1>
+            <p className="text-text-dim text-sm mt-0.5">Track every invite you have requested.</p>
           </div>
+          <button
+            onClick={() => { setRefreshing(true); loadRequests(); }}
+            disabled={refreshing}
+            aria-label="Refresh requests"
+            className="btn-secondary-luxe p-2.5 rounded-xl shrink-0"
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+          </button>
         </motion.div>
 
         {loadError && (
@@ -118,7 +113,7 @@ export default function MyRequestsPage() {
                           className="bg-warning/10 hover:bg-warning/20 text-warning font-bold text-xs px-3 py-1.5 rounded-xl border border-warning/15 transition flex items-center gap-1"
                         >
                           <Star className="w-3 h-3 fill-current" />
-                          Rate
+                          Rate Crowd
                         </Link>
                       )}
                       <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${statusStyles[req.status] || ""}`}>

@@ -5,7 +5,7 @@ import { useTheme } from "../context/use-theme";
 import api from "../lib/api";
 import { getApiErrorMessage } from "../lib/errors";
 import { motion } from "framer-motion";
-import { ArrowLeft, Edit3, Moon, Sun, LogOut, Settings, Shield, User, Mail, Calendar, Loader2 } from "lucide-react";
+import { ArrowLeft, Edit3, Moon, Sun, LogOut, Shield, User, Mail, Calendar, Loader2 } from "lucide-react";
 
 export default function SettingsPage() {
   const { user, logout, refreshUser } = useAuth();
@@ -61,16 +61,9 @@ export default function SettingsPage() {
         </Link>
 
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="glass-panel rounded-2xl p-6 mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/20">
-              <Settings className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-text tracking-tight">Settings</h1>
-              <p className="text-text-muted text-sm">Manage your account and preferences</p>
-            </div>
-          </div>
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
+          <h1 className="text-xl font-bold text-text tracking-tight">Settings</h1>
+          <p className="text-text-dim text-sm mt-0.5">Manage your account and preferences</p>
         </motion.div>
 
         {/* Status message */}
@@ -142,8 +135,8 @@ export default function SettingsPage() {
         {/* Theme */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
           className="glass-panel rounded-2xl p-6 mb-4">
-          <h2 className="text-base font-bold text-text mb-4 flex items-center gap-2">
-            {theme === "dark" ? <Moon className="w-4 h-4 text-accent" /> : <Sun className="w-4 h-4 text-warning" />}
+          <h2 className="text-sm font-bold text-text mb-4 flex items-center gap-2">
+            {theme === "dark" ? <Moon className="w-3.5 h-3.5 text-accent" /> : <Sun className="w-3.5 h-3.5 text-warning" />}
             Appearance
           </h2>
           <div className="grid grid-cols-2 gap-3">
@@ -169,8 +162,8 @@ export default function SettingsPage() {
         {/* Dashboard Link */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
           className="glass-panel rounded-2xl p-6 mb-4">
-          <h2 className="text-base font-bold text-text mb-4 flex items-center gap-2">
-            <Shield className="w-4 h-4 text-hot" /> Host Dashboard
+          <h2 className="text-sm font-bold text-text mb-4 flex items-center gap-2">
+            <Shield className="w-3.5 h-3.5 text-hot" /> Host Dashboard
           </h2>
           <p className="text-text-muted text-sm mb-4">Manage your hosted parties, view requests, and track metrics.</p>
           <Link to="/dashboard" className="btn-secondary-luxe w-full px-4 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2">

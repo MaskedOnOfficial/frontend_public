@@ -82,15 +82,15 @@ export default function Navbar() {
   const hasResults = results && (results.users.length > 0 || results.parties.length > 0);
 
   return (
-    <nav className="sticky z-50 border-b border-primary/[0.08] bg-bg/70 backdrop-blur-2xl" style={{ top: 'env(safe-area-inset-top, 0px)' }}>
-      <div className="max-w-6xl mx-auto px-3 md:px-5 h-16 md:h-[4.5rem] flex items-center gap-3 md:gap-5">
+    <nav className="sticky z-50 border-b border-primary/[0.06] bg-bg/75 backdrop-blur-2xl" style={{ top: 'env(safe-area-inset-top, 0px)' }}>
+      <div className="max-w-6xl mx-auto px-3 md:px-5 h-14 md:h-16 flex items-center gap-3 md:gap-5">
 
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-2 shrink-0 group">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary via-accent to-hot flex items-center justify-center shadow-lg shadow-primary/20 group-hover:shadow-primary/40 transition-shadow">
-            <Sparkles className="w-4 h-4 text-white" />
+        <Link to="/" className="flex items-center gap-1.5 shrink-0 group">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary via-accent to-hot flex items-center justify-center shadow-md shadow-primary/15 group-hover:shadow-primary/30 transition-shadow">
+            <Sparkles className="w-3.5 h-3.5 text-white" />
           </div>
-          <span className="text-lg md:text-xl font-extrabold tracking-tight">
+          <span className="text-base md:text-lg font-extrabold tracking-tight">
             <span className="text-text">mask</span>
             <span className="brand-gradient-text">On</span>
           </span>
@@ -239,9 +239,9 @@ export default function Navbar() {
               </Link>
 
               {/* Profile avatar */}
-              <Link to="/profile/me" aria-label="My profile" className="ml-1">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary via-accent to-hot p-[2px] hover:shadow-lg hover:shadow-primary/25 transition-shadow">
-                  <div className="w-full h-full rounded-full bg-bg flex items-center justify-center text-sm text-text font-bold overflow-hidden">
+              <Link to="/profile/me" aria-label="My profile" className="ml-0.5">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary via-accent to-hot p-[1.5px] hover:shadow-md hover:shadow-primary/20 transition-shadow">
+                  <div className="w-full h-full rounded-full bg-bg flex items-center justify-center text-xs text-text font-bold overflow-hidden">
                     {user.avatar_url
                       ? <img src={user.avatar_url} alt={user.display_name} className="w-full h-full object-cover" />
                       : (user.display_name ?? "?").charAt(0).toUpperCase()}

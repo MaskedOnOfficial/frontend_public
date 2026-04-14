@@ -69,24 +69,24 @@ export default function RegisterPage() {
         className="w-full max-w-md relative z-10"
       >
         {/* Logo */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <motion.div
-            initial={{ scale: 0.5, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-primary via-accent to-hot shadow-2xl shadow-primary/30 mb-4"
+            initial={{ scale: 0.5, opacity: 0, rotate: -10 }}
+            animate={{ scale: 1, opacity: 1, rotate: 0 }}
+            transition={{ duration: 0.6, delay: 0.1, type: "spring", stiffness: 200 }}
+            className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-primary via-accent to-hot shadow-2xl shadow-primary/30 mb-3 glow-badge"
           >
             <Sparkles className="w-7 h-7 text-white" />
           </motion.div>
-          <h1 className="text-3xl font-extrabold tracking-tight">
+          <motion.h1 initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="text-2xl font-extrabold tracking-tight">
             <span className="text-text">mask</span>
             <span className="brand-gradient-text">On</span>
-          </h1>
-          <p className="text-text-muted text-sm mt-2">Create your exclusive social identity.</p>
+          </motion.h1>
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }} className="text-text-dim text-sm mt-1">Create your exclusive social identity.</motion.p>
         </div>
 
         {/* Card */}
-        <div className="glass-panel rounded-3xl p-8">
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25, duration: 0.5 }} className="glass-panel rounded-3xl p-8">
           {error && (
             <motion.div
               initial={{ opacity: 0, y: -8 }}
@@ -150,9 +150,9 @@ export default function RegisterPage() {
               )}
             </motion.button>
           </form>
-        </div>
+        </motion.div>
 
-        <p className="text-text-muted text-sm text-center mt-7">
+        <p className="text-text-muted text-sm text-center mt-6">
           Already have an account?{" "}
           <Link to="/auth/login" className="text-primary font-semibold hover:text-accent transition">
             Sign in

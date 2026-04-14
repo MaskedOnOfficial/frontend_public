@@ -124,19 +124,14 @@ export default function NotificationsPage() {
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass-panel rounded-2xl p-5 flex items-center justify-between mb-6"
+          className="flex items-center justify-between mb-6"
         >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-hot flex items-center justify-center shadow-lg shadow-primary/20">
-              <Bell className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-text tracking-tight">Notifications</h1>
-              {unread > 0 && <p className="text-hot text-xs font-semibold">{unread} unread</p>}
-            </div>
+          <div>
+            <h1 className="text-xl font-bold text-text tracking-tight">Notifications</h1>
+            {unread > 0 && <p className="text-hot text-xs font-semibold mt-0.5">{unread} unread</p>}
           </div>
           {unread > 0 && (
-            <button onClick={markAllRead} className="btn-secondary-luxe text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5">
+            <button onClick={markAllRead} className="btn-secondary-luxe text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-1.5">
               <CheckCheck className="w-3.5 h-3.5" />
               Mark all read
             </button>
@@ -180,7 +175,7 @@ export default function NotificationsPage() {
                 }`}
               >
                 <div className="flex items-start gap-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${n.is_read ? "bg-surface-light" : "bg-primary/10"}`}>
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${n.is_read ? "bg-surface-light" : "bg-primary/10"}`}>
                     {getNotifIcon(n.type)}
                   </div>
                   <div className="flex-1 min-w-0">

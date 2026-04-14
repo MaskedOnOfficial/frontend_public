@@ -99,16 +99,9 @@ export default function SearchPage() {
   return (
     <div className="min-h-screen bg-bg pb-28 md:pb-12">
       <div className="max-w-3xl mx-auto px-4 py-6 md:py-8">
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="glass-panel rounded-2xl p-5 mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/20">
-              <Search className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-text tracking-tight">Search</h1>
-              <p className="text-text-muted text-sm">Find people and parties in your social orbit.</p>
-            </div>
-          </div>
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-5">
+          <h1 className="text-xl font-bold text-text tracking-tight">Search</h1>
+          <p className="text-text-dim text-sm mt-0.5">Find people and parties in your social orbit.</p>
         </motion.div>
 
         {/* Search input */}
@@ -144,13 +137,13 @@ export default function SearchPage() {
                 <button
                   key={t}
                   onClick={() => setTab(t)}
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 ${
-                    tab === t ? "bg-primary text-white shadow" : "text-text-muted hover:text-text"
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-1.5 ${
+                    tab === t ? "bg-primary/10 text-primary" : "text-text-muted hover:text-text"
                   }`}
                 >
                   {t.charAt(0).toUpperCase() + t.slice(1)}
                   <span className={`text-[10px] rounded-full w-5 h-5 flex items-center justify-center font-bold ${
-                    tab === t ? "bg-white/20 text-white" : "bg-text-muted/15 text-text-dim"
+                    tab === t ? "bg-primary/20 text-primary" : "bg-text-muted/15 text-text-dim"
                   }`}>{count}</span>
                 </button>
               );
@@ -197,7 +190,7 @@ export default function SearchPage() {
                     to={`/profile/${u.id}`}
                     className="glass-panel flex items-center gap-4 rounded-2xl p-4 hover:border-primary/20 transition group"
                   >
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent p-[2px] shrink-0">
+                    <div className="w-11 h-11 rounded-full bg-gradient-to-br from-primary to-accent p-[1.5px] shrink-0">
                       <div className="w-full h-full rounded-full bg-bg overflow-hidden flex items-center justify-center text-text font-bold">
                         {u.avatar_url
                           ? <img src={u.avatar_url} alt={u.display_name} loading="lazy" className="w-full h-full object-cover" />
@@ -239,7 +232,7 @@ export default function SearchPage() {
                       to={`/parties/${p.id}`}
                       className="glass-panel flex items-start gap-4 rounded-2xl p-4 hover:border-primary/20 transition group"
                     >
-                      <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-accent/20 to-primary/15 shrink-0 overflow-hidden">
+                      <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-accent/20 to-primary/15 shrink-0 overflow-hidden">
                         {p.cover_image_url && (
                           <img src={p.cover_image_url} alt={p.title} loading="lazy" className="w-full h-full object-cover" />
                         )}

@@ -1,10 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useNavigate, Link } from "react-router-dom";
-import { useEffect, Component, type ReactNode } from "react";
+import { useState, useEffect, useCallback, Component, type ReactNode } from "react";
 import { AuthProvider } from "./context/auth-context";
 import { ThemeProvider } from "./context/theme-context";
 import { useAuth } from "./context/auth-hook";
 import { initCapacitor } from "./lib/capacitor";
+import api from "./lib/api";
 import Navbar from "./components/navbar";
+import CrowdRatingGate from "./components/crowd-rating-gate";
 import FeedPage from "./pages/feed";
 import LoginPage from "./pages/login";
 import RegisterPage from "./pages/register";
@@ -17,7 +19,7 @@ import EditPartyPage from "./pages/edit-party";
 import MyRequestsPage from "./pages/my-requests";
 import DashboardPage from "./pages/dashboard";
 import ManageRequestsPage from "./pages/manage-requests";
-import RateAttendeesPage from "./pages/rate-attendees";
+import RateCrowdPage from "./pages/rate-crowd";
 import PartyPhotosPage from "./pages/party-photos";
 import UserPhotosPage from "./pages/user-photos";
 import NotificationsPage from "./pages/notifications";
@@ -147,19 +149,46 @@ function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // Pending crowd ratings state
+  const [pendingRatings, setPendingRatings] = useState<any[]>([]);
+  const [pendingChecked, setPendingChecked] = useState(false);
+
   // Initialize Capacitor native plugins on first mount
   useEffect(() => {
     initCapacitor(navigate);
   }, [navigate]);
 
+  // Check for pending crowd ratings whenever user changes
+  const checkPendingRatings = useCallback(async () => {
+    if (!user) { setPendingRatings([]); setPendingChecked(true); return; }
+    try {
+      const res = await api.get("/users/me/pending-ratings");
+      setPendingRatings(res.data.data.pending || []);
+    } catch {
+      setPendingRatings([]);
+    }
+    setPendingChecked(true);
+  }, [user]);
+
+  useEffect(() => { checkPendingRatings(); }, [checkPendingRatings]);
+
   // #22 — Hide navbar on auth pages
   const isAuthPage = location.pathname.startsWith("/auth");
+
+  // Show rating gate if user has pending crowd ratings
+  const showRatingGate = user && pendingChecked && pendingRatings.length > 0;
 
   return (
     <div className="premium-shell min-h-screen text-text">
       <ScrollToTop />
-      {!isAuthPage && <Navbar />}
-      <main className={`relative z-10 ${!isAuthPage && user ? "pb-24 md:pb-0" : ""}`}>
+      {!isAuthPage && !showRatingGate && <Navbar />}
+      {showRatingGate && (
+        <CrowdRatingGate
+          pendingParties={pendingRatings}
+          onAllRated={() => { setPendingRatings([]); }}
+        />
+      )}
+      <main className={`relative z-10 ${!isAuthPage && user ? "pb-24 md:pb-0" : ""}`} style={showRatingGate ? { display: "none" } : undefined}>
         <Routes>
         {/* ── Guest-only (login / register) ── */}
         <Route element={<GuestOnlyRoute />}>
@@ -174,7 +203,7 @@ function AppShell() {
           <Route path="/parties/create"                 element={<CreatePartyPage />} />
           <Route path="/parties/:partyId"               element={<PartyDetailPage />} />
           <Route path="/parties/:partyId/edit"            element={<EditPartyPage />} />
-          <Route path="/parties/:partyId/rate"          element={<RateAttendeesPage />} />
+          <Route path="/parties/:partyId/rate"          element={<RateCrowdPage />} />
           <Route path="/parties/:partyId/photos"        element={<PartyPhotosPage />} />
           <Route path="/my-requests"                    element={<MyRequestsPage />} />
           <Route path="/dashboard"                      element={<DashboardPage />} />
@@ -192,7 +221,7 @@ function AppShell() {
         <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>
-      {user && !isAuthPage && <BottomTabNav />}
+      {user && !isAuthPage && !showRatingGate && <BottomTabNav />}
     </div>
   );
 }

@@ -2,11 +2,13 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/auth-hook";
 import api from "../lib/api";
-import type { Photo, Rating, FriendUser, PendingFriendRequest } from "../types";
+import type { Photo, FriendUser, PendingFriendRequest } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
 import { useBackButton } from "../lib/use-back-button";
 import { isNative } from "../lib/capacitor";
 import { takePhoto } from "../lib/native-camera";
+import { getTrustLevel } from "../lib/trust-levels";
+import TrustBadge from "../components/trust-badge";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Camera, Grid3x3, Star, Users, Heart, Loader2, X, Trash2,
@@ -62,8 +64,8 @@ export default function ProfilePage() {
   const [storyPartyId, setStoryPartyId] = useState<string | null>(null);
   const [storyIndex, setStoryIndex] = useState(0);
 
-  // Ratings
-  const [ratings, setRatings] = useState<Rating[]>([]);
+  // Crowd Rating History
+  const [ratingHistory, setRatingHistory] = useState<Array<{ party_id: string; party_title: string; party_date: string; avg_score: number; total_votes: number; user_voted: boolean }>>([]);
   const [ratingsLoading, setRatingsLoading] = useState(true);
 
   // Friends
@@ -129,8 +131,8 @@ export default function ProfilePage() {
   const loadRatings = useCallback(async () => {
     if (!user) return;
     setRatingsLoading(true);
-    try { const res = await api.get(`/users/${user.id}/ratings`); setRatings(res.data.data.ratings); }
-    catch (error) { console.error("Failed to load profile ratings:", getApiErrorMessage(error, "Unknown profile ratings error")); }
+    try { const res = await api.get(`/users/${user.id}/ratings`); setRatingHistory(res.data.data.history || []); }
+    catch (error) { console.error("Failed to load crowd rating history:", getApiErrorMessage(error, "Unknown rating history error")); }
     finally { setRatingsLoading(false); }
   }, [user]);
 
@@ -320,6 +322,7 @@ export default function ProfilePage() {
   if (!user) return null;
 
   const ratingVal = Number(user.social_rating);
+  const trustLevel = getTrustLevel(ratingVal, user.total_ratings);
   const partyPhotos = photos.filter((photo) => photo.party_id);
   const highlightPartyIds = Array.from(new Set(partyPhotos.map((photo) => photo.party_id).filter((partyId): partyId is string => Boolean(partyId))));
   const storyPhotos = storyPartyId ? partyPhotos.filter((photo) => photo.party_id === storyPartyId) : [];
@@ -388,10 +391,10 @@ export default function ProfilePage() {
           <div className="px-5 pt-5 pb-6 sm:px-7 sm:pt-6 sm:pb-7">
             {/* Top section: Avatar + Info */}
             <div className="flex items-start gap-4 sm:gap-5">
-              {/* Avatar */}
+              {/* Avatar — Instagram-style ring */}
               <div className="relative group shrink-0">
-                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-br from-primary via-accent to-hot p-[2.5px] shadow-xl shadow-primary/25 rotate-3 hover:rotate-0 transition-transform duration-500">
-                  <div className="w-full h-full rounded-[14px] sm:rounded-[18px] bg-bg overflow-hidden -rotate-3 group-hover:rotate-0 transition-transform duration-500">
+                <div className="w-22 h-22 sm:w-26 sm:h-26 avatar-ring-gradient p-[3px] rounded-full shadow-xl shadow-primary/20">
+                  <div className="w-full h-full rounded-full bg-bg overflow-hidden border-[2px] border-bg">
                     {avatarUploading ? (
                       <div className="w-full h-full flex items-center justify-center bg-surface"><Loader2 className="w-6 h-6 text-primary animate-spin" /></div>
                     ) : user.avatar_url ? (
@@ -407,7 +410,7 @@ export default function ProfilePage() {
                   onClick={triggerAvatarUpload}
                   disabled={avatarUploading}
                   aria-label="Change profile photo"
-                  className="absolute -bottom-1 -right-1 w-8 h-8 rounded-xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30 hover:bg-primary-hover transition tap-active opacity-0 group-hover:opacity-100 sm:opacity-100"
+                  className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30 hover:bg-primary-hover transition tap-active opacity-0 group-hover:opacity-100 sm:opacity-100 border-2 border-bg"
                 >
                   <Camera className="w-3.5 h-3.5" />
                 </button>
@@ -473,22 +476,27 @@ export default function ProfilePage() {
             </AnimatePresence>
 
             {/* STATS ROW */}
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-1 mt-5 pt-5 border-t border-primary/[0.06]">
+            <div className="flex items-center justify-around mt-5 pt-5 border-t border-primary/[0.06]">
               {[
                 { label: "Posts", value: photosTotal, color: "text-text" },
-                { label: "Friends", value: friendCount === null ? "\u2026" : friendCount, color: "text-text" },
+                { label: "Friends", value: friendCount === null ? "…" : friendCount, color: "text-text" },
                 { label: "Hosted", value: user.parties_hosted, color: "text-accent" },
                 { label: "Joined", value: user.parties_attended, color: "text-primary" },
-                { label: "Rating", value: user.total_ratings >= 3 ? ratingVal.toFixed(1) : (user.total_ratings > 0 ? ratingVal.toFixed(1) : "New"), color: user.total_ratings >= 3 ? "text-warning" : "text-text-dim", icon: user.total_ratings >= 3 ? Star : undefined },
               ].map((stat) => (
-                <div key={stat.label} className="text-center py-2 rounded-xl hover:bg-primary/[0.03] transition">
-                  <div className={`text-base sm:text-lg font-bold ${stat.color} flex items-center justify-center gap-0.5`}>
-                    {'icon' in stat && stat.icon && <stat.icon className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-current" />}
+                <div key={stat.label} className="text-center px-1">
+                  <div className={`text-base sm:text-lg font-bold ${stat.color} flex items-center justify-center gap-0.5 leading-none`}>
                     {stat.value}
                   </div>
-                  <div className="text-[8px] sm:text-[10px] text-text-dim uppercase tracking-wider font-bold mt-0.5">{stat.label}</div>
+                  <div className="text-[8px] sm:text-[9px] text-text-dim uppercase tracking-wider font-semibold mt-1">{stat.label}</div>
                 </div>
               ))}
+              {/* Trust Level */}
+              <div className="text-center px-1">
+                <div className="flex items-center justify-center">
+                  <TrustBadge rating={ratingVal} totalParties={user.total_ratings} size="sm" showLabel={false} />
+                </div>
+                <div className="text-[8px] sm:text-[9px] uppercase tracking-wider font-semibold mt-1" style={{ color: trustLevel.color }}>{trustLevel.name}</div>
+              </div>
             </div>
           </div>
         </motion.div>
@@ -496,17 +504,17 @@ export default function ProfilePage() {
         {/* QUICK ACTIONS */}
         <div className="grid grid-cols-2 gap-2 mt-3">
           <button onClick={() => { setEditing(true); setMessage(""); }}
-            className="bg-surface-light/80 backdrop-blur-sm border border-primary/[0.08] text-text font-semibold py-3 rounded-2xl hover:border-primary/15 transition text-sm flex items-center justify-center gap-2 tap-active">
+            className="glass-panel border border-primary/[0.06] text-text font-semibold py-2.5 rounded-2xl hover:border-primary/15 transition text-sm flex items-center justify-center gap-2 tap-active">
             <Edit3 className="w-4 h-4 text-primary" /> Edit Profile
           </button>
           <Link to="/dashboard"
-            className="bg-surface-light/80 backdrop-blur-sm border border-primary/[0.08] text-text font-semibold py-3 rounded-2xl hover:border-primary/15 transition text-sm flex items-center justify-center gap-2 tap-active">
+            className="glass-panel border border-primary/[0.06] text-text font-semibold py-2.5 rounded-2xl hover:border-primary/15 transition text-sm flex items-center justify-center gap-2 tap-active">
             <LayoutDashboard className="w-4 h-4 text-accent" /> Dashboard
           </Link>
         </div>
 
         {/* TAB BAR */}
-        <div className="flex border-b border-primary/[0.06] mt-5">
+        <div className="flex mt-5 rounded-xl overflow-hidden glass-panel p-0.5">
           {([
             { key: "photos" as const, icon: Grid3x3, label: "Posts" },
             { key: "ratings" as const, icon: Award, label: "Reviews" },
@@ -515,17 +523,14 @@ export default function ProfilePage() {
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`flex-1 py-3 transition flex items-center justify-center gap-1.5 text-[11px] sm:text-xs font-bold uppercase tracking-wider tap-active relative ${
+              className={`flex-1 py-2.5 transition flex items-center justify-center gap-1.5 text-[11px] sm:text-xs font-bold uppercase tracking-wider tap-active relative rounded-lg ${
                 tab === t.key
-                  ? "text-text"
+                  ? "text-text bg-primary/10"
                   : "text-text-dim hover:text-text"
               }`}
             >
-              <t.icon className="w-4 h-4" />
+              <t.icon className="w-3.5 h-3.5" />
               {t.label}
-              {tab === t.key && (
-                <motion.div layoutId="profile-tab-indicator" className="absolute bottom-0 left-[20%] right-[20%] h-[2px] bg-primary rounded-full" />
-              )}
             </button>
           ))}
         </div>
@@ -565,12 +570,12 @@ export default function ProfilePage() {
 
               {/* Upload bar */}
               <div className="glass-panel rounded-2xl p-3 mb-4 flex items-center gap-2">
-                <input type="text" aria-label="Photo caption" placeholder="Write a caption\u2026" value={caption} onChange={(e) => setCaption(e.target.value)} className="input-luxe flex-1 rounded-xl px-3 py-2.5 text-sm min-w-0" />
+                <input type="text" aria-label="Photo caption" placeholder="Write a caption…" value={caption} onChange={(e) => setCaption(e.target.value)} className="input-luxe flex-1 rounded-xl px-3 py-2.5 text-sm min-w-0" />
                 <input ref={photoInputRef} type="file" aria-label="Upload profile photo" title="Upload profile photo" accept="image/jpeg,image/png,image/webp" onChange={handlePhotoUpload} className="hidden" />
                 <button onClick={triggerPhotoUpload} disabled={uploading}
                   className="btn-primary-luxe text-sm font-bold px-3.5 py-2.5 rounded-xl transition disabled:opacity-50 shrink-0 flex items-center gap-1.5 tap-active">
                   {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
-                  <span className="hidden sm:inline">{uploading ? "\u2026" : "Post"}</span>
+                  <span className="hidden sm:inline">{uploading ? "…" : "Post"}</span>
                 </button>
               </div>
 
@@ -619,77 +624,67 @@ export default function ProfilePage() {
             </motion.div>
           )}
 
-          {/* RATINGS TAB */}
+          {/* RATINGS TAB — Crowd Rating History */}
           {tab === "ratings" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-              {/* Rating summary card */}
-              {ratings.length > 0 && (
-                <div className="glass-panel rounded-2xl p-5 mb-4 flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-2xl bg-warning/10 border border-warning/15 flex items-center justify-center shrink-0">
-                    <Star className="w-7 h-7 text-warning fill-current" />
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold text-warning">{ratingVal.toFixed(1)}<span className="text-text-dim text-sm font-semibold">/5</span></div>
-                    <p className="text-text-dim text-xs">{ratings.length} review{ratings.length !== 1 ? "s" : ""} from party attendees</p>
-                  </div>
-                  <div className="ml-auto flex gap-0.5">
-                    {Array.from({ length: 5 }, (_, i) => (
-                      <Star key={i} className={`w-4 h-4 ${i < Math.round(ratingVal) ? "text-warning fill-current" : "text-text-dim/20"}`} />
-                    ))}
-                  </div>
+              {/* Trust Level summary card */}
+              <div className="glass-panel rounded-2xl p-5 mb-4 flex items-center gap-4">
+                <TrustBadge rating={ratingVal} totalParties={user.total_ratings} size="lg" showLabel={false} />
+                <div className="flex-1 min-w-0">
+                  <div className="text-lg font-bold" style={{ color: trustLevel.color }}>{trustLevel.name}</div>
+                  <p className="text-text-dim text-xs">
+                    {user.total_ratings > 0
+                      ? `${ratingVal.toFixed(1)}/5 avg across ${user.total_ratings} ${user.total_ratings === 1 ? "party" : "parties"}`
+                      : "Attend parties to build your trust level"}
+                  </p>
                 </div>
-              )}
+              </div>
 
               {ratingsLoading ? (
                 <div className="space-y-3">
                   {Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="glass-panel rounded-2xl p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-full shimmer" />
-                        <div className="flex-1 space-y-2">
-                          <div className="h-3.5 shimmer rounded-lg w-28" />
-                          <div className="h-3 shimmer rounded-lg w-20" />
-                          <div className="h-3 shimmer rounded-lg w-3/4" />
-                        </div>
+                    <div key={i} className="glass-panel rounded-2xl p-4 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl shimmer" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-3.5 shimmer rounded-lg w-32" />
+                        <div className="h-3 shimmer rounded-lg w-20" />
                       </div>
                     </div>
                   ))}
                 </div>
-              ) : ratings.length === 0 ? (
+              ) : ratingHistory.length === 0 ? (
                 <div className="text-center py-16 glass-panel rounded-2xl">
                   <div className="w-14 h-14 rounded-2xl bg-surface-light mx-auto mb-3 flex items-center justify-center">
                     <Star className="w-7 h-7 text-text-dim/30" />
                   </div>
-                  <p className="text-text-dim font-semibold">No reviews yet</p>
-                  <p className="text-text-dim/60 text-sm mt-1">Attend parties to receive ratings</p>
+                  <p className="text-text-dim font-semibold">No crowd ratings yet</p>
+                  <p className="text-text-dim/60 text-sm mt-1">Attend parties to build your reputation</p>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {ratings.map((r, i) => (
-                    <motion.div key={r.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.04, 0.25) }} className="glass-panel rounded-2xl p-4">
-                      <div className="flex items-start gap-3">
-                        <Link to={`/profile/${r.rater_id}`} className="shrink-0">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-warning to-hot p-[1.5px]">
-                            <div className="w-full h-full rounded-full bg-bg flex items-center justify-center text-sm font-bold text-text overflow-hidden">
-                              {r.rater_avatar_url ? <img src={r.rater_avatar_url} alt={r.rater_display_name || ""} className="w-full h-full object-cover" /> : (r.rater_display_name || "?").charAt(0).toUpperCase()}
-                            </div>
+                  {ratingHistory.map((entry, i) => {
+                    const entryLevel = getTrustLevel(entry.avg_score, 1);
+                    return (
+                      <motion.div key={entry.party_id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.04, 0.25) }}>
+                        <Link to={`/parties/${entry.party_id}`} className="glass-panel rounded-2xl p-4 flex items-center gap-3 tap-active block hover:border-primary/10 transition">
+                          <div
+                            className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0"
+                            style={{ backgroundColor: entryLevel.color, boxShadow: `0 0 12px ${entryLevel.color}30` }}
+                          >
+                            {entry.avg_score.toFixed(1)}
                           </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-text font-bold text-sm truncate">{entry.party_title}</p>
+                            <p className="text-text-dim text-[10px]">
+                              {new Date(entry.party_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                              {" • "}{entry.total_votes} vote{entry.total_votes !== 1 ? "s" : ""}
+                            </p>
+                          </div>
+                          <span className="text-[10px] font-bold shrink-0" style={{ color: entryLevel.color }}>{entryLevel.name}</span>
                         </Link>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Link to={`/profile/${r.rater_id}`} className="text-text font-bold text-sm hover:text-primary transition">{r.rater_display_name}</Link>
-                            <span className="text-text-dim text-[10px] ml-auto shrink-0">{timeAgo(r.created_at)}</span>
-                          </div>
-                          <div className="flex gap-0.5 mb-1.5">
-                            {Array.from({ length: 5 }, (_, i) => (
-                              <Star key={i} className={`w-3.5 h-3.5 ${i < r.score ? "text-warning fill-current" : "text-text-dim/20"}`} />
-                            ))}
-                          </div>
-                          {r.comment && <p className="text-text-muted text-xs leading-relaxed">{r.comment}</p>}
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
+                      </motion.div>
+                    );
+                  })}
                 </div>
               )}
             </motion.div>
@@ -768,7 +763,7 @@ export default function ProfilePage() {
                       </Link>
                       <Link to={`/profile/${f.id}`} className="flex-1 min-w-0 hover:opacity-80 transition">
                         <p className="text-text font-bold text-sm truncate">{f.display_name}</p>
-                        <p className="text-text-muted text-xs flex items-center gap-1"><Star className="w-3 h-3 text-warning fill-current" /> {Number(f.social_rating).toFixed(1)}</p>
+                        <p className="text-xs font-bold" style={{ color: getTrustLevel(Number(f.social_rating), 1).color }}>{getTrustLevel(Number(f.social_rating), 1).name}</p>
                       </Link>
                       <button onClick={() => handleUnfriend(f.id)} className="text-text-dim hover:text-error text-xs p-2.5 rounded-xl transition shrink-0 tap-active hover:bg-error/10" title="Remove friend" aria-label={`Remove ${f.display_name} as friend`}>
                         <X className="w-4 h-4" />

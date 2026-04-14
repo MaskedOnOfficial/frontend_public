@@ -2,12 +2,14 @@
 import { useParams, Link } from "react-router-dom";
 import api from "../lib/api";
 import { useAuth } from "../context/auth-hook";
-import type { User, Photo, Rating, FriendUser } from "../types";
+import type { User, Photo, FriendUser } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
 import { useBackButton } from "../lib/use-back-button";
+import { getTrustLevel } from "../lib/trust-levels";
+import TrustBadge from "../components/trust-badge";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Camera, Grid3x3, Star, Users, Heart, UserPlus, UserCheck, UserX, Clock,
+  Camera, Grid3x3, Users, Heart, UserPlus, UserCheck, UserX, Clock,
   X, Loader2, ChevronLeft, ChevronRight, Edit3, Sparkles, Award,
   MessageCircle, ArrowLeft, PartyPopper, ShieldBan, ShieldOff
 } from "lucide-react";
@@ -55,7 +57,7 @@ export default function PublicProfilePage() {
   const [storyIndex, setStoryIndex] = useState(0);
 
   // Ratings
-  const [ratings, setRatings] = useState<Rating[]>([]);
+  const [ratingHistory, setRatingHistory] = useState<Array<{ party_id: string; party_title: string; party_date: string; avg_score: number; total_votes: number; user_voted: boolean }>>([]);
   const [ratingsLoading, setRatingsLoading] = useState(true);
 
   // Friends
@@ -136,7 +138,7 @@ export default function PublicProfilePage() {
   }, [photosPage, userId]);
 
   const loadRatings = useCallback(async () => {
-    try { const res = await api.get(`/users/${userId}/ratings`); setRatings(res.data.data.ratings); }
+    try { const res = await api.get(`/users/${userId}/ratings`); setRatingHistory(res.data.data.history || []); }
     catch (error) { console.error("Failed to load public ratings:", getApiErrorMessage(error, "Unknown public ratings error")); }
     finally { setRatingsLoading(false); }
   }, [userId]);
@@ -317,6 +319,7 @@ export default function PublicProfilePage() {
   }
 
   const ratingVal = Number(profile.social_rating);
+  const trustLevel = getTrustLevel(ratingVal, profile.total_ratings);
   const photoPages = Math.ceil(photosTotal / 36);
   const friendPages = Math.ceil(friendsTotal / 20);
   const memberSince = new Date(profile.created_at).toLocaleDateString("en-IN", { month: "short", year: "numeric" });
@@ -496,22 +499,24 @@ export default function PublicProfilePage() {
             </div>
 
             {/* STATS ROW */}
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-1 mt-5 pt-5 border-t border-primary/[0.06]">
+            <div className="grid grid-cols-5 gap-1 mt-5 pt-5 border-t border-primary/[0.06]">
               {[
                 { label: "Posts", value: photosTotal, color: "text-text" },
                 { label: "Friends", value: friendCount, color: "text-text" },
                 { label: "Hosted", value: profile.parties_hosted, color: "text-accent" },
                 { label: "Joined", value: profile.parties_attended, color: "text-primary" },
-                { label: "Rating", value: profile.total_ratings >= 3 ? ratingVal.toFixed(1) : (profile.total_ratings > 0 ? ratingVal.toFixed(1) : "New"), color: profile.total_ratings >= 3 ? "text-warning" : "text-text-dim", icon: profile.total_ratings >= 3 ? Star : undefined },
               ].map((stat) => (
                 <div key={stat.label} className="text-center py-2 rounded-xl hover:bg-primary/[0.03] transition">
                   <div className={`text-base sm:text-lg font-bold ${stat.color} flex items-center justify-center gap-0.5`}>
-                    {'icon' in stat && stat.icon && <stat.icon className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-current" />}
                     {stat.value}
                   </div>
                   <div className="text-[8px] sm:text-[10px] text-text-dim uppercase tracking-wider font-bold mt-0.5">{stat.label}</div>
                 </div>
               ))}
+              <div className="text-center py-2 rounded-xl hover:bg-primary/[0.03] transition flex flex-col items-center justify-center">
+                <TrustBadge rating={ratingVal} totalParties={profile.total_ratings} size="sm" showLabel={false} />
+                <div className="text-[8px] sm:text-[10px] uppercase tracking-wider font-bold mt-0.5" style={{ color: trustLevel.color }}>{trustLevel.name}</div>
+              </div>
             </div>
           </div>
         </motion.div>
@@ -521,7 +526,7 @@ export default function PublicProfilePage() {
         <div className="flex border-b border-primary/[0.06] mt-5">
           {([
             { key: "photos" as const, icon: Grid3x3, label: "Posts" },
-            { key: "ratings" as const, icon: Award, label: "Reviews" },
+            { key: "ratings" as const, icon: Award, label: "Ratings" },
             { key: "friends" as const, icon: Users, label: "Friends" },
           ]).map((t) => (
             <button
@@ -618,74 +623,56 @@ export default function PublicProfilePage() {
           {/* RATINGS TAB */}
           {tab === "ratings" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-              {/* Rating summary card */}
-              {ratings.length > 0 && (
-                <div className="glass-panel rounded-2xl p-5 mb-4 flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-2xl bg-warning/10 border border-warning/15 flex items-center justify-center shrink-0">
-                    <Star className="w-7 h-7 text-warning fill-current" />
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold text-warning">{ratingVal.toFixed(1)}<span className="text-text-dim text-sm font-semibold">/5</span></div>
-                    <p className="text-text-dim text-xs">{ratings.length} review{ratings.length !== 1 ? "s" : ""} from party attendees</p>
-                  </div>
-                  <div className="ml-auto flex gap-0.5">
-                    {Array.from({ length: 5 }, (_, i) => (
-                      <Star key={i} className={`w-4 h-4 ${i < Math.round(ratingVal) ? "text-warning fill-current" : "text-text-dim/20"}`} />
-                    ))}
-                  </div>
+              {/* Trust level summary card */}
+              <div className="glass-panel rounded-2xl p-5 mb-4 flex items-center gap-4">
+                <TrustBadge rating={ratingVal} totalParties={profile.total_ratings} size="lg" showLabel={false} />
+                <div>
+                  <div className="text-lg font-extrabold" style={{ color: trustLevel.color }}>{trustLevel.name}</div>
+                  <p className="text-text-dim text-xs">{ratingVal.toFixed(1)}/5 avg across {profile.total_ratings} {profile.total_ratings === 1 ? "party" : "parties"}</p>
                 </div>
-              )}
+              </div>
 
               {ratingsLoading ? (
                 <div className="space-y-3">
                   {Array.from({ length: 3 }).map((_, i) => (
                     <div key={i} className="glass-panel rounded-2xl p-4">
-                      <div className="flex items-start gap-3">
+                      <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full shimmer" />
                         <div className="flex-1 space-y-2">
                           <div className="h-3.5 shimmer rounded-lg w-28" />
                           <div className="h-3 shimmer rounded-lg w-20" />
-                          <div className="h-3 shimmer rounded-lg w-3/4" />
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
-              ) : ratings.length === 0 ? (
+              ) : ratingHistory.length === 0 ? (
                 <div className="text-center py-16 glass-panel rounded-2xl">
                   <div className="w-14 h-14 rounded-2xl bg-surface-light mx-auto mb-3 flex items-center justify-center">
-                    <Star className="w-7 h-7 text-text-dim/30" />
+                    <Award className="w-7 h-7 text-text-dim/30" />
                   </div>
-                  <p className="text-text-dim font-semibold">No reviews yet</p>
-                  <p className="text-text-dim/60 text-sm mt-1">This user hasn't been rated yet</p>
+                  <p className="text-text-dim font-semibold">No crowd ratings yet</p>
+                  <p className="text-text-dim/60 text-sm mt-1">Ratings appear after attending parties</p>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {ratings.map((r, i) => (
-                    <motion.div key={r.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.04, 0.25) }} className="glass-panel rounded-2xl p-4">
-                      <div className="flex items-start gap-3">
-                        <Link to={`/profile/${r.rater_id}`} className="shrink-0">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-warning to-hot p-[1.5px]">
-                            <div className="w-full h-full rounded-full bg-bg flex items-center justify-center text-sm font-bold text-text overflow-hidden">
-                              {r.rater_avatar_url ? <img src={r.rater_avatar_url} alt={r.rater_display_name || ""} className="w-full h-full object-cover" /> : (r.rater_display_name || "?").charAt(0).toUpperCase()}
-                            </div>
+                  {ratingHistory.map((entry, i) => {
+                    const entryTrust = getTrustLevel(entry.avg_score, 1);
+                    return (
+                      <motion.div key={entry.party_id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.04, 0.25) }}>
+                        <Link to={`/parties/${entry.party_id}`} className="glass-panel rounded-2xl p-4 flex items-center gap-3 hover:border-primary/15 transition tap-active block">
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0" style={{ backgroundColor: entryTrust.color + '20', color: entryTrust.color }}>
+                            {entry.avg_score.toFixed(1)}
                           </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-text font-bold text-sm truncate">{entry.party_title}</p>
+                            <p className="text-text-dim text-[10px]">{timeAgo(entry.party_date)} · {entry.total_votes} {entry.total_votes === 1 ? "vote" : "votes"}</p>
+                          </div>
+                          <span className="text-[10px] font-bold shrink-0" style={{ color: entryTrust.color }}>{entryTrust.name}</span>
                         </Link>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Link to={`/profile/${r.rater_id}`} className="text-text font-bold text-sm hover:text-primary transition">{r.rater_display_name}</Link>
-                            <span className="text-text-dim text-[10px] ml-auto shrink-0">{timeAgo(r.created_at)}</span>
-                          </div>
-                          <div className="flex gap-0.5 mb-1.5">
-                            {Array.from({ length: 5 }, (_, i) => (
-                              <Star key={i} className={`w-3.5 h-3.5 ${i < r.score ? "text-warning fill-current" : "text-text-dim/20"}`} />
-                            ))}
-                          </div>
-                          {r.comment && <p className="text-text-muted text-xs leading-relaxed">{r.comment}</p>}
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
+                      </motion.div>
+                    );
+                  })}
                 </div>
               )}
             </motion.div>
@@ -713,8 +700,8 @@ export default function PublicProfilePage() {
                           <p className="text-text font-bold text-sm truncate">{f.display_name}</p>
                           <p className="text-text-muted text-xs">@{f.username}</p>
                         </div>
-                        <div className="text-warning text-xs font-bold shrink-0 flex items-center gap-0.5">
-                          <Star className="w-3 h-3 fill-current" /> {Number(f.social_rating).toFixed(1)}
+                        <div className="text-xs font-bold shrink-0" style={{ color: getTrustLevel(Number(f.social_rating), 1).color }}>
+                          {getTrustLevel(Number(f.social_rating), 1).name}
                         </div>
                       </Link>
                     ))}
@@ -754,8 +741,8 @@ export default function PublicProfilePage() {
                             <p className="text-text font-bold text-sm truncate">{f.display_name}</p>
                             <p className="text-text-muted text-xs">@{f.username}</p>
                           </div>
-                          <div className="text-warning text-xs font-bold shrink-0 flex items-center gap-0.5">
-                            <Star className="w-3 h-3 fill-current" /> {Number(f.social_rating).toFixed(1)}
+                          <div className="text-xs font-bold shrink-0" style={{ color: getTrustLevel(Number(f.social_rating), 1).color }}>
+                            {getTrustLevel(Number(f.social_rating), 1).name}
                           </div>
                         </Link>
                       </motion.div>

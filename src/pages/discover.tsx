@@ -4,7 +4,7 @@ import api from "../lib/api";
 import type { Party } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
 import { motion } from "framer-motion";
-import { Search, MapPin, Calendar, Ticket, Sparkles, PartyPopper, TrendingUp } from "lucide-react";
+import { Search, MapPin, Calendar, Ticket, PartyPopper, TrendingUp, Users } from "lucide-react";
 import { SkeletonPartyCard } from "../components/skeleton";
 
 function getStatusClasses(status: string) {
@@ -83,17 +83,10 @@ export default function DiscoverPage() {
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="mb-6"
         >
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-primary flex items-center justify-center shadow-lg shadow-accent/20">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-text tracking-tight">Discover Events</h1>
-              <p className="text-text-muted text-sm">Find your next unforgettable vibe</p>
-            </div>
-          </div>
+          <h1 className="text-2xl md:text-3xl font-bold text-text tracking-tight">Discover</h1>
+          <p className="text-text-dim text-sm mt-0.5">Find your next unforgettable vibe</p>
         </motion.div>
 
         {/* Featured Party */}
@@ -105,12 +98,12 @@ export default function DiscoverPage() {
             className="mb-8"
           >
             <div className="flex items-center gap-2 mb-3">
-              <TrendingUp className="w-4 h-4 text-hot" />
-              <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-hot">Featured Event</span>
+              <TrendingUp className="w-3.5 h-3.5 text-hot" />
+              <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-hot">Featured</span>
             </div>
             <Link
               to={`/parties/${featured.id}`}
-              className="group relative block overflow-hidden rounded-3xl aspect-[2.2/1] md:aspect-[3/1] bg-surface"
+              className="group relative block overflow-hidden rounded-2xl aspect-[2.2/1] md:aspect-[3/1] bg-surface"
             >
               <img
                 src={featured.cover_image_url!}
@@ -161,10 +154,10 @@ export default function DiscoverPage() {
           <button
             onClick={() => setSelectedCity("")}
             style={{ scrollSnapAlign: 'start' }}
-            className={`px-5 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${
+            className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${
               selectedCity === ""
-                ? "bg-primary text-white shadow-lg shadow-primary/25"
-                : "bg-surface-light text-text-muted hover:text-text border border-primary/[0.08] hover:border-primary/20"
+                ? "chip-active"
+                : "chip-idle hover:text-text"
             }`}
           >
             All Events
@@ -174,25 +167,24 @@ export default function DiscoverPage() {
               key={city}
               onClick={() => setSelectedCity(city)}
               style={{ scrollSnapAlign: 'start' }}
-              className={`px-5 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+              className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
                 selectedCity === city
-                  ? "bg-accent text-white shadow-lg shadow-accent/25"
-                  : "bg-surface-light text-text-muted hover:text-text border border-primary/[0.08] hover:border-accent/20"
+                  ? "chip-active"
+                  : "chip-idle hover:text-text"
               }`}
             >
-              <MapPin className="w-3.5 h-3.5" />
+              <MapPin className="w-3 h-3" />
               {city}
             </button>
           ))}
         </div>
 
         {/* Section title */}
-        <div className="flex items-center gap-2 mb-6">
-          <PartyPopper className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-bold text-text">
+        <div className="flex items-center gap-2 mb-5">
+          <h2 className="text-base font-bold text-text">
             {selectedCity ? `Events in ${selectedCity}` : "All Events"}
           </h2>
-          <span className="text-text-dim text-sm ml-1">({parties.length})</span>
+          <span className="text-text-dim text-xs">({parties.length})</span>
         </div>
 
         {/* Events grid */}
@@ -229,7 +221,12 @@ export default function DiscoverPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {parties.map((party, i) => (
+            {parties.map((party, i) => {
+              const capacityPercent = party.max_capacity > 0 ? Math.round((party.current_attendees / party.max_capacity) * 100) : 0;
+              const isFillingFast = capacityPercent >= 75 && party.status === "upcoming";
+              const isSoldOut = party.max_capacity > 0 && party.current_attendees >= party.max_capacity;
+
+              return (
               <motion.div
                 key={party.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -238,7 +235,7 @@ export default function DiscoverPage() {
               >
                 <Link
                   to={`/parties/${party.id}`}
-                  className="group relative block overflow-hidden rounded-2xl aspect-[4/3] bg-surface glass-card"
+                  className="group relative block overflow-hidden rounded-2xl aspect-[4/3] bg-surface event-card card-shine"
                 >
                   {party.cover_image_url ? (
                     <>
@@ -246,9 +243,9 @@ export default function DiscoverPage() {
                         src={party.cover_image_url}
                         alt={party.title}
                         loading="lazy"
-                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/70 to-bg/20" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/60 to-transparent" />
                     </>
                   ) : (
                     <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-accent/15 to-hot/10 flex items-center justify-center">
@@ -256,16 +253,27 @@ export default function DiscoverPage() {
                     </div>
                   )}
 
-                  {/* Status */}
-                  <div className="absolute top-3 left-3">
-                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${getStatusClasses(party.status)}`}>
-                      {party.status}
-                    </span>
-                  </div>
+                  {/* Sold out overlay */}
+                  {isSoldOut && (
+                    <div className="absolute inset-0 bg-bg/50 backdrop-blur-[2px] flex items-center justify-center z-10">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-hot bg-bg/80 px-4 py-2 rounded-full border border-hot/30">Sold Out</span>
+                    </div>
+                  )}
 
-                  {/* Price */}
-                  <div className="absolute top-3 right-3">
-                    <div className="bg-bg/70 backdrop-blur-md text-text text-xs font-bold px-3 py-1.5 rounded-full border border-primary/10">
+                  {/* Top badges row */}
+                  <div className="absolute top-3 left-3 right-3 flex items-start justify-between z-10">
+                    <div className="flex flex-col gap-1.5">
+                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${getStatusClasses(party.status)}`}>
+                        {party.status}
+                      </span>
+                      {isFillingFast && !isSoldOut && (
+                        <span className="filling-fast px-2 py-0.5 rounded-full">
+                          <span className="filling-fast-dot" />
+                          Filling Fast
+                        </span>
+                      )}
+                    </div>
+                    <div className="bg-bg/70 backdrop-blur-md text-text text-xs font-bold px-3 py-1.5 rounded-full border border-white/10">
                       {party.ticket_price === 0 ? "Free" : `₹${(party.ticket_price / 100).toLocaleString("en-IN")}`}
                     </div>
                   </div>
@@ -273,7 +281,7 @@ export default function DiscoverPage() {
                   {/* Content */}
                   <div className="absolute bottom-0 left-0 right-0 p-4">
                     <h3 className="text-base font-bold text-white mb-2 line-clamp-1 tracking-tight group-hover:text-accent transition-colors">{party.title}</h3>
-                    <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                       <p className="flex items-center gap-1.5 text-xs text-white/70">
                         <MapPin className="w-3 h-3 text-accent" />
                         {party.location_city}
@@ -282,11 +290,18 @@ export default function DiscoverPage() {
                         <Calendar className="w-3 h-3 text-primary" />
                         {new Date(party.date_time).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}
                       </p>
+                      {party.max_capacity > 0 && (
+                        <p className="flex items-center gap-1.5 text-xs text-white/70">
+                          <Users className="w-3 h-3 text-hot" />
+                          {party.current_attendees}/{party.max_capacity}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </Link>
               </motion.div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

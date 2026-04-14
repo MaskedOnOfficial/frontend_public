@@ -5,6 +5,7 @@ import { useAuth } from "../context/auth-hook";
 import type { Party, Attendee } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
 import { motion } from "framer-motion";
+import { getTrustLevel } from "../lib/trust-levels";
 import { ArrowLeft, MapPin, Calendar, Clock, Users, Star, Tag, Camera, Share2, Ticket, Shield, CheckCircle, Loader2, Send, PartyPopper, Edit3 } from "lucide-react";
 
 interface PartyDetailPayload {
@@ -211,7 +212,7 @@ export default function PartyDetailPage() {
               { icon: Calendar, label: "Date", value: new Date(party.date_time).toLocaleDateString("en-IN", { weekday: "short", month: "short", day: "numeric" }), sub: new Date(party.date_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }), color: "text-primary" },
               { icon: MapPin, label: "Location", value: party.location_city, sub: party.location_name, color: "text-accent" },
               { icon: Ticket, label: "Entry", value: formatPrice(party.ticket_price), sub: party.ticket_price === 0 ? "No cover charge" : "Per person", color: "text-hot" },
-              { icon: Shield, label: "Trust Gate", value: party.min_rating > 0 ? `★ ${Number(party.min_rating).toFixed(1)}+` : "Open", sub: party.min_rating > 0 ? "Minimum rating" : "No restriction", color: "text-warning" },
+              { icon: Shield, label: "Trust Gate", value: party.min_rating > 0 ? getTrustLevel(Number(party.min_rating), 1).name + "+" : "Open", sub: party.min_rating > 0 ? `${Number(party.min_rating).toFixed(1)}+ required` : "No restriction", color: "text-warning" },
             ].map((item) => (
               <div key={item.label} className="glass-panel rounded-2xl p-4">
                 <item.icon className={`w-5 h-5 ${item.color} mb-2`} />
@@ -406,7 +407,7 @@ export default function PartyDetailPage() {
               {canRate ? (
                 <button onClick={() => navigate(`/parties/${party.id}/rate`)} className="btn-secondary-luxe px-4 py-3.5 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 text-warning border-warning/20">
                   <Star className="w-4 h-4" />
-                  Rate Attendees
+                  Rate Crowd
                 </button>
               ) : (
                 <div className="btn-secondary-luxe px-4 py-3.5 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 opacity-40 cursor-not-allowed">

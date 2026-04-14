@@ -4,6 +4,7 @@ import api from "../lib/api";
 import { useAuth } from "../context/auth-hook";
 import type { Party } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
+import { getTrustLevel } from "../lib/trust-levels";
 import { isNative } from "../lib/capacitor";
 import { takePhoto } from "../lib/native-camera";
 import { motion } from "framer-motion";
@@ -42,7 +43,7 @@ function PreviewCard({ form, isFree }: { form: PreviewForm; isFree: boolean }) {
           { icon: Clock, label: "When", value: form.date_time ? new Date(form.date_time).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "—", color: "text-primary" },
           { icon: Users, label: "Capacity", value: `${form.max_capacity} guests`, color: "text-text-muted" },
           { icon: Ticket, label: "Entry", value: isFree ? "Free" : `₹${Number(form.ticket_price || 0)}`, color: "text-hot" },
-          { icon: Shield, label: "Trust gate", value: Number(form.min_rating) > 0 ? `★ ${Number(form.min_rating).toFixed(1)}+` : "Open", color: "text-warning" },
+          { icon: Shield, label: "Trust gate", value: Number(form.min_rating) > 0 ? getTrustLevel(Number(form.min_rating), 1).name + "+" : "Open", color: "text-warning" },
         ].map((item) => (
           <div key={item.label} className="flex items-center justify-between">
             <span className="text-text-muted flex items-center gap-2"><item.icon className={`w-3.5 h-3.5 ${item.color}`} />{item.label}</span>

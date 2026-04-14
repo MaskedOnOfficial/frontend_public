@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../lib/api";
 import { getApiErrorMessage } from "../lib/errors";
+import { getTrustLevel } from "../lib/trust-levels";
 import { isNative } from "../lib/capacitor";
 import { takePhoto } from "../lib/native-camera";
 import { motion } from "framer-motion";
@@ -27,7 +28,7 @@ function PreviewCard({ form, isFree }: { form: PreviewForm; isFree: boolean }) {
           { icon: Clock, label: "When", value: form.date_time ? new Date(form.date_time).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "—", color: "text-primary" },
           { icon: Users, label: "Capacity", value: `${form.max_capacity} guests`, color: "text-text-muted" },
           { icon: Ticket, label: "Entry", value: isFree ? "Free" : `₹${Number(form.ticket_price || 0)}`, color: "text-hot" },
-          { icon: Shield, label: "Trust gate", value: Number(form.min_rating) > 0 ? `★ ${Number(form.min_rating).toFixed(1)}+` : "Open", color: "text-warning" },
+          { icon: Shield, label: "Trust gate", value: Number(form.min_rating) > 0 ? getTrustLevel(Number(form.min_rating), 1).name + "+" : "Open", color: "text-warning" },
         ].map((item) => (
           <div key={item.label} className="flex items-center justify-between">
             <span className="text-text-muted flex items-center gap-2"><item.icon className={`w-3.5 h-3.5 ${item.color}`} />{item.label}</span>
@@ -149,23 +150,17 @@ export default function CreatePartyPage() {
   const isFree = Number(form.ticket_price) === 0;
 
   return (
-    <div className="min-h-screen bg-bg pb-28 md:pb-12">
+    <div className="min-h-screen bg-bg pb-32 md:pb-12">
       <div className="max-w-6xl mx-auto px-4 py-6 md:py-8">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass-panel rounded-3xl p-6 md:p-8 mb-8"
+          className="mb-6"
         >
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-hot to-primary flex items-center justify-center shadow-lg shadow-hot/20">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <p className="text-[10px] uppercase tracking-[0.2em] text-text-muted font-bold">Host Control Suite</p>
-          </div>
-          <h1 className="text-2xl md:text-3xl font-bold text-text tracking-tight">Design Your Signature Night</h1>
-          <p className="text-text-muted mt-2 text-sm max-w-2xl">
-            Configure vibe, capacity, trust gates, and pricing. Guests see a polished listing the moment you publish.
+          <h1 className="text-2xl md:text-3xl font-bold text-text tracking-tight">Create Party</h1>
+          <p className="text-text-dim text-sm mt-0.5 max-w-lg">
+            Configure vibe, capacity, trust gates, and pricing. Your listing goes live instantly.
           </p>
         </motion.div>
 
@@ -177,7 +172,7 @@ export default function CreatePartyPage() {
           <form onSubmit={handleSubmit} className="space-y-6 lg:col-span-2">
             {/* Identity */}
             <section className="glass-panel rounded-2xl p-5 space-y-5">
-              <h2 className="text-base font-bold text-text flex items-center gap-2"><Tag className="w-4 h-4 text-primary" />Identity</h2>
+              <h2 className="text-sm font-bold text-text flex items-center gap-2"><Tag className="w-3.5 h-3.5 text-primary" />Identity</h2>
               <div>
                 <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Party Title *</label>
                 <input name="title" value={form.title} onChange={handleChange} onBlur={handleBlur} placeholder="e.g., Rooftop Vibes Vol. 3" required maxLength={100}
@@ -197,7 +192,7 @@ export default function CreatePartyPage() {
 
             {/* Cover Image */}
             <section className="glass-panel rounded-2xl p-5 space-y-4">
-              <h2 className="text-base font-bold text-text flex items-center gap-2"><Image className="w-4 h-4 text-accent" />Cover Image</h2>
+              <h2 className="text-sm font-bold text-text flex items-center gap-2"><Image className="w-3.5 h-3.5 text-accent" />Cover Image</h2>
               {coverImagePreview && (
                 <div className="relative rounded-2xl overflow-hidden bg-surface">
                   <img src={coverImagePreview} alt="Cover preview" className="w-full h-48 object-cover" />
@@ -217,7 +212,7 @@ export default function CreatePartyPage() {
 
             {/* Location & Time */}
             <section className="glass-panel rounded-2xl p-5 space-y-5">
-              <h2 className="text-base font-bold text-text flex items-center gap-2"><MapPin className="w-4 h-4 text-accent" />Location & Time</h2>
+              <h2 className="text-sm font-bold text-text flex items-center gap-2"><MapPin className="w-3.5 h-3.5 text-accent" />Location & Time</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Location Name *</label>
@@ -249,7 +244,7 @@ export default function CreatePartyPage() {
 
             {/* Capacity & Pricing */}
             <section className="glass-panel rounded-2xl p-5 space-y-5">
-              <h2 className="text-base font-bold text-text flex items-center gap-2"><Users className="w-4 h-4 text-hot" />Capacity, Pricing & Trust</h2>
+              <h2 className="text-sm font-bold text-text flex items-center gap-2"><Users className="w-3.5 h-3.5 text-hot" />Capacity, Pricing & Trust</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Max Capacity *</label>

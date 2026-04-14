@@ -41,15 +41,16 @@ export default function PartyCard({ party }: { party: Party }) {
     ? Math.min(100, Math.round((party.current_attendees / party.max_capacity) * 100))
     : 0;
   const isSoldOut = party.max_capacity > 0 && party.current_attendees >= party.max_capacity;
+  const isFillingFast = capacityPercent >= 75 && party.status === "upcoming" && !isSoldOut;
   const [imgLoaded, setImgLoaded] = useState(false);
 
   return (
     <Link
       to={`/parties/${party.id}`}
-      className="glass-card group block overflow-hidden"
+      className="glass-card group block overflow-hidden card-shine"
     >
       {/* Cover image */}
-      <div className="relative h-44 overflow-hidden bg-gradient-to-br from-primary/20 via-accent/15 to-hot/10">
+      <div className="relative h-40 overflow-hidden bg-gradient-to-br from-primary/20 via-accent/15 to-hot/10">
         {party.cover_image_url ? (
           <>
             {!imgLoaded && <div className="absolute inset-0 skeleton-shimmer" />}
@@ -77,10 +78,16 @@ export default function PartyCard({ party }: { party: Party }) {
         </div>
 
         {/* Status badge */}
-        <div className="absolute top-3 left-3">
+        <div className="absolute top-3 left-3 flex flex-col gap-1.5">
           <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${getStatusClasses(party.status)}`}>
             {party.status}
           </span>
+          {isFillingFast && (
+            <span className="filling-fast px-2 py-0.5 rounded-full">
+              <span className="filling-fast-dot" />
+              Filling Fast
+            </span>
+          )}
         </div>
 
         {/* Sold out overlay */}
@@ -124,7 +131,7 @@ export default function PartyCard({ party }: { party: Party }) {
               </div>
             )}
           </div>
-          <div className="h-1 bg-surface-light rounded-full overflow-hidden">
+          <div className="h-1.5 bg-surface-light rounded-full overflow-hidden">
             <div
               className="h-full rounded-full transition-all duration-500 bg-gradient-to-r from-primary via-accent to-hot"
               style={{ width: `${capacityPercent}%` }}

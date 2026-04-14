@@ -105,20 +105,6 @@ export interface ApiError {
   error: { code: string; message: string };
 }
 
-export interface Rating {
-  id: string;
-  rater_id: string;
-  rated_id: string;
-  party_id: string;
-  score: number;
-  comment: string | null;
-  created_at: string;
-  updated_at: string;
-  rater_username?: string;
-  rater_display_name?: string;
-  rater_avatar_url?: string | null;
-}
-
 export interface Photo {
   id: string;
   user_id: string;

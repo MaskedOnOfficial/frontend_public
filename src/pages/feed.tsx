@@ -58,7 +58,7 @@ function getInitials(name: string): string {
 
 function SkeletonCard() {
   return (
-    <div className="glass-panel rounded-2xl overflow-hidden">
+    <div className="post-card">
       <div className="flex items-center gap-3 p-4">
         <div className="w-10 h-10 rounded-full shimmer" />
         <div className="flex-1 space-y-2">
@@ -66,15 +66,14 @@ function SkeletonCard() {
           <div className="h-2.5 shimmer rounded-lg w-20" />
         </div>
       </div>
-      {/* #28 — Match skeleton to actual card aspect ratio */}
-      <div className="w-full aspect-[4/3] shimmer" />
+      <div className="w-full aspect-[4/3] img-skeleton" />
       <div className="p-4 space-y-3">
         <div className="flex items-center gap-4">
-          <div className="h-5 w-14 shimmer rounded-lg" />
-          <div className="h-5 w-20 shimmer rounded-lg" />
+          <div className="h-6 w-6 shimmer rounded-full" />
+          <div className="h-6 w-6 shimmer rounded-full" />
         </div>
-        <div className="h-3.5 shimmer rounded-lg w-3/4" />
-        <div className="h-2.5 shimmer rounded-lg w-1/2" />
+        <div className="h-3.5 shimmer rounded-lg w-20" />
+        <div className="h-3 shimmer rounded-lg w-3/4" />
       </div>
     </div>
   );
@@ -162,90 +161,115 @@ function PostCard({ post, onLikeToggle }: PostCardProps) {
 
   return (
     <motion.article
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass-panel rounded-2xl overflow-hidden"
+      className="post-card"
     >
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-3">
-        <Link to={`/profile/${post.user_id}`} className="flex items-center gap-3 group">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary via-accent to-hot p-[2px]">
-            <div className="w-full h-full rounded-full bg-bg overflow-hidden flex items-center justify-center">
+      {/* Header — Instagram-style: avatar ring, name, time */}
+      <div className="flex items-center gap-3 px-4 py-3">
+        <Link to={`/profile/${post.user_id}`} className="shrink-0">
+          <div className="avatar-ring-gradient p-[2px] rounded-full">
+            <div className="w-9 h-9 rounded-full bg-bg overflow-hidden border-[1.5px] border-bg flex items-center justify-center">
               {post.avatar_url ? (
                 <img src={post.avatar_url} alt={post.display_name} className="w-full h-full object-cover" />
               ) : (
-                <span className="text-sm font-bold text-text">{getInitials(post.display_name)}</span>
+                <span className="text-xs font-bold text-text">{getInitials(post.display_name)}</span>
               )}
             </div>
           </div>
-          <div>
-            <p className="text-text font-semibold text-sm group-hover:text-primary transition-colors leading-tight">
-              {post.display_name}
-            </p>
-            <p className="text-text-dim text-xs">@{post.username}</p>
-          </div>
         </Link>
-        <span className="text-text-dim text-xs font-medium">{timeAgo(post.created_at)}</span>
+        <Link to={`/profile/${post.user_id}`} className="flex-1 min-w-0 group">
+          <p className="text-text font-bold text-[13px] leading-tight truncate group-hover:text-primary transition-colors">
+            {post.display_name}
+          </p>
+          <p className="text-text-dim text-[11px]">{timeAgo(post.created_at)}</p>
+        </Link>
       </div>
 
-      {/* Photo */}
-      <div className="relative w-full bg-surface min-h-[200px] cursor-pointer" onClick={handleTap}>
+      {/* Photo — full bleed */}
+      <div className="relative w-full bg-surface cursor-pointer" onClick={handleTap}>
         {!imgLoaded && (
-          <div className="absolute inset-0 shimmer" />
+          <div className="absolute inset-0 img-skeleton aspect-[4/3]" />
         )}
         <img
           src={post.image_url}
           alt={post.caption ?? "Party photo"}
           onLoad={() => setImgLoaded(true)}
-          className={`w-full object-cover max-h-[480px] transition-opacity duration-500 ${imgLoaded ? "opacity-100" : "opacity-0"}`}
+          className={`w-full object-cover max-h-[520px] transition-opacity duration-500 ${imgLoaded ? "opacity-100" : "opacity-0"}`}
         />
         {/* Party tag */}
         {post.party_id && (
           <Link
             to={`/parties/${post.party_id}`}
-            className="absolute top-3 left-3 bg-bg/70 backdrop-blur-md text-text text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5 hover:bg-primary/80 transition border border-primary/15"
+            className="absolute top-3 left-3 bg-bg/70 backdrop-blur-md text-text text-[11px] font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5 hover:bg-primary/80 transition border border-white/10"
           >
-            <PartyPopper className="w-3 h-3 text-primary" />
-            Party Photo
+            <PartyPopper className="w-3.5 h-3.5 text-primary" />
+            Party
           </Link>
         )}
-        {/* Double tap heart animation */}
+        {/* Double tap heart — bigger, with glow */}
         <AnimatePresence>
           {showHeart && (
             <motion.div
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 1.5, opacity: 0 }}
-              transition={{ duration: 0.4 }}
+              exit={{ scale: 1.6, opacity: 0 }}
+              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
               className="absolute inset-0 flex items-center justify-center pointer-events-none"
             >
-              <Heart className="w-20 h-20 text-hot fill-hot drop-shadow-2xl" />
+              <Heart className="w-24 h-24 text-white fill-white drop-shadow-[0_0_40px_rgba(236,72,153,0.6)]" />
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* Footer */}
-      <div className="px-4 py-3">
-        {/* Action row */}
+      {/* Actions + Caption + Comments */}
+      <div className="px-4 pt-3 pb-3">
+        {/* Action row — larger icons, Instagram style */}
         <div className="flex items-center gap-4 mb-2">
           <button
             onClick={() => onLikeToggle(post.id, post.liked_by_me)}
-            className={`flex items-center gap-1.5 text-sm font-semibold transition-all duration-200 hover:scale-110 active:scale-95 ${
-              post.liked_by_me ? "text-hot" : "text-text-muted hover:text-hot"
+            className={`transition-all duration-200 active:scale-75 ${
+              post.liked_by_me ? "text-hot" : "text-text-muted hover:text-text"
             }`}
           >
-            <Heart className={`w-5 h-5 ${post.liked_by_me ? "fill-current" : ""}`} />
-            <span>{post.like_count}</span>
+            <Heart className={`w-[24px] h-[24px] ${post.liked_by_me ? "fill-current animate-heart-like" : ""}`} />
           </button>
           <button
             onClick={toggleComments}
-            className="flex items-center gap-1.5 text-sm font-semibold text-text-muted hover:text-primary transition-all duration-200 hover:scale-110"
+            className="text-text-muted hover:text-text transition-all duration-200 active:scale-90"
           >
-            <MessageCircle className="w-5 h-5" />
-            <span>Comment</span>
+            <MessageCircle className="w-[24px] h-[24px]" />
           </button>
         </div>
+
+        {/* Like count — Instagram bold style */}
+        {post.like_count > 0 && (
+          <p className="text-text font-bold text-[13px] mb-1.5">
+            {post.like_count.toLocaleString()} {post.like_count === 1 ? "like" : "likes"}
+          </p>
+        )}
+
+        {/* Caption — name + text inline */}
+        {post.caption && (
+          <p className="text-[13px] leading-relaxed mb-1">
+            <Link
+              to={`/profile/${post.user_id}`}
+              className="font-bold text-text hover:text-primary transition mr-1.5"
+            >
+              {post.display_name}
+            </Link>
+            <span className="text-text-muted">{post.caption}</span>
+          </p>
+        )}
+
+        {/* View comments toggle */}
+        <button
+          onClick={toggleComments}
+          className="text-text-dim text-xs mt-0.5 hover:text-text-muted transition"
+        >
+          {showComments ? "Hide comments" : "View comments"}
+        </button>
 
         {/* Comments section */}
         <AnimatePresence>
@@ -257,7 +281,7 @@ function PostCard({ post, onLikeToggle }: PostCardProps) {
               transition={{ duration: 0.3 }}
               className="overflow-hidden"
             >
-              <div className="mt-3 mb-2 space-y-3 border-t border-primary/[0.06] pt-3">
+              <div className="mt-3 space-y-3 border-t border-primary/[0.06] pt-3">
                 {commentError && (
                   <div className="text-error text-xs bg-error/10 px-3 py-2 rounded-lg">{commentError}</div>
                 )}
@@ -310,19 +334,6 @@ function PostCard({ post, onLikeToggle }: PostCardProps) {
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Caption */}
-        {post.caption && (
-          <p className="text-text text-sm leading-relaxed mt-1">
-            <Link
-              to={`/profile/${post.user_id}`}
-              className="font-bold text-text hover:text-primary transition mr-1.5"
-            >
-              {post.display_name}
-            </Link>
-            <span className="text-text-muted">{post.caption}</span>
-          </p>
-        )}
       </div>
     </motion.article>
   );
@@ -337,24 +348,24 @@ function EmptyFeed() {
       animate={{ opacity: 1, scale: 1 }}
       className="flex flex-col items-center justify-center py-24 text-center px-4"
     >
-      <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary/20 via-accent/15 to-hot/10 border border-primary/10 flex items-center justify-center mb-6">
-        <Sparkles className="w-10 h-10 text-primary" />
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/15 via-accent/10 to-hot/5 border border-primary/[0.08] flex items-center justify-center mb-5">
+        <Sparkles className="w-8 h-8 text-primary/60" />
       </div>
-      <h2 className="text-text text-2xl font-bold mb-3">Your feed is empty</h2>
-      <p className="text-text-muted text-sm max-w-sm mb-8 leading-relaxed">
+      <h2 className="text-text text-xl font-bold mb-2">Your feed is empty</h2>
+      <p className="text-text-muted text-sm max-w-xs mb-6 leading-relaxed">
         Connect with friends and discover parties to start seeing their moments here.
       </p>
-      <div className="flex gap-3 flex-wrap justify-center">
+      <div className="flex gap-2.5 flex-wrap justify-center">
         <Link
           to="/search"
-          className="btn-primary-luxe font-bold px-6 py-3 rounded-xl flex items-center gap-2"
+          className="btn-primary-luxe font-bold px-5 py-2.5 rounded-xl text-sm flex items-center gap-2"
         >
           <Users className="w-4 h-4" />
           Find Friends
         </Link>
         <Link
           to="/parties"
-          className="btn-secondary-luxe font-semibold px-6 py-3 rounded-xl flex items-center gap-2"
+          className="btn-secondary-luxe font-semibold px-5 py-2.5 rounded-xl text-sm flex items-center gap-2"
         >
           <PartyPopper className="w-4 h-4" />
           Discover Parties
@@ -460,33 +471,32 @@ export default function FeedPage() {
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass-panel rounded-2xl p-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6"
+          className="flex items-center justify-between gap-3 mb-6"
         >
-          <div>
-            <h1 className="text-2xl font-bold text-text tracking-tight">
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold text-text tracking-tight">
               Hey,{" "}
               <span className="brand-gradient-text">
                 {user?.display_name?.split(" ")[0]}
               </span>{" "}
               👋
             </h1>
-            <p className="text-text-muted text-sm mt-1">
+            <p className="text-text-dim text-xs mt-0.5">
               Here's what your friends have been up to.
             </p>
           </div>
           {/* #27 — Refresh button */}
-          <div className="flex gap-2 w-full sm:w-auto">
+          <div className="flex gap-2 shrink-0">
             <button onClick={handleRefresh} disabled={refreshing}
-              className="btn-secondary-luxe text-sm font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 justify-center whitespace-nowrap disabled:opacity-50 tap-active flex-1 sm:flex-initial">
+              className="btn-secondary-luxe text-sm font-bold p-2.5 rounded-xl flex items-center justify-center disabled:opacity-50 tap-active">
               <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
-              <span className="hidden sm:inline">Refresh</span>
             </button>
             <Link
               to="/parties/create"
-              className="btn-hot-luxe text-sm font-bold px-5 py-2.5 rounded-xl flex items-center gap-2 justify-center whitespace-nowrap flex-1 sm:flex-initial"
+              className="btn-hot-luxe text-sm font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 justify-center whitespace-nowrap"
             >
               <PartyPopper className="w-4 h-4" />
-              Host Party
+              <span className="hidden sm:inline">Host Party</span>
             </Link>
           </div>
         </motion.div>
