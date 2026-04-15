@@ -1,16 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../lib/api";
 import type { Party } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
-import { motion } from "framer-motion";
-import { Search, MapPin, Calendar, Ticket, PartyPopper, Users, Clock, Flame } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Search, MapPin, Calendar, Ticket, PartyPopper, Users, Clock, Flame,
+  Sparkles, Zap, X, SlidersHorizontal, ChevronRight, TrendingUp,
+  Star, RefreshCw,
+} from "lucide-react";
 import { SkeletonPartyCard } from "../components/skeleton";
+import { useAuth } from "../context/auth-hook";
+
+/* --- helpers --- */
 
 function getStatusClasses(status: string) {
   switch (status) {
     case "upcoming": return "status-upcoming";
-    case "ongoing": return "status-ongoing";
+    case "ongoing":  return "status-ongoing";
     case "completed": return "status-completed";
     default: return "status-cancelled";
   }
@@ -18,7 +25,7 @@ function getStatusClasses(status: string) {
 
 function formatPrice(price: number) {
   if (price === 0) return "Free";
-  return `₹${(price / 100).toLocaleString("en-IN")}`;
+  return `\u20B9${(price / 100).toLocaleString("en-IN")}`;
 }
 
 function formatShortDate(dateStr: string) {
@@ -30,335 +37,844 @@ function formatTime(dateStr: string) {
   return new Date(dateStr).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
 }
 
+function getTimeUntil(dateStr: string): string {
+  const now = new Date();
+  const target = new Date(dateStr);
+  const diff = target.getTime() - now.getTime();
+  if (diff < 0) return "now";
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const days = Math.floor(hours / 24);
+  if (days > 0) return `${days}d`;
+  if (hours > 0) return `${hours}h`;
+  const mins = Math.floor(diff / (1000 * 60));
+  return `${mins}m`;
+}
+
+function isTonight(dateStr: string): boolean {
+  const d = new Date(dateStr);
+  const now = new Date();
+  return d.toDateString() === now.toDateString() && d.getHours() >= 17;
+}
+
+function isThisWeekend(dateStr: string): boolean {
+  const d = new Date(dateStr);
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const daysToFriday = (5 - dayOfWeek + 7) % 7;
+  const friday = new Date(now);
+  friday.setDate(now.getDate() + daysToFriday);
+  friday.setHours(17, 0, 0, 0);
+  const monday = new Date(friday);
+  monday.setDate(friday.getDate() + 3);
+  monday.setHours(6, 0, 0, 0);
+  return d >= friday && d <= monday;
+}
+
+function getHotScore(p: Party): number {
+  const fillRate = p.max_capacity > 0 ? p.current_attendees / p.max_capacity : 0;
+  const friendBoost = (p.friends_attending ?? 0) * 0.15;
+  const recencyBoost = Math.max(0, 1 - (new Date().getTime() - new Date(p.created_at).getTime()) / (7 * 86400000));
+  return fillRate * 0.5 + friendBoost + recencyBoost * 0.35;
+}
+
+type QuickFilter = "all" | "tonight" | "weekend" | "free" | "friends";
+type SortMode = "date_asc" | "trending" | "price_asc" | "price_desc";
+
+/* --- component --- */
+
 export default function DiscoverPage() {
+  const { user } = useAuth();
   const [allParties, setAllParties] = useState<Party[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const [selectedCity, setSelectedCity] = useState("");
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
+  const [sortMode, setSortMode] = useState<SortMode>("date_asc");
+  const [showFilters, setShowFilters] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const cities = useMemo(
     () =>
       Array.from(
         new Set(
-          allParties
-            .map((p) => p.location_city)
-            .filter((c): c is string => Boolean(c))
+          allParties.map((p) => p.location_city).filter((c): c is string => Boolean(c))
         )
-      ).slice(0, 6),
+      ).slice(0, 8),
     [allParties]
   );
 
-  useEffect(() => {
-    async function fetchPartiesOnce() {
-      setLoading(true);
-      setLoadError("");
-      try {
-        const res = await api.get("/parties?limit=1000&page=1&sort=date_asc");
-        setAllParties(res.data.data.parties || []);
-      } catch (error) {
-        setLoadError(getApiErrorMessage(error, "Failed to load events"));
-        console.error("Failed to fetch parties:", getApiErrorMessage(error, "Unknown parties error"));
-      } finally {
-        setLoading(false);
+  const tags = useMemo(() => {
+    const allTags: string[] = [];
+    allParties.forEach((p) => {
+      if (p.tags) {
+        try {
+          const parsed = JSON.parse(p.tags);
+          if (Array.isArray(parsed)) allTags.push(...parsed);
+        } catch { /* skip */ }
       }
-    }
+    });
+    return Array.from(new Set(allTags)).slice(0, 12);
+  }, [allParties]);
 
-    fetchPartiesOnce();
+  const fetchParties = useCallback(async () => {
+    setLoading(true);
+    setLoadError("");
+    try {
+      const res = await api.get("/parties?limit=200&page=1&sort=date_asc");
+      setAllParties(res.data.data.parties || []);
+    } catch (error) {
+      setLoadError(getApiErrorMessage(error, "Failed to load events"));
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-  }
+  useEffect(() => { fetchParties(); }, [fetchParties]);
 
-  const parties = useMemo(() => {
-    return allParties.filter((party) => {
-      const cityMatch = !selectedCity || party.location_city === selectedCity;
-      if (!cityMatch) return false;
+  useEffect(() => {
+    if (searchOpen && searchRef.current) searchRef.current.focus();
+  }, [searchOpen]);
 
-      if (!search.trim()) return true;
-      const term = search.trim().toLowerCase();
-      return (
-        party.title.toLowerCase().includes(term) ||
-        (party.description || "").toLowerCase().includes(term) ||
-        party.location_city.toLowerCase().includes(term) ||
-        party.location_name.toLowerCase().includes(term)
-      );
+  /* --- derived data --- */
+
+  const filtered = useMemo(() => {
+    let list = allParties.filter((p) => {
+      if (selectedCity && p.location_city !== selectedCity) return false;
+      if (search.trim()) {
+        const term = search.trim().toLowerCase();
+        if (
+          !p.title.toLowerCase().includes(term) &&
+          !(p.description || "").toLowerCase().includes(term) &&
+          !p.location_city.toLowerCase().includes(term) &&
+          !p.location_name.toLowerCase().includes(term)
+        ) return false;
+      }
+      switch (quickFilter) {
+        case "tonight": return isTonight(p.date_time) || p.status === "ongoing";
+        case "weekend": return isThisWeekend(p.date_time);
+        case "free": return p.ticket_price === 0;
+        case "friends": return (p.friends_attending ?? 0) > 0;
+        default: return true;
+      }
     });
-  }, [allParties, selectedCity, search]);
 
-  // Featured party (first upcoming with cover image)
-  const featured = allParties.find(p => p.status === "upcoming" && p.cover_image_url);
+    switch (sortMode) {
+      case "trending":
+        list = [...list].sort((a, b) => getHotScore(b) - getHotScore(a));
+        break;
+      case "price_asc":
+        list = [...list].sort((a, b) => a.ticket_price - b.ticket_price);
+        break;
+      case "price_desc":
+        list = [...list].sort((a, b) => b.ticket_price - a.ticket_price);
+        break;
+      default:
+        list = [...list].sort((a, b) => new Date(a.date_time).getTime() - new Date(b.date_time).getTime());
+    }
+    return list;
+  }, [allParties, selectedCity, search, quickFilter, sortMode]);
+
+  const happeningNow = useMemo(
+    () => allParties.filter((p) => p.status === "ongoing").sort((a, b) => getHotScore(b) - getHotScore(a)),
+    [allParties]
+  );
+
+  const trending = useMemo(
+    () =>
+      allParties
+        .filter((p) => p.status === "upcoming")
+        .sort((a, b) => getHotScore(b) - getHotScore(a))
+        .slice(0, 6),
+    [allParties]
+  );
+
+  const friendsGoing = useMemo(
+    () => allParties.filter((p) => (p.friends_attending ?? 0) > 0).sort((a, b) => (b.friends_attending ?? 0) - (a.friends_attending ?? 0)),
+    [allParties]
+  );
+
+  const isShowingSections = !search && !selectedCity && quickFilter === "all";
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  };
 
   return (
     <div className="min-h-screen bg-bg pb-28 md:pb-12">
-      <div className="max-w-6xl mx-auto px-4 py-6 md:py-8">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-6"
-        >
-          <h1 className="text-2xl md:text-3xl font-bold text-text tracking-tight">Discover</h1>
-          <p className="text-text-muted text-sm mt-1">Find your next unforgettable experience</p>
-        </motion.div>
-
-        {/* Search bar */}
-        <motion.form
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.08 }}
-          onSubmit={handleSearch}
-          className="mb-5"
-        >
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-text-dim pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Search events, cities, vibes..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="input-luxe w-full rounded-2xl pl-11 pr-4 py-3.5 text-sm"
-              aria-label="Search events by name, city, or vibe"
-            />
-          </div>
-        </motion.form>
-
-        {/* City filter chips */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.12 }}
-          className="flex overflow-x-auto gap-2 mb-7 pb-1 scrollbar-hide scroll-smooth-x"
-          style={{ scrollSnapType: 'x mandatory' }}
-        >
-          <button
-            onClick={() => setSelectedCity("")}
-            style={{ scrollSnapAlign: 'start' }}
-            className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${
-              selectedCity === ""
-                ? "chip-active"
-                : "chip-idle hover:text-text"
-            }`}
-          >
-            All
-          </button>
-          {cities.map((city) => (
-            <button
-              key={city}
-              onClick={() => setSelectedCity(city)}
-              style={{ scrollSnapAlign: 'start' }}
-              className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
-                selectedCity === city
-                  ? "chip-active"
-                  : "chip-idle hover:text-text"
-              }`}
-            >
-              <MapPin className="w-3 h-3" />
-              {city}
-            </button>
-          ))}
-        </motion.div>
-
-        {/* Featured Party */}
-        {featured && !search && !selectedCity && (
+      {/* === Ambient Hero === */}
+      <div className="discover-hero relative overflow-hidden">
+        <div className="max-w-6xl mx-auto px-4 pt-6 pb-4 relative z-10">
+          {/* Top bar */}
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-            className="mb-8"
+            className="flex items-center justify-between mb-5"
           >
-            <div className="flex items-center gap-2 mb-3">
-              <Flame className="w-3.5 h-3.5 text-hot" />
-              <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-hot">Trending</span>
+            <div>
+              <p className="text-text-dim text-xs font-medium">{getGreeting()}</p>
+              <h1 className="text-xl font-bold text-text tracking-tight">
+                {user?.display_name ? user.display_name.split(" ")[0] : "Discover"}
+              </h1>
             </div>
-            <Link
-              to={`/parties/${featured.id}`}
-              className="group relative block overflow-hidden rounded-2xl aspect-[2/1] md:aspect-[2.8/1] card-shine"
-            >
-              <img
-                src={featured.cover_image_url!}
-                alt={featured.title}
-                loading="lazy"
-                className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-              />
-              {/* Always-dark gradient for text readability over images */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/5" />
-              <div className="absolute inset-0 bg-gradient-to-r from-black/30 to-transparent" />
-              <div className="absolute bottom-0 left-0 right-0 p-5 md:p-7">
-                <span className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full inline-block mb-2.5 ${getStatusClasses(featured.status)}`}>
-                  {featured.status}
-                </span>
-                <h2 className="text-xl md:text-2xl font-bold text-white mb-2.5 tracking-tight line-clamp-1">{featured.title}</h2>
-                <div className="flex flex-wrap items-center gap-3 text-xs text-white/80">
-                  <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-accent" />{featured.location_city}</span>
-                  <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-primary" />{formatShortDate(featured.date_time)}</span>
-                  <span className="flex items-center gap-1.5 bg-white/15 backdrop-blur-sm px-2.5 py-1 rounded-full font-bold">
-                    <Ticket className="w-3 h-3" />{formatPrice(featured.ticket_price)}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setSearchOpen(!searchOpen)}
+                className="w-9 h-9 rounded-xl bg-surface/60 backdrop-blur-sm border border-border flex items-center justify-center tap-active"
+              >
+                {searchOpen ? <X className="w-4 h-4 text-text-muted" /> : <Search className="w-4 h-4 text-text-muted" />}
+              </button>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`w-9 h-9 rounded-xl backdrop-blur-sm border flex items-center justify-center tap-active transition-all ${
+                  showFilters ? "bg-primary/15 border-primary/30" : "bg-surface/60 border-border"
+                }`}
+              >
+                <SlidersHorizontal className={`w-4 h-4 ${showFilters ? "text-primary" : "text-text-muted"}`} />
+              </button>
+            </div>
+          </motion.div>
+
+          {/* Search bar (expandable) */}
+          <AnimatePresence>
+            {searchOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <div className="relative mb-4">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim pointer-events-none" />
+                  <input
+                    ref={searchRef}
+                    type="text"
+                    placeholder="Search events, cities, vibes..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="input-luxe w-full rounded-xl pl-10 pr-10 py-3 text-sm"
+                  />
+                  {search && (
+                    <button onClick={() => setSearch("")} className="absolute right-3.5 top-1/2 -translate-y-1/2">
+                      <X className="w-4 h-4 text-text-dim" />
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Quick filter pills */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.08 }}
+            className="flex gap-2 overflow-x-auto scrollbar-hide pb-1"
+          >
+            {([
+              { key: "all" as QuickFilter, label: "Explore", icon: <Sparkles className="w-3 h-3" /> },
+              { key: "tonight" as QuickFilter, label: "Tonight", icon: <Zap className="w-3 h-3" /> },
+              { key: "weekend" as QuickFilter, label: "Weekend", icon: <Calendar className="w-3 h-3" /> },
+              { key: "free" as QuickFilter, label: "Free", icon: <Ticket className="w-3 h-3" /> },
+              { key: "friends" as QuickFilter, label: "Friends Going", icon: <Users className="w-3 h-3" /> },
+            ]).map(({ key, label, icon }) => (
+              <button
+                key={key}
+                onClick={() => setQuickFilter(key)}
+                className={`discover-quick-pill flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+                  quickFilter === key ? "discover-quick-pill-active" : "discover-quick-pill-idle"
+                }`}
+              >
+                {icon}
+                {label}
+              </button>
+            ))}
+          </motion.div>
+        </div>
+      </div>
+
+      {/* === Filter panel (expandable) === */}
+      <AnimatePresence>
+        {showFilters && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden border-b border-border/50"
+          >
+            <div className="max-w-6xl mx-auto px-4 py-4 space-y-3">
+              {cities.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-text-dim mb-2">City</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      onClick={() => setSelectedCity("")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        !selectedCity ? "chip-active" : "chip-idle"
+                      }`}
+                    >
+                      All
+                    </button>
+                    {cities.map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => setSelectedCity(selectedCity === c ? "" : c)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 ${
+                          selectedCity === c ? "chip-active" : "chip-idle"
+                        }`}
+                      >
+                        <MapPin className="w-2.5 h-2.5" />
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-text-dim mb-2">Sort by</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {([
+                    { key: "date_asc" as SortMode, label: "Soonest" },
+                    { key: "trending" as SortMode, label: "Trending" },
+                    { key: "price_asc" as SortMode, label: "Price \u2191" },
+                    { key: "price_desc" as SortMode, label: "Price \u2193" },
+                  ]).map(({ key, label }) => (
+                    <button
+                      key={key}
+                      onClick={() => setSortMode(key)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        sortMode === key ? "chip-active" : "chip-idle"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {tags.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-text-dim mb-2">Tags</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {tags.map((tag) => (
+                      <button
+                        key={tag}
+                        onClick={() => setSearch(tag)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-medium chip-idle"
+                      >
+                        #{tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {(selectedCity || sortMode !== "date_asc" || search) && (
+                <button
+                  onClick={() => { setSelectedCity(""); setSortMode("date_asc"); setSearch(""); setQuickFilter("all"); }}
+                  className="text-xs text-primary font-semibold flex items-center gap-1"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  Reset filters
+                </button>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="max-w-6xl mx-auto px-4 py-4">
+        {loading ? (
+          <LoadingSkeleton />
+        ) : loadError ? (
+          <ErrorState error={loadError} onRetry={fetchParties} />
+        ) : (
+          <>
+            {/* === Smart Sections === */}
+            {isShowingSections && (
+              <>
+                {happeningNow.length > 0 && (
+                  <Section
+                    icon={<span className="discover-live-dot" />}
+                    title="Happening Now"
+                    subtitle={`${happeningNow.length} live`}
+                  >
+                    <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4">
+                      {happeningNow.map((party, i) => (
+                        <motion.div
+                          key={party.id}
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: i * 0.05 }}
+                          className="min-w-[260px] max-w-[280px] flex-shrink-0"
+                        >
+                          <LivePartyCard party={party} />
+                        </motion.div>
+                      ))}
+                    </div>
+                  </Section>
+                )}
+
+                {trending.length > 0 && (
+                  <Section
+                    icon={<TrendingUp className="w-3.5 h-3.5 text-primary" />}
+                    title="Hot Right Now"
+                    subtitle="Most popular"
+                  >
+                    <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4">
+                      {trending.map((party, i) => (
+                        <motion.div
+                          key={party.id}
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: i * 0.06 }}
+                          className="min-w-[220px] max-w-[240px] flex-shrink-0"
+                        >
+                          <TrendingCard party={party} rank={i + 1} />
+                        </motion.div>
+                      ))}
+                    </div>
+                  </Section>
+                )}
+
+                {friendsGoing.length > 0 && (
+                  <Section
+                    icon={<Users className="w-3.5 h-3.5 text-accent" />}
+                    title="Friends Are Going"
+                    subtitle={`${friendsGoing.length} events`}
+                  >
+                    <div className="space-y-2.5">
+                      {friendsGoing.slice(0, 4).map((party, i) => (
+                        <motion.div
+                          key={party.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: i * 0.06 }}
+                        >
+                          <FriendsGoingCard party={party} />
+                        </motion.div>
+                      ))}
+                    </div>
+                  </Section>
+                )}
+              </>
+            )}
+
+            {/* === Main Events List === */}
+            <div className="mt-2">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-bold text-text uppercase tracking-wide">
+                    {quickFilter === "tonight" ? "Tonight" :
+                     quickFilter === "weekend" ? "This Weekend" :
+                     quickFilter === "free" ? "Free Events" :
+                     quickFilter === "friends" ? "Friends Going" :
+                     selectedCity ? `Events in ${selectedCity}` :
+                     search ? `Results for "${search}"` : "All Events"}
+                  </h2>
+                  <span className="text-[11px] font-bold text-text-dim bg-surface-light/50 px-2 py-0.5 rounded-full">
+                    {filtered.length}
                   </span>
                 </div>
               </div>
-            </Link>
-          </motion.div>
-        )}
 
-        {/* Section title */}
-        <div className="flex items-baseline gap-2 mb-4">
-          <h2 className="text-sm font-bold text-text uppercase tracking-wide">
-            {selectedCity ? `Events in ${selectedCity}` : "All Events"}
-          </h2>
-          <span className="text-text-dim text-xs font-medium">{parties.length}</span>
-        </div>
-
-        {/* Events grid */}
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
-            {Array.from({ length: 6 }, (_, i) => (
-              <SkeletonPartyCard key={i} />
-            ))}
-          </div>
-        ) : loadError ? (
-          <div className="text-center py-20">
-            <p className="text-error text-sm mb-3">{loadError}</p>
-            <button
-              onClick={() => {
-                setLoadError("");
-                setLoading(true);
-                api.get("/parties?limit=1000&page=1&sort=date_asc")
-                  .then((res) => setAllParties(res.data.data.parties || []))
-                  .catch((error) => setLoadError(getApiErrorMessage(error, "Failed to load events")))
-                  .finally(() => setLoading(false));
-              }}
-              className="btn-secondary-luxe px-5 py-2.5 rounded-xl text-sm font-bold"
-            >
-              Retry
-            </button>
-          </div>
-        ) : parties.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="w-14 h-14 rounded-2xl bg-surface-light flex items-center justify-center mx-auto mb-4">
-              <PartyPopper className="w-7 h-7 text-text-dim" />
+              {filtered.length === 0 ? (
+                <EmptyState filter={quickFilter} />
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 md:gap-4">
+                  {filtered.map((party, i) => (
+                    <motion.div
+                      key={party.id}
+                      initial={{ opacity: 0, y: 18 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: Math.min(i * 0.04, 0.24) }}
+                    >
+                      <EventCard party={party} />
+                    </motion.div>
+                  ))}
+                </div>
+              )}
             </div>
-            <p className="text-text font-semibold mb-1">No events found</p>
-            <p className="text-text-dim text-sm">Try adjusting your search or filters</p>
-          </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ===============================================
+   SUB-COMPONENTS
+   =============================================== */
+
+function Section({
+  icon, title, subtitle, children,
+}: {
+  icon: React.ReactNode; title: string; subtitle: string; children: React.ReactNode;
+}) {
+  return (
+    <div className="mb-6">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          {icon}
+          <h2 className="text-sm font-bold text-text tracking-tight">{title}</h2>
+          <span className="text-[10px] font-semibold text-text-dim">{subtitle}</span>
+        </div>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function LivePartyCard({ party }: { party: Party }) {
+  const capacityPercent = party.max_capacity > 0 ? Math.round((party.current_attendees / party.max_capacity) * 100) : 0;
+  return (
+    <Link to={`/parties/${party.id}`} className="block discover-live-card group tap-active">
+      <div className="relative aspect-[16/9] overflow-hidden rounded-t-xl">
+        {party.cover_image_url ? (
+          <img src={party.cover_image_url} alt={party.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
-            {parties.map((party, i) => {
-              const capacityPercent = party.max_capacity > 0 ? Math.round((party.current_attendees / party.max_capacity) * 100) : 0;
-              const isFillingFast = capacityPercent >= 75 && party.status === "upcoming";
-              const isSoldOut = party.max_capacity > 0 && party.current_attendees >= party.max_capacity;
+          <div className="w-full h-full bg-gradient-to-br from-hot/20 via-primary/10 to-accent/10 flex items-center justify-center">
+            <Zap className="w-8 h-8 text-hot/30" />
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+        <div className="absolute top-2 left-2 flex items-center gap-1.5 bg-hot/90 backdrop-blur-sm text-white px-2 py-0.5 rounded-full">
+          <span className="discover-live-dot-small" />
+          <span className="text-[9px] font-black uppercase tracking-wider">Live</span>
+        </div>
+        <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-sm text-white/80 px-2 py-0.5 rounded-full text-[9px] font-bold">
+          {formatTime(party.date_time)}
+        </div>
+        <div className="absolute bottom-0 left-0 right-0 p-3">
+          <h3 className="text-white font-bold text-sm line-clamp-1 tracking-tight">{party.title}</h3>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-white/70 text-[10px] flex items-center gap-1">
+              <MapPin className="w-2.5 h-2.5" />{party.location_city}
+            </span>
+            <span className="text-white/70 text-[10px] flex items-center gap-1">
+              <Users className="w-2.5 h-2.5" />{party.current_attendees}/{party.max_capacity}
+            </span>
+          </div>
+        </div>
+      </div>
+      <div className="px-3 py-2 rounded-b-xl bg-surface/60 backdrop-blur-sm">
+        <div className="h-1 bg-surface-light rounded-full overflow-hidden">
+          <div className="h-full rounded-full discover-live-bar transition-all duration-500" style={{ width: `${capacityPercent}%` }} />
+        </div>
+      </div>
+    </Link>
+  );
+}
 
-              return (
-              <motion.div
-                key={party.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: Math.min(i * 0.04, 0.25) }}
-              >
-                <Link
-                  to={`/parties/${party.id}`}
-                  className="group block overflow-hidden rounded-2xl discover-card"
-                >
-                  {/* Image section */}
-                  <div className="relative aspect-[16/10] overflow-hidden bg-surface-light">
-                    {party.cover_image_url ? (
-                      <img
-                        src={party.cover_image_url}
-                        alt={party.title}
-                        loading="lazy"
-                        className="w-full h-full object-cover group-hover:scale-[1.06] transition-transform duration-600"
-                      />
+function TrendingCard({ party, rank }: { party: Party; rank: number }) {
+  const capacityPercent = party.max_capacity > 0 ? Math.round((party.current_attendees / party.max_capacity) * 100) : 0;
+  return (
+    <Link to={`/parties/${party.id}`} className="block discover-card rounded-xl overflow-hidden group tap-active">
+      <div className="relative aspect-[4/3] overflow-hidden">
+        {party.cover_image_url ? (
+          <img src={party.cover_image_url} alt={party.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-primary/15 via-accent/10 to-hot/8 flex items-center justify-center">
+            <PartyPopper className="w-8 h-8 text-text-dim/20" />
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+        <div className="absolute top-2 left-2">
+          <span className="discover-rank-badge text-[11px] font-black">#{rank}</span>
+        </div>
+        <div className="absolute top-2 right-2">
+          <span className="discover-price-pill">{formatPrice(party.ticket_price)}</span>
+        </div>
+        <div className="absolute bottom-0 left-0 right-0 p-3">
+          <h3 className="text-white font-bold text-[13px] line-clamp-1 tracking-tight">{party.title}</h3>
+          <div className="flex items-center gap-2 mt-1.5">
+            <span className="text-white/70 text-[10px] flex items-center gap-1">
+              <Calendar className="w-2.5 h-2.5 text-primary" />{formatShortDate(party.date_time)}
+            </span>
+            {capacityPercent >= 60 && (
+              <span className="filling-fast px-1.5 py-0.5 rounded-full text-[8px]">
+                <span className="filling-fast-dot" />{capacityPercent}% full
+              </span>
+            )}
+          </div>
+          {(party.friends_attending ?? 0) > 0 && (
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <div className="flex -space-x-1.5">
+                {(party.friends_attending_avatars ?? []).slice(0, 3).map((f, i) => (
+                  <div key={i} className="w-4 h-4 rounded-full border border-black/40 overflow-hidden bg-surface-light">
+                    {f.avatar_url ? (
+                      <img src={f.avatar_url} alt="" className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-primary/15 via-accent/10 to-hot/8 flex items-center justify-center">
-                        <PartyPopper className="w-10 h-10 text-text-dim/20 group-hover:scale-110 transition-transform" />
-                      </div>
-                    )}
-
-                    {/* Sold out overlay */}
-                    {isSoldOut && (
-                      <div className="absolute inset-0 bg-black/45 backdrop-blur-[2px] flex items-center justify-center z-10">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-white bg-hot/90 px-4 py-1.5 rounded-full">Sold Out</span>
-                      </div>
-                    )}
-
-                    {/* Status badge */}
-                    <div className="absolute top-2.5 left-2.5 z-10">
-                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${getStatusClasses(party.status)}`}>
-                        {party.status}
-                      </span>
-                    </div>
-
-                    {/* Price pill */}
-                    <div className="absolute top-2.5 right-2.5 z-10">
-                      <span className="discover-price-pill">
-                        {formatPrice(party.ticket_price)}
-                      </span>
-                    </div>
-
-                    {/* Filling fast indicator */}
-                    {isFillingFast && !isSoldOut && (
-                      <div className="absolute bottom-2.5 left-2.5 z-10">
-                        <span className="filling-fast px-2 py-0.5 rounded-full text-[10px]">
-                          <span className="filling-fast-dot" />
-                          Filling Fast
-                        </span>
+                      <div className="w-full h-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-[6px] text-white font-bold">
+                        {f.display_name.charAt(0)}
                       </div>
                     )}
                   </div>
+                ))}
+              </div>
+              <span className="text-white/60 text-[9px] font-medium">
+                {party.friends_attending} friend{party.friends_attending! > 1 ? "s" : ""} going
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
+}
 
-                  {/* Content section */}
-                  <div className="p-3.5 space-y-2.5">
-                    <h3 className="text-text font-bold text-[15px] line-clamp-1 tracking-tight group-hover:text-primary transition-colors">{party.title}</h3>
-
-                    <div className="flex items-center gap-3">
-                      <span className="flex items-center gap-1.5 text-text-muted text-xs">
-                        <MapPin className="w-3 h-3 text-accent shrink-0" />
-                        <span className="truncate">{party.location_city}</span>
-                      </span>
-                      <span className="flex items-center gap-1.5 text-text-muted text-xs">
-                        <Calendar className="w-3 h-3 text-primary shrink-0" />
-                        {formatShortDate(party.date_time)}
-                      </span>
-                      <span className="flex items-center gap-1.5 text-text-muted text-xs">
-                        <Clock className="w-3 h-3 text-text-dim shrink-0" />
-                        {formatTime(party.date_time)}
-                      </span>
-                    </div>
-
-                    {/* Capacity bar */}
-                    {party.max_capacity > 0 && (
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="flex items-center gap-1 text-text-dim text-[11px]">
-                            <Users className="w-3 h-3" />
-                            {party.current_attendees}/{party.max_capacity}
-                          </span>
-                          {party.host_display_name && (
-                            <div className="flex items-center gap-1.5">
-                              <div className="w-4.5 h-4.5 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-[7px] text-white font-bold shrink-0">
-                                {party.host_display_name.charAt(0).toUpperCase()}
-                              </div>
-                              <span className="text-text-dim text-[11px] truncate max-w-[72px]">{party.host_display_name}</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="h-1 bg-surface-light rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-gradient-to-r from-primary via-accent to-hot transition-all duration-500"
-                            style={{ width: `${capacityPercent}%` }}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </Link>
-              </motion.div>
-              );
-            })}
+function FriendsGoingCard({ party }: { party: Party }) {
+  return (
+    <Link to={`/parties/${party.id}`} className="flex gap-3 p-2.5 rounded-xl discover-card group tap-active">
+      <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-surface-light">
+        {party.cover_image_url ? (
+          <img src={party.cover_image_url} alt="" className="w-full h-full object-cover" loading="lazy" />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-accent/15 to-primary/10 flex items-center justify-center">
+            <PartyPopper className="w-5 h-5 text-text-dim/30" />
           </div>
         )}
       </div>
+      <div className="flex-1 min-w-0 py-0.5">
+        <h3 className="text-text font-bold text-[13px] line-clamp-1 tracking-tight group-hover:text-primary transition-colors">{party.title}</h3>
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-text-muted text-[10px] flex items-center gap-1">
+            <Calendar className="w-2.5 h-2.5 text-primary" />{formatShortDate(party.date_time)}
+          </span>
+          <span className="text-text-muted text-[10px] flex items-center gap-1">
+            <MapPin className="w-2.5 h-2.5 text-accent" />{party.location_city}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5 mt-1.5">
+          <div className="flex -space-x-1.5">
+            {(party.friends_attending_avatars ?? []).slice(0, 3).map((f, i) => (
+              <div key={i} className="w-4.5 h-4.5 rounded-full border-2 border-surface overflow-hidden bg-surface-light">
+                {f.avatar_url ? (
+                  <img src={f.avatar_url} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-accent to-primary flex items-center justify-center text-[7px] text-white font-bold">
+                    {f.display_name.charAt(0)}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          <span className="text-accent text-[10px] font-semibold">
+            {party.friends_attending} friend{party.friends_attending! > 1 ? "s" : ""} going
+          </span>
+        </div>
+      </div>
+      <div className="flex items-center">
+        <span className="text-xs font-bold text-text">{formatPrice(party.ticket_price)}</span>
+      </div>
+    </Link>
+  );
+}
+
+function EventCard({ party }: { party: Party }) {
+  const capacityPercent = party.max_capacity > 0 ? Math.round((party.current_attendees / party.max_capacity) * 100) : 0;
+  const isFillingFast = capacityPercent >= 75 && party.status === "upcoming";
+  const isSoldOut = party.max_capacity > 0 && party.current_attendees >= party.max_capacity;
+  const isLive = party.status === "ongoing";
+  const timeLabel = getTimeUntil(party.date_time);
+
+  return (
+    <Link to={`/parties/${party.id}`} className="group block overflow-hidden rounded-2xl discover-card card-shine">
+      <div className="relative aspect-[16/10] overflow-hidden bg-surface-light">
+        {party.cover_image_url ? (
+          <img src={party.cover_image_url} alt={party.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-[1.06] transition-transform duration-600" />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-primary/15 via-accent/10 to-hot/8 flex items-center justify-center">
+            <PartyPopper className="w-10 h-10 text-text-dim/20 group-hover:scale-110 transition-transform" />
+          </div>
+        )}
+
+        {isSoldOut && (
+          <div className="absolute inset-0 bg-black/45 backdrop-blur-[2px] flex items-center justify-center z-10">
+            <span className="text-[10px] font-black uppercase tracking-widest text-white bg-hot/90 px-4 py-1.5 rounded-full">Sold Out</span>
+          </div>
+        )}
+
+        <div className="absolute top-2.5 left-2.5 z-10">
+          {isLive ? (
+            <span className="flex items-center gap-1 bg-hot/90 text-white px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider">
+              <span className="discover-live-dot-small" />Live
+            </span>
+          ) : (
+            <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${getStatusClasses(party.status)}`}>
+              {party.status}
+            </span>
+          )}
+        </div>
+
+        <div className="absolute top-2.5 right-2.5 z-10">
+          <span className="discover-price-pill">{formatPrice(party.ticket_price)}</span>
+        </div>
+
+        {!isSoldOut && (
+          <div className="absolute bottom-2.5 left-2.5 z-10 flex gap-1.5">
+            {isFillingFast && (
+              <span className="filling-fast px-2 py-0.5 rounded-full text-[10px]">
+                <span className="filling-fast-dot" />Filling Fast
+              </span>
+            )}
+            {party.status === "upcoming" && timeLabel !== "now" && (
+              <span className="bg-black/50 backdrop-blur-sm text-white/80 px-2 py-0.5 rounded-full text-[9px] font-bold flex items-center gap-1">
+                <Clock className="w-2.5 h-2.5" />
+                In {timeLabel}
+              </span>
+            )}
+          </div>
+        )}
+
+        {(party.friends_attending ?? 0) > 0 && (
+          <div className="absolute bottom-2.5 right-2.5 z-10 flex items-center gap-1 bg-black/50 backdrop-blur-sm px-2 py-0.5 rounded-full">
+            <div className="flex -space-x-1">
+              {(party.friends_attending_avatars ?? []).slice(0, 2).map((f, i) => (
+                <div key={i} className="w-3.5 h-3.5 rounded-full border border-black/30 overflow-hidden">
+                  {f.avatar_url ? (
+                    <img src={f.avatar_url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-accent to-primary text-[5px] text-white font-bold flex items-center justify-center">
+                      {f.display_name.charAt(0)}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <span className="text-white/70 text-[8px] font-semibold">{party.friends_attending}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="p-3.5 space-y-2">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="text-text font-bold text-[15px] line-clamp-1 tracking-tight group-hover:text-primary transition-colors flex-1">{party.title}</h3>
+          {party.host_social_rating != null && party.host_social_rating >= 4 && (
+            <div className="flex items-center gap-0.5 shrink-0">
+              <Star className="w-3 h-3 text-warning fill-warning" />
+              <span className="text-[10px] font-bold text-warning">{party.host_social_rating.toFixed(1)}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1.5 text-text-muted text-xs">
+            <MapPin className="w-3 h-3 text-accent shrink-0" />
+            <span className="truncate">{party.location_city}</span>
+          </span>
+          <span className="flex items-center gap-1.5 text-text-muted text-xs">
+            <Calendar className="w-3 h-3 text-primary shrink-0" />
+            {formatShortDate(party.date_time)}
+          </span>
+          <span className="flex items-center gap-1.5 text-text-muted text-xs">
+            <Clock className="w-3 h-3 text-text-dim shrink-0" />
+            {formatTime(party.date_time)}
+          </span>
+        </div>
+
+        {party.max_capacity > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="flex items-center gap-1 text-text-dim text-[11px]">
+                <Users className="w-3 h-3" />
+                {party.current_attendees}/{party.max_capacity}
+              </span>
+              {party.host_display_name && (
+                <div className="flex items-center gap-1.5">
+                  {party.host_avatar_url ? (
+                    <img src={party.host_avatar_url} alt="" className="w-4 h-4 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-4 h-4 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-[7px] text-white font-bold shrink-0">
+                      {party.host_display_name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <span className="text-text-dim text-[11px] truncate max-w-[72px]">{party.host_display_name}</span>
+                </div>
+              )}
+            </div>
+            <div className="h-1 bg-surface-light rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${
+                  capacityPercent >= 90 ? "bg-gradient-to-r from-hot to-warning" :
+                  capacityPercent >= 60 ? "bg-gradient-to-r from-primary via-accent to-hot" :
+                  "bg-gradient-to-r from-primary to-accent"
+                }`}
+                style={{ width: `${capacityPercent}%` }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    </Link>
+  );
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <div className="h-3 w-28 shimmer rounded-full mb-3" />
+        <div className="flex gap-3 overflow-hidden">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="min-w-[260px] rounded-xl overflow-hidden">
+              <div className="aspect-[16/9] shimmer" />
+              <div className="p-3 space-y-2 bg-surface/40">
+                <div className="h-3 w-3/4 shimmer rounded" />
+                <div className="h-2 w-1/2 shimmer rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div>
+        <div className="h-3 w-20 shimmer rounded-full mb-3" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+          {Array.from({ length: 6 }, (_, i) => (
+            <SkeletonPartyCard key={i} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ErrorState({ error, onRetry }: { error: string; onRetry: () => void }) {
+  return (
+    <div className="text-center py-20">
+      <div className="w-14 h-14 rounded-2xl bg-error/10 flex items-center justify-center mx-auto mb-4">
+        <Zap className="w-7 h-7 text-error" />
+      </div>
+      <p className="text-error text-sm mb-3">{error}</p>
+      <button onClick={onRetry} className="btn-secondary-luxe px-5 py-2.5 rounded-xl text-sm font-bold">
+        Retry
+      </button>
+    </div>
+  );
+}
+
+function EmptyState({ filter }: { filter: QuickFilter }) {
+  const messages: Record<QuickFilter, { title: string; sub: string }> = {
+    all: { title: "No events found", sub: "Try adjusting your search or filters" },
+    tonight: { title: "Nothing tonight", sub: "Check back later or explore other events" },
+    weekend: { title: "Weekend's clear", sub: "No events this weekend yet" },
+    free: { title: "No free events", sub: "Check out paid events for great experiences" },
+    friends: { title: "No friends going yet", sub: "Invite your friends to join the fun" },
+  };
+  const msg = messages[filter];
+  return (
+    <div className="text-center py-16">
+      <div className="w-14 h-14 rounded-2xl bg-surface-light flex items-center justify-center mx-auto mb-4">
+        <PartyPopper className="w-7 h-7 text-text-dim" />
+      </div>
+      <p className="text-text font-semibold mb-1">{msg.title}</p>
+      <p className="text-text-dim text-sm">{msg.sub}</p>
     </div>
   );
 }

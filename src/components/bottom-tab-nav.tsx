@@ -21,7 +21,7 @@ export default function BottomTabNav() {
   }
 
   return (
-    <nav className="md:hidden fixed bottom-0 inset-x-0 z-50" style={{ paddingBottom: "max(env(safe-area-inset-bottom, 0px), 4px)" }}>
+    <nav className="md:hidden fixed bottom-0 inset-x-0 z-50" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
       {/* Frosted glass backdrop */}
       <div className="absolute inset-0 bottom-nav-glass backdrop-blur-2xl" />
 

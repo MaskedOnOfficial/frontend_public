@@ -45,6 +45,9 @@ export interface Party {
   host_display_name?: string;
   host_avatar_url?: string | null;
   host_social_rating?: number;
+  // Friends attending (enriched by discover endpoint)
+  friends_attending?: number;
+  friends_attending_avatars?: { user_id: string; display_name: string; avatar_url: string | null }[];
 }
 
 export interface PartyRequest {

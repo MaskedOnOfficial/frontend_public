@@ -55,20 +55,28 @@ const TIERS: { pattern: RegExp; config: TierConfig }[] = [
   // NEVER CACHE these — will be intercepted before reaching tier matching
   // /auth/*, /users/me (exact), /health
 
-  // TIER 1: Static — profiles and party details (10 min fresh, 30 min max)
+  // TIER 1: Static — user profiles (10 min fresh, 30 min max)
   { pattern: /^\/users\/[^/]+$/, config: { freshMs: 10 * 60_000, maxAgeMs: 30 * 60_000 } },
-  { pattern: /^\/parties\/[^/]+$/, config: { freshMs: 10 * 60_000, maxAgeMs: 30 * 60_000 } },
 
-  // TIER 2: Semi-static — friends lists, ratings, my parties (3 min fresh, 10 min max)
+  // TIER 1b: Party detail — shorter TTL since attendee counts change (2 min fresh, 8 min max)
+  { pattern: /^\/parties\/[^/]+$/, config: { freshMs: 2 * 60_000, maxAgeMs: 8 * 60_000 } },
+
+  // TIER 2: Semi-static — friends, ratings, hosted parties, blocks, analytics (3 min fresh, 10 min max)
   { pattern: /^\/friends\//, config: { freshMs: 3 * 60_000, maxAgeMs: 10 * 60_000 } },
   { pattern: /\/ratings/, config: { freshMs: 3 * 60_000, maxAgeMs: 10 * 60_000 } },
   { pattern: /^\/users\/me\/parties/, config: { freshMs: 3 * 60_000, maxAgeMs: 10 * 60_000 } },
+  { pattern: /^\/users\/me\/host-analytics/, config: { freshMs: 3 * 60_000, maxAgeMs: 10 * 60_000 } },
+  { pattern: /^\/blocks\//, config: { freshMs: 3 * 60_000, maxAgeMs: 10 * 60_000 } },
 
-  // TIER 3: Dynamic — photos, attendees, requests, comments (1 min fresh, 5 min max)
+  // TIER 2b: Discover party list (2 min fresh, 8 min max)
+  { pattern: /^\/parties$/, config: { freshMs: 2 * 60_000, maxAgeMs: 8 * 60_000 } },
+
+  // TIER 3: Dynamic — photos, attendees, requests, comments, pending-ratings (1 min fresh, 5 min max)
   { pattern: /\/photos/, config: { freshMs: 60_000, maxAgeMs: 5 * 60_000 } },
   { pattern: /\/attendees/, config: { freshMs: 60_000, maxAgeMs: 5 * 60_000 } },
   { pattern: /\/requests/, config: { freshMs: 60_000, maxAgeMs: 5 * 60_000 } },
   { pattern: /\/comments/, config: { freshMs: 60_000, maxAgeMs: 5 * 60_000 } },
+  { pattern: /^\/users\/me\/pending-ratings/, config: { freshMs: 60_000, maxAgeMs: 5 * 60_000 } },
 
   // TIER 4: Live — feed, notifications, search (30s fresh, 2 min max)
   { pattern: /^\/feed/, config: { freshMs: 30_000, maxAgeMs: 2 * 60_000 } },
@@ -82,7 +90,6 @@ const NEVER_CACHE_PATTERNS = [
   /^\/auth\//,
   /^\/users\/me$/,       // Auth bootstrap — always fresh
   /^\/health$/,
-  /^\/parties\/[^/]+$/,  // Event detail must always hit API
 ];
 
 // ─── Mutation → Invalidation mapping ────────────────────────────────
@@ -95,12 +102,17 @@ const INVALIDATION_RULES: { mutationPattern: RegExp; purgePatterns: RegExp[] }[]
   { mutationPattern: /\/comments/, purgePatterns: [/\/comments/] },
   // Friend actions → purge friend caches
   { mutationPattern: /^\/friends\//, purgePatterns: [/^\/friends\//] },
-  // Party creation → purge party lists + user parties
-  { mutationPattern: /^\/parties$/, purgePatterns: [/^\/parties/, /\/parties/] },
-  // Party request actions → purge request caches
-  { mutationPattern: /\/requests/, purgePatterns: [/\/requests/] },
-  // Rating submission → purge rating caches
-  { mutationPattern: /\/ratings/, purgePatterns: [/\/ratings/] },
+  // Party create/edit/cancel → purge party caches + discover list + analytics
+  { mutationPattern: /^\/parties(\/[^/]+)?$/, purgePatterns: [/^\/parties/, /\/parties/, /\/host-analytics/] },
+  { mutationPattern: /\/cancel$/, purgePatterns: [/^\/parties/, /\/host-analytics/] },
+  // Join request actions → purge requests + party detail (attendee count) + analytics
+  { mutationPattern: /\/requests/, purgePatterns: [/\/requests/, /^\/parties\//, /\/host-analytics/] },
+  // Payment → purge party detail (attendee count) + analytics
+  { mutationPattern: /\/pay$/, purgePatterns: [/^\/parties\//, /\/host-analytics/] },
+  // Rating submission → purge rating caches + analytics
+  { mutationPattern: /\/ratings/, purgePatterns: [/\/ratings/, /\/host-analytics/] },
+  // Block actions → purge blocks + friends + feed (blocked users vanish from feed)
+  { mutationPattern: /^\/blocks\//, purgePatterns: [/^\/blocks\//, /^\/friends\//, /^\/feed/] },
   // Profile update → purge user caches
   { mutationPattern: /^\/users\/me/, purgePatterns: [/^\/users\//] },
   // Notification read → purge notification caches

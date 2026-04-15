@@ -14,7 +14,8 @@ import {
   Camera, Grid3x3, Star, Users, Heart, Loader2, X, Trash2,
   Edit3, ChevronLeft, ChevronRight, LayoutDashboard,
   PartyPopper, Award, ImagePlus, Sparkles, Check, UserPlus, MessageCircle, ArrowLeft,
-  Eye, BarChart3, Pencil
+  Eye, BarChart3, Pencil, Sun, Contrast, Droplets, RotateCw,
+  Flame, Crown, Shield, Share2, Search, Trophy
 } from "lucide-react";
 
 /* helpers */
@@ -87,9 +88,49 @@ export default function ProfilePage() {
   const [pendingLoading, setPendingLoading] = useState(false);
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
 
+  // Friend search
+  const [friendSearch, setFriendSearch] = useState("");
+
   // Toast
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Avatar editing (filters/adjust)
+  const avatarCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [avatarEditFile, setAvatarEditFile] = useState<File | null>(null);
+  const [avatarEditPreview, setAvatarEditPreview] = useState<string | null>(null);
+  const [avatarEditTab, setAvatarEditTab] = useState<"filters" | "adjust">("filters");
+  const [avatarFilter, setAvatarFilter] = useState(0);
+  const [avatarBrightness, setAvatarBrightness] = useState(100);
+  const [avatarContrast, setAvatarContrast] = useState(100);
+  const [avatarSaturation, setAvatarSaturation] = useState(100);
+  const [avatarRotation, setAvatarRotation] = useState(0);
+
+  const AVATAR_FILTERS = [
+    { name: "Normal", css: "" },
+    { name: "Vivid", css: "saturate(1.4) contrast(1.1)" },
+    { name: "Warm", css: "sepia(0.25) saturate(1.3) brightness(1.05)" },
+    { name: "Cool", css: "saturate(0.9) hue-rotate(15deg) brightness(1.05)" },
+    { name: "Fade", css: "saturate(0.7) brightness(1.1) contrast(0.9)" },
+    { name: "Mono", css: "grayscale(1)" },
+    { name: "Noir", css: "grayscale(1) contrast(1.4) brightness(0.9)" },
+    { name: "Glow", css: "brightness(1.15) saturate(1.2) contrast(0.95)" },
+  ] as const;
+
+  const avatarAdjustCSS = `brightness(${avatarBrightness / 100}) contrast(${avatarContrast / 100}) saturate(${avatarSaturation / 100})`;
+  const avatarFilterCSS = AVATAR_FILTERS[avatarFilter].css;
+  const avatarCombinedCSS = [avatarFilterCSS, avatarAdjustCSS].filter(Boolean).join(" ");
+
+  function resetAvatarEdit() {
+    setAvatarEditFile(null);
+    setAvatarEditPreview(null);
+    setAvatarEditTab("filters");
+    setAvatarFilter(0);
+    setAvatarBrightness(100);
+    setAvatarContrast(100);
+    setAvatarSaturation(100);
+    setAvatarRotation(0);
+  }
 
   function showToast(msg: string, type: "success" | "error" = "success") {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -188,21 +229,63 @@ export default function ProfilePage() {
 
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return;
-    await uploadAvatarFile(file);
+    if (file.size > 5 * 1024 * 1024) { showToast("File too large (max 5 MB)", "error"); return; }
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) { showToast("Only JPEG, PNG, WebP allowed", "error"); return; }
+    setAvatarEditFile(file);
+    setAvatarEditPreview(URL.createObjectURL(file));
     if (avatarInputRef.current) avatarInputRef.current.value = "";
   }
 
-  async function uploadAvatarFile(file: File) {
-    if (file.size > 5 * 1024 * 1024) { showToast("File too large (max 5 MB)", "error"); return; }
+  async function getProcessedAvatar(): Promise<File | null> {
+    if (!avatarEditPreview || !avatarEditFile) return null;
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = avatarCanvasRef.current;
+        if (!canvas) { resolve(avatarEditFile); return; }
+        const maxDim = 1024;
+        let w = img.naturalWidth, h = img.naturalHeight;
+        if (w > maxDim || h > maxDim) { const r = Math.min(maxDim / w, maxDim / h); w = Math.round(w * r); h = Math.round(h * r); }
+        const isRotated = avatarRotation % 180 !== 0;
+        canvas.width = isRotated ? h : w;
+        canvas.height = isRotated ? w : h;
+        const ctx = canvas.getContext("2d")!;
+        ctx.filter = avatarCombinedCSS || "none";
+        ctx.save();
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate((avatarRotation * Math.PI) / 180);
+        ctx.drawImage(img, -w / 2, -h / 2, w, h);
+        ctx.restore();
+        canvas.toBlob((blob) => {
+          if (blob) resolve(new File([blob], avatarEditFile.name, { type: "image/jpeg" }));
+          else resolve(avatarEditFile);
+        }, "image/jpeg", 0.92);
+      };
+      img.src = avatarEditPreview;
+    });
+  }
+
+  async function uploadProcessedAvatar() {
+    const processed = await getProcessedAvatar();
+    if (!processed) return;
     setAvatarUploading(true);
-    try { const fd = new FormData(); fd.append("avatar", file); await api.put("/users/me/avatar", fd, { headers: { "Content-Type": "multipart/form-data" } }); await refreshUser(); showToast("Avatar updated!"); }
+    try {
+      const fd = new FormData(); fd.append("avatar", processed);
+      await api.put("/users/me/avatar", fd, { headers: { "Content-Type": "multipart/form-data" } });
+      await refreshUser();
+      showToast("Avatar updated!");
+      resetAvatarEdit();
+    }
     catch (error) { showToast(getApiErrorMessage(error, "Upload failed"), "error"); }
     finally { setAvatarUploading(false); }
   }
 
   async function handleNativeAvatarUpload() {
     const file = await takePhoto();
-    if (file) await uploadAvatarFile(file);
+    if (file) {
+      setAvatarEditFile(file);
+      setAvatarEditPreview(URL.createObjectURL(file));
+    }
   }
 
   function triggerAvatarUpload() {
@@ -371,10 +454,61 @@ export default function ProfilePage() {
   const photoPages = Math.ceil(photosTotal / 36);
   const memberSince = new Date(user.created_at).toLocaleDateString("en-IN", { month: "short", year: "numeric" });
 
+  // ── Achievements (computed from existing user data) ──
+  const achievements = [
+    { id: "first-party", icon: PartyPopper, name: "First Party", desc: "Attended your first party", earned: user.parties_attended >= 1, color: "#F59E0B" },
+    { id: "party-animal", icon: Flame, name: "Party Animal", desc: "Attended 10+ parties", earned: user.parties_attended >= 10, color: "#EF4444" },
+    { id: "host-debut", icon: Crown, name: "Host Debut", desc: "Hosted your first event", earned: user.parties_hosted >= 1, color: "#8B5CF6" },
+    { id: "super-host", icon: Trophy, name: "Super Host", desc: "Hosted 5+ events", earned: user.parties_hosted >= 5, color: "#EC4899" },
+    { id: "social-10", icon: Users, name: "Social Butterfly", desc: "Made 10+ friends", earned: (friendCount ?? 0) >= 10, color: "#06B6D4" },
+    { id: "shutterbug", icon: Camera, name: "Shutterbug", desc: "Posted 5+ photos", earned: profilePhotos.length >= 5, color: "#10B981" },
+    { id: "five-star", icon: Star, name: "Five Star", desc: "Avg rating above 4.5", earned: ratingVal >= 4.5 && user.total_ratings > 0, color: "#F59E0B" },
+    { id: "trusted", icon: Shield, name: "Trusted", desc: "Reached Spark trust level", earned: ["Spark", "Luminary", "Inferno"].includes(trustLevel.name), color: "#8B5CF6" },
+  ];
+  const earnedAchievements = achievements.filter(a => a.earned);
+
+  // ── Profile Completion ──
+  const completionSteps = [
+    { label: "Add photo", done: !!user.avatar_url, weight: 25 },
+    { label: "Write bio", done: !!user.bio, weight: 20 },
+    { label: "Set name", done: user.display_name !== user.username, weight: 15 },
+    { label: "Join a party", done: user.parties_attended >= 1, weight: 20 },
+    { label: "Post a photo", done: profilePhotos.length >= 1, weight: 10 },
+    { label: "Make a friend", done: (friendCount ?? 0) >= 1, weight: 10 },
+  ];
+  const profileCompletion = completionSteps.reduce((sum, s) => sum + (s.done ? s.weight : 0), 0);
+
+  // ── Rating distribution (from history) ──
+  const ratingDistribution = [5, 4, 3, 2, 1].map(score => ({
+    score,
+    count: ratingHistory.filter(r => Math.round(r.avg_score) === score).length,
+  }));
+  const maxDistCount = Math.max(...ratingDistribution.map(d => d.count), 1);
+
+  // ── Filtered friends (for search) ──
+  const filteredFriends = friendSearch
+    ? friends.filter(f =>
+        f.display_name.toLowerCase().includes(friendSearch.toLowerCase()) ||
+        f.username.toLowerCase().includes(friendSearch.toLowerCase())
+      )
+    : friends;
+
+  // ── Share profile ──
+  async function handleShareProfile() {
+    const url = `${window.location.origin}/profile/${user.id}`;
+    if (navigator.share) {
+      try { await navigator.share({ title: `${user.display_name} on maskOn`, url }); } catch { /* cancelled */ }
+    } else {
+      await navigator.clipboard.writeText(url);
+      showToast("Profile link copied!");
+    }
+  }
+
+
   return (
     <div className="min-h-screen bg-bg pb-28 md:pb-12">
 
-      {/* TOAST */}
+      {/* ── TOAST ── */}
       <AnimatePresence>
         {toast && (
           <motion.div
@@ -394,65 +528,103 @@ export default function ProfilePage() {
         )}
       </AnimatePresence>
 
-      {/* HERO BANNER */}
-      <div className="profile-hero h-48 sm:h-56 md:h-64">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-bg" />
+      {/* ── HERO BANNER ── */}
+      <div className="profile-hero h-52 sm:h-60 md:h-72 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-bg/30 to-bg" />
+        {/* Ambient glow orbs */}
+        <div className="absolute top-6 right-8 w-44 h-44 rounded-full blur-3xl opacity-40" style={{ backgroundColor: trustLevel.color }} />
+        <div className="absolute bottom-12 left-6 w-32 h-32 rounded-full bg-accent/15 blur-2xl" />
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 -mt-24 sm:-mt-28 relative z-10">
+      <div className="max-w-2xl mx-auto px-4 -mt-28 sm:-mt-32 relative z-10">
 
-        {/* PROFILE HEADER CARD */}
+        {/* ── PROFILE CARD ── */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className="glass-panel rounded-3xl overflow-hidden shadow-2xl"
+          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          className="glass-panel rounded-3xl overflow-hidden shadow-2xl border border-primary/[0.08]"
         >
-          <div className="px-5 pt-5 pb-6 sm:px-7 sm:pt-6 sm:pb-7">
-            {/* Top section: Avatar + Info */}
-            <div className="flex items-start gap-4 sm:gap-5">
-              {/* Avatar — Instagram-style ring */}
+          <canvas ref={avatarCanvasRef} className="hidden" />
+
+          <div className="px-5 pt-6 pb-5 sm:px-7 sm:pt-7 sm:pb-6">
+            {/* Avatar + Info */}
+            <div className="flex items-start gap-5">
+              {/* Avatar with trust-colored gradient ring */}
               <div className="relative group shrink-0">
-                <div className="w-22 h-22 sm:w-26 sm:h-26 avatar-ring-gradient p-[3px] rounded-full shadow-xl shadow-primary/20">
-                  <div className="w-full h-full rounded-full bg-bg overflow-hidden border-[2px] border-bg">
+                <div
+                  className="w-24 h-24 sm:w-28 sm:h-28 rounded-full p-[3px] shadow-xl"
+                  style={{
+                    background: `linear-gradient(135deg, ${trustLevel.color}, var(--color-primary), var(--color-accent))`,
+                    boxShadow: `0 4px 30px ${trustLevel.color}25`,
+                  }}
+                >
+                  <div className="w-full h-full rounded-full bg-bg overflow-hidden border-[3px] border-bg">
                     {avatarUploading ? (
-                      <div className="w-full h-full flex items-center justify-center bg-surface"><Loader2 className="w-6 h-6 text-primary animate-spin" /></div>
+                      <div className="w-full h-full flex items-center justify-center bg-surface">
+                        <Loader2 className="w-6 h-6 text-primary animate-spin" />
+                      </div>
                     ) : user.avatar_url ? (
                       <img src={user.avatar_url} alt={user.display_name} className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-2xl sm:text-3xl text-text font-bold bg-gradient-to-br from-surface to-surface-light">
+                      <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-text bg-gradient-to-br from-surface to-surface-light">
                         {user.display_name.charAt(0).toUpperCase()}
                       </div>
                     )}
                   </div>
                 </div>
-                <button
-                  onClick={triggerAvatarUpload}
-                  disabled={avatarUploading}
-                  aria-label="Change profile photo"
-                  className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30 hover:bg-primary-hover transition tap-active opacity-0 group-hover:opacity-100 sm:opacity-100 border-2 border-bg"
-                >
-                  <Camera className="w-3.5 h-3.5" />
-                </button>
-                <input ref={avatarInputRef} type="file" aria-label="Upload avatar image" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarUpload} className="hidden" />
+                {editing && (
+                  <button
+                    onClick={triggerAvatarUpload}
+                    disabled={avatarUploading}
+                    aria-label="Change photo"
+                    className="absolute bottom-0 right-0 w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30 hover:bg-primary-hover transition tap-active border-[3px] border-bg"
+                  >
+                    <Camera className="w-4 h-4" />
+                  </button>
+                )}
+                <input ref={avatarInputRef} type="file" aria-label="Upload avatar" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarUpload} className="hidden" />
               </div>
 
               {/* Name + meta */}
-              <div className="flex-1 min-w-0 pt-1">
-                <h1 className="text-lg sm:text-xl font-extrabold text-text tracking-tight truncate leading-tight">{user.display_name}</h1>
-                <p className="text-text-muted text-xs sm:text-sm mt-0.5">@{user.username}</p>
+              <div className="flex-1 min-w-0 pt-1.5">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl sm:text-2xl font-extrabold text-text tracking-tight truncate leading-tight">
+                    {user.display_name}
+                  </h1>
+                  {/* Verification badge for high trust */}
+                  {["Spark", "Luminary", "Inferno"].includes(trustLevel.name) && (
+                    <div
+                      className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: trustLevel.color }}
+                      title={`Verified ${trustLevel.name}`}
+                    >
+                      <Check className="w-3 h-3 text-white" strokeWidth={3} />
+                    </div>
+                  )}
+                </div>
+                <p className="text-text-muted text-sm mt-0.5">@{user.username}</p>
 
                 {user.bio && (
-                  <p className="text-text-muted/80 text-xs sm:text-sm mt-2 line-clamp-2 leading-relaxed">{user.bio}</p>
+                  <p className="text-text-muted/80 text-sm mt-2.5 leading-relaxed line-clamp-2">{user.bio}</p>
                 )}
 
-                <p className="text-text-dim text-[10px] sm:text-xs mt-2 flex items-center gap-1">
-                  <Sparkles className="w-3 h-3" /> Member since {memberSince}
-                </p>
+                <div className="flex items-center flex-wrap gap-2 mt-3">
+                  <span
+                    className="text-xs font-bold px-2.5 py-1 rounded-full inline-flex items-center gap-1"
+                    style={{ color: trustLevel.color, backgroundColor: `${trustLevel.color}15` }}
+                  >
+                    <Shield className="w-3 h-3" />
+                    {trustLevel.name}
+                  </span>
+                  <span className="text-text-dim text-[11px] flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" /> Since {memberSince}
+                  </span>
+                </div>
               </div>
             </div>
 
-            {/* Edit profile mini form */}
+            {/* ── EDIT FORM ── */}
             <AnimatePresence>
               {editing && (
                 <motion.form
@@ -462,6 +634,102 @@ export default function ProfilePage() {
                   onSubmit={handleSave}
                   className="mt-5 pt-5 border-t border-primary/[0.06] space-y-4 overflow-hidden"
                 >
+                  {/* Avatar Edit Section */}
+                  {avatarEditPreview ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-[10px] font-bold text-text-muted uppercase tracking-[0.12em]">Profile Photo</label>
+                        <button type="button" onClick={resetAvatarEdit} className="text-text-dim text-[10px] font-bold uppercase tracking-wider hover:text-error transition tap-active">Remove</button>
+                      </div>
+                      <div className="flex justify-center">
+                        <div className="w-32 h-32 rounded-full overflow-hidden border-2 border-primary/20 shadow-lg">
+                          <img
+                            src={avatarEditPreview}
+                            alt="Preview"
+                            className="w-full h-full object-cover transition-all duration-200"
+                            style={{
+                              filter: avatarCombinedCSS || undefined,
+                              transform: avatarRotation ? `rotate(${avatarRotation}deg)` : undefined,
+                            }}
+                            draggable={false}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex border-b border-primary/[0.06]">
+                        <button type="button" onClick={() => setAvatarEditTab("filters")}
+                          className={`flex-1 py-2.5 text-[10px] font-bold uppercase tracking-wider text-center tap-active transition ${
+                            avatarEditTab === "filters" ? "text-primary border-b-2 border-primary" : "text-text-dim"
+                          }`}>
+                          <Sparkles className="w-3.5 h-3.5 mx-auto mb-0.5" /> Filters
+                        </button>
+                        <button type="button" onClick={() => setAvatarEditTab("adjust")}
+                          className={`flex-1 py-2.5 text-[10px] font-bold uppercase tracking-wider text-center tap-active transition ${
+                            avatarEditTab === "adjust" ? "text-primary border-b-2 border-primary" : "text-text-dim"
+                          }`}>
+                          <Sun className="w-3.5 h-3.5 mx-auto mb-0.5" /> Adjust
+                        </button>
+                      </div>
+                      {avatarEditTab === "filters" && (
+                        <div className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-hide">
+                          {AVATAR_FILTERS.map((f, i) => (
+                            <button key={f.name} type="button" onClick={() => setAvatarFilter(i)}
+                              className={`shrink-0 flex flex-col items-center gap-1 tap-active transition ${
+                                avatarFilter === i ? "opacity-100" : "opacity-60"
+                              }`}>
+                              <div className={`w-14 h-14 rounded-full overflow-hidden border-2 transition ${
+                                avatarFilter === i ? "border-primary shadow-lg shadow-primary/20" : "border-transparent"
+                              }`}>
+                                <img src={avatarEditPreview} alt={f.name} className="w-full h-full object-cover"
+                                  style={{ filter: f.css || undefined }} draggable={false} />
+                              </div>
+                              <span className={`text-[9px] font-semibold ${avatarFilter === i ? "text-primary" : "text-text-dim"}`}>{f.name}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {avatarEditTab === "adjust" && (
+                        <div className="space-y-4">
+                          {[
+                            { label: "Brightness", icon: Sun, value: avatarBrightness, set: setAvatarBrightness, min: 50, max: 150 },
+                            { label: "Contrast", icon: Contrast, value: avatarContrast, set: setAvatarContrast, min: 50, max: 150 },
+                            { label: "Saturation", icon: Droplets, value: avatarSaturation, set: setAvatarSaturation, min: 0, max: 200 },
+                          ].map((s) => (
+                            <div key={s.label} className="space-y-1">
+                              <div className="flex items-center justify-between">
+                                <span className="text-text-muted text-[11px] font-semibold flex items-center gap-1.5">
+                                  <s.icon className="w-3 h-3" /> {s.label}
+                                </span>
+                                <span className="text-text-dim text-[11px] tabular-nums">{s.value}</span>
+                              </div>
+                              <input type="range" min={s.min} max={s.max} value={s.value}
+                                onChange={(e) => s.set(Number(e.target.value))}
+                                className="w-full accent-primary h-1 bg-surface-light rounded-full appearance-none cursor-pointer" />
+                            </div>
+                          ))}
+                          <div className="flex items-center justify-between pt-1">
+                            <button type="button" onClick={() => setAvatarRotation((r) => (r + 90) % 360)}
+                              className="flex items-center gap-1.5 text-text-muted text-[11px] font-semibold tap-active hover:text-text transition">
+                              <RotateCw className="w-3.5 h-3.5" /> Rotate
+                            </button>
+                            <button type="button" onClick={() => { setAvatarFilter(0); setAvatarBrightness(100); setAvatarContrast(100); setAvatarSaturation(100); setAvatarRotation(0); }}
+                              className="text-text-dim text-[11px] font-semibold tap-active hover:text-error transition">
+                              Reset All
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      <button type="button" onClick={uploadProcessedAvatar} disabled={avatarUploading}
+                        className="btn-primary-luxe w-full font-bold py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 tap-active disabled:opacity-50">
+                        {avatarUploading ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Uploading…</> : <><Camera className="w-3.5 h-3.5" />Update Photo</>}
+                      </button>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={triggerAvatarUpload}
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-dashed border-primary/20 text-text-muted text-sm font-semibold hover:border-primary/40 hover:text-text transition tap-active">
+                      <Camera className="w-4 h-4 text-primary" /> Change Profile Photo
+                    </button>
+                  )}
+
                   <div className="space-y-3">
                     <div>
                       <label className="block text-[10px] font-bold text-text-muted uppercase tracking-[0.12em] mb-1.5">Display Name</label>
@@ -480,52 +748,143 @@ export default function ProfilePage() {
                     <button type="submit" disabled={saving} className="btn-primary-luxe font-bold px-5 py-2.5 rounded-xl transition disabled:opacity-50 flex items-center gap-2 text-sm flex-1 justify-center tap-active">
                       {saving ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Saving</> : <><Check className="w-3.5 h-3.5" />Save</>}
                     </button>
-                    <button type="button" onClick={() => { setEditing(false); setDisplayName(user.display_name); setBio(user.bio || ""); }}
+                    <button type="button" onClick={() => { setEditing(false); setDisplayName(user.display_name); setBio(user.bio || ""); resetAvatarEdit(); }}
                       className="btn-secondary-luxe px-5 py-2.5 rounded-xl transition text-sm tap-active">Cancel</button>
                   </div>
                 </motion.form>
               )}
             </AnimatePresence>
 
-            {/* STATS ROW */}
-            <div className="flex items-center justify-around mt-5 pt-5 border-t border-primary/[0.06]">
+            {/* ── STATS ROW ── */}
+            <div className="grid grid-cols-5 gap-1 mt-6 pt-5 border-t border-primary/[0.06]">
               {[
-                { label: "Posts", value: profilePhotos.length, color: "text-text" },
-                { label: "Friends", value: friendCount === null ? "…" : friendCount, color: "text-text" },
-                { label: "Hosted", value: user.parties_hosted, color: "text-accent" },
-                { label: "Joined", value: user.parties_attended, color: "text-primary" },
-              ].map((stat) => (
-                <div key={stat.label} className="text-center px-1">
-                  <div className={`text-base sm:text-lg font-bold ${stat.color} flex items-center justify-center gap-0.5 leading-none`}>
-                    {stat.value}
-                  </div>
-                  <div className="text-[8px] sm:text-[9px] text-text-dim uppercase tracking-wider font-semibold mt-1">{stat.label}</div>
-                </div>
+                { label: "Posts", value: profilePhotos.length, icon: Grid3x3 },
+                { label: "Friends", value: friendCount === null ? "…" : friendCount, icon: Users },
+                { label: "Hosted", value: user.parties_hosted, icon: Crown },
+                { label: "Joined", value: user.parties_attended, icon: PartyPopper },
+                { label: "Rating", value: user.total_ratings > 0 ? ratingVal.toFixed(1) : "—", icon: Star },
+              ].map((stat, i) => (
+                <motion.div
+                  key={stat.label}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 + i * 0.05 }}
+                  className="text-center py-2"
+                >
+                  <stat.icon className="w-3.5 h-3.5 mx-auto text-text-dim/60 mb-1" />
+                  <div className="text-base sm:text-lg font-extrabold text-text leading-none">{stat.value}</div>
+                  <div className="text-[8px] text-text-dim uppercase tracking-wider font-bold mt-1">{stat.label}</div>
+                </motion.div>
               ))}
-              {/* Trust Level */}
-              <div className="text-center px-1">
-                <div className="flex items-center justify-center">
-                  <TrustBadge rating={ratingVal} totalParties={user.total_ratings} size="sm" showLabel={false} />
-                </div>
-                <div className="text-[8px] sm:text-[9px] uppercase tracking-wider font-semibold mt-1" style={{ color: trustLevel.color }}>{trustLevel.name}</div>
-              </div>
             </div>
           </div>
         </motion.div>
 
-        {/* QUICK ACTIONS */}
-        <div className="grid grid-cols-2 gap-2 mt-3">
-          <button onClick={() => { setEditing(true); setMessage(""); }}
-            className="glass-panel border border-primary/[0.06] text-text font-semibold py-2.5 rounded-2xl hover:border-primary/15 transition text-sm flex items-center justify-center gap-2 tap-active">
-            <Edit3 className="w-4 h-4 text-primary" /> Edit Profile
+        {/* ── ACTION BUTTONS ── */}
+        <div className="grid grid-cols-3 gap-2 mt-3">
+          <button
+            onClick={() => { setEditing(true); setMessage(""); }}
+            className="glass-panel border border-primary/[0.06] text-text font-semibold py-2.5 rounded-2xl hover:border-primary/15 transition text-sm flex items-center justify-center gap-1.5 tap-active"
+          >
+            <Edit3 className="w-4 h-4 text-primary" /> Edit
           </button>
-          <Link to="/dashboard"
-            className="glass-panel border border-primary/[0.06] text-text font-semibold py-2.5 rounded-2xl hover:border-primary/15 transition text-sm flex items-center justify-center gap-2 tap-active">
-            <LayoutDashboard className="w-4 h-4 text-accent" /> Dashboard
+          <button
+            onClick={handleShareProfile}
+            className="glass-panel border border-primary/[0.06] text-text font-semibold py-2.5 rounded-2xl hover:border-primary/15 transition text-sm flex items-center justify-center gap-1.5 tap-active"
+          >
+            <Share2 className="w-4 h-4 text-accent" /> Share
+          </button>
+          <Link
+            to="/dashboard"
+            className="glass-panel border border-primary/[0.06] text-text font-semibold py-2.5 rounded-2xl hover:border-primary/15 transition text-sm flex items-center justify-center gap-1.5 tap-active"
+          >
+            <LayoutDashboard className="w-4 h-4 text-warning" /> Host
           </Link>
         </div>
 
-        {/* TAB BAR */}
+        {/* ── PROFILE COMPLETION ── */}
+        {profileCompletion < 100 && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="glass-panel rounded-2xl p-4 mt-3 border border-primary/[0.06]"
+          >
+            <div className="flex items-center gap-4">
+              {/* SVG completion ring */}
+              <div className="relative w-14 h-14 shrink-0">
+                <svg className="w-full h-full -rotate-90" viewBox="0 0 48 48">
+                  <circle cx="24" cy="24" r="20" fill="none" stroke="var(--color-primary)" strokeOpacity="0.1" strokeWidth="4" />
+                  <circle
+                    cx="24" cy="24" r="20" fill="none" stroke="var(--color-primary)" strokeWidth="4" strokeLinecap="round"
+                    strokeDasharray={`${2 * Math.PI * 20}`}
+                    strokeDashoffset={`${2 * Math.PI * 20 * (1 - profileCompletion / 100)}`}
+                    className="transition-all duration-1000"
+                  />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-xs font-extrabold text-primary">
+                  {profileCompletion}%
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-text font-bold text-sm">Complete your profile</p>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {completionSteps.filter(s => !s.done).map(step => (
+                    <span key={step.label} className="text-[10px] font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full">
+                      {step.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── ACHIEVEMENTS ── */}
+        {achievements.length > 0 && (
+          <div className="mt-5">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-text-dim font-bold flex items-center gap-1.5">
+                <Trophy className="w-3 h-3" /> Achievements
+              </p>
+              <span className="text-[10px] text-text-dim font-semibold">
+                {earnedAchievements.length}/{achievements.length}
+              </span>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+              {achievements.map((a) => (
+                <motion.div
+                  key={a.id}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className={`shrink-0 flex flex-col items-center gap-1.5 transition ${
+                    a.earned ? "" : "opacity-25 grayscale"
+                  }`}
+                >
+                  <div
+                    className="w-14 h-14 rounded-2xl flex items-center justify-center relative"
+                    style={a.earned ? {
+                      backgroundColor: `${a.color}15`,
+                      boxShadow: `0 0 24px ${a.color}20`,
+                    } : { backgroundColor: "var(--color-surface-light)" }}
+                  >
+                    <a.icon className="w-6 h-6" style={a.earned ? { color: a.color } : {}} />
+                    {a.earned && (
+                      <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-success flex items-center justify-center shadow-sm">
+                        <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-[9px] font-bold text-text-dim max-w-[64px] truncate text-center">
+                    {a.name}
+                  </span>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── TAB BAR ── */}
         <div className="flex mt-5 rounded-xl overflow-hidden glass-panel p-0.5">
           {([
             { key: "photos" as const, icon: Grid3x3, label: "Posts" },
@@ -543,14 +902,17 @@ export default function ProfilePage() {
             >
               <t.icon className="w-3.5 h-3.5" />
               {t.label}
+              {t.key === "friends" && pendingRequests.length > 0 && (
+                <span className="w-2 h-2 rounded-full bg-warning absolute top-1.5 right-[28%] animate-pulse" />
+              )}
             </button>
           ))}
         </div>
 
-        {/* TAB CONTENT */}
+        {/* ── TAB CONTENT ── */}
         <div className="mt-4">
 
-          {/* PHOTOS TAB */}
+          {/* ═══ PHOTOS TAB ═══ */}
           {tab === "photos" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
               {/* Event Highlights */}
@@ -565,14 +927,26 @@ export default function ProfilePage() {
                       const cover = eventPhotos[0];
                       const isActive = storyPartyId === partyId;
                       return (
-                        <button key={partyId} onClick={() => { setStoryPartyId(partyId); setStoryIndex(0); }}
-                          className="shrink-0 flex flex-col items-center gap-1.5 group tap-active" title={partyTitles[partyId] || "Event"}>
-                          <div className={`p-[2.5px] rounded-full transition-all duration-300 ${isActive ? "bg-gradient-to-br from-primary via-warning to-accent shadow-lg shadow-primary/20 scale-105" : "bg-text-dim/20 group-hover:bg-primary/40"}`}>
+                        <button
+                          key={partyId}
+                          onClick={() => { setStoryPartyId(partyId); setStoryIndex(0); }}
+                          className="shrink-0 flex flex-col items-center gap-1.5 group tap-active"
+                          title={partyTitles[partyId] || "Event"}
+                        >
+                          <div className={`p-[2.5px] rounded-full transition-all duration-300 ${
+                            isActive
+                              ? "bg-gradient-to-br from-primary via-warning to-accent shadow-lg shadow-primary/20 scale-105"
+                              : "bg-text-dim/20 group-hover:bg-primary/40"
+                          }`}>
                             <div className="w-16 h-16 rounded-full overflow-hidden border-[3px] border-bg bg-surface">
-                              {cover ? <img src={cover.image_url} alt={partyTitles[partyId] || "Event"} className="w-full h-full object-cover" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center text-text-dim"><PartyPopper className="w-5 h-5" /></div>}
+                              {cover
+                                ? <img src={cover.image_url} alt={partyTitles[partyId] || "Event"} className="w-full h-full object-cover" loading="lazy" />
+                                : <div className="w-full h-full flex items-center justify-center text-text-dim"><PartyPopper className="w-5 h-5" /></div>}
                             </div>
                           </div>
-                          <span className="text-[10px] text-text-dim max-w-[72px] truncate text-center font-medium">{partyTitles[partyId] || "Event"}</span>
+                          <span className="text-[10px] text-text-dim max-w-[72px] truncate text-center font-medium">
+                            {partyTitles[partyId] || "Event"}
+                          </span>
                         </button>
                       );
                     })}
@@ -580,27 +954,32 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              {/* New Post button */}
-              <Link to="/create-post" className="glass-panel rounded-2xl p-3 mb-4 flex items-center justify-center gap-2 tap-active hover:border-primary/15 transition border border-primary/[0.06]">
-                <ImagePlus className="w-4 h-4 text-primary" />
+              {/* New Post CTA */}
+              <Link
+                to="/create-post"
+                className="glass-panel rounded-2xl p-3.5 mb-4 flex items-center justify-center gap-2 tap-active hover:border-primary/15 transition border border-primary/[0.06] group"
+              >
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition">
+                  <ImagePlus className="w-4 h-4 text-primary" />
+                </div>
                 <span className="text-text font-semibold text-sm">Create New Post</span>
               </Link>
 
               {/* Photo grid */}
               {photosLoading ? (
-                <div className="grid grid-cols-3 gap-1 rounded-xl overflow-hidden">
+                <div className="grid grid-cols-3 gap-[2px] rounded-xl overflow-hidden">
                   {Array.from({ length: 9 }).map((_, i) => (
                     <div key={i} className="aspect-square shimmer" />
                   ))}
                 </div>
               ) : profilePhotos.length === 0 ? (
-                <div className="text-center py-16 glass-panel rounded-2xl">
-                  <div className="w-14 h-14 rounded-2xl bg-surface-light mx-auto mb-3 flex items-center justify-center">
-                    <Camera className="w-7 h-7 text-text-dim/30" />
+                <div className="text-center py-16 glass-panel rounded-2xl border border-primary/[0.06]">
+                  <div className="w-16 h-16 rounded-2xl bg-surface-light mx-auto mb-4 flex items-center justify-center">
+                    <Camera className="w-8 h-8 text-text-dim/20" />
                   </div>
-                  <p className="text-text-dim font-semibold">No posts yet</p>
-                  <p className="text-text-dim/60 text-sm mt-1 mb-4">Share your best moments</p>
-                  <Link to="/create-post" className="btn-primary-luxe text-sm font-bold px-5 py-2.5 rounded-xl tap-active inline-flex items-center gap-2">
+                  <p className="text-text font-bold text-base">No posts yet</p>
+                  <p className="text-text-dim text-sm mt-1 mb-5">Share your best party moments</p>
+                  <Link to="/create-post" className="btn-primary-luxe text-sm font-bold px-6 py-2.5 rounded-xl tap-active inline-flex items-center gap-2">
                     <ImagePlus className="w-4 h-4" /> Create Post
                   </Link>
                 </div>
@@ -608,22 +987,37 @@ export default function ProfilePage() {
                 <>
                   <div className="grid grid-cols-3 gap-[2px] sm:gap-1 rounded-xl overflow-hidden">
                     {profilePhotos.map((photo, idx) => (
-                      <div key={photo.id} className="aspect-square bg-surface overflow-hidden cursor-pointer group relative tap-active"
-                        onClick={() => setFeedStartIndex(idx)}>
-                        <img src={photo.image_url} alt={photo.caption || "Photo"} className="w-full h-full object-cover transition group-hover:scale-105 duration-300" loading="lazy" />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition flex items-center justify-center opacity-0 group-hover:opacity-100">
+                      <motion.div
+                        key={photo.id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: Math.min(idx * 0.03, 0.3) }}
+                        className="aspect-square bg-surface overflow-hidden cursor-pointer group relative tap-active"
+                        onClick={() => setFeedStartIndex(idx)}
+                      >
+                        <img src={photo.image_url} alt={photo.caption || "Photo"} className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300" loading="lazy" />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
                           <div className="flex gap-4">
-                            <span className="text-white text-sm font-bold flex items-center gap-1"><Heart className="w-4 h-4 fill-white" /> {photo.like_count}</span>
+                            <span className="text-white text-sm font-bold flex items-center gap-1">
+                              <Heart className="w-4 h-4 fill-white" /> {photo.like_count}
+                            </span>
+                            <span className="text-white text-sm font-bold flex items-center gap-1">
+                              <MessageCircle className="w-4 h-4 fill-white" /> {photo.comment_count || 0}
+                            </span>
                           </div>
                         </div>
-                      </div>
+                      </motion.div>
                     ))}
                   </div>
                   {photoPages > 1 && (
                     <div className="flex justify-center items-center gap-3 mt-6">
-                      <button onClick={() => setPhotosPage((p) => Math.max(1, p - 1))} disabled={photosPage === 1} className="btn-secondary-luxe p-2.5 rounded-xl disabled:opacity-30 tap-active" aria-label="Previous page"><ChevronLeft className="w-4 h-4" /></button>
+                      <button onClick={() => setPhotosPage((p) => Math.max(1, p - 1))} disabled={photosPage === 1} className="btn-secondary-luxe p-2.5 rounded-xl disabled:opacity-30 tap-active" aria-label="Previous page">
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
                       <span className="text-text-muted text-sm font-semibold tabular-nums">{photosPage} / {photoPages}</span>
-                      <button onClick={() => setPhotosPage((p) => Math.min(photoPages, p + 1))} disabled={photosPage === photoPages} className="btn-secondary-luxe p-2.5 rounded-xl disabled:opacity-30 tap-active" aria-label="Next page"><ChevronRight className="w-4 h-4" /></button>
+                      <button onClick={() => setPhotosPage((p) => Math.min(photoPages, p + 1))} disabled={photosPage === photoPages} className="btn-secondary-luxe p-2.5 rounded-xl disabled:opacity-30 tap-active" aria-label="Next page">
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
                     </div>
                   )}
                 </>
@@ -631,22 +1025,63 @@ export default function ProfilePage() {
             </motion.div>
           )}
 
-          {/* RATINGS TAB — Crowd Rating History */}
+          {/* ═══ RATINGS TAB ═══ */}
           {tab === "ratings" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
               {/* Trust Level summary card */}
-              <div className="glass-panel rounded-2xl p-5 mb-4 flex items-center gap-4">
-                <TrustBadge rating={ratingVal} totalParties={user.total_ratings} size="lg" showLabel={false} />
+              <div className="glass-panel rounded-2xl p-5 mb-4 border border-primary/[0.06] flex items-center gap-4">
+                <div className="relative shrink-0">
+                  <TrustBadge rating={ratingVal} totalParties={user.total_ratings} size="lg" showLabel={false} />
+                </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-lg font-bold" style={{ color: trustLevel.color }}>{trustLevel.name}</div>
-                  <p className="text-text-dim text-xs">
+                  <div className="text-lg font-extrabold" style={{ color: trustLevel.color }}>{trustLevel.name}</div>
+                  <p className="text-text-dim text-xs mt-0.5">
                     {user.total_ratings > 0
                       ? `${ratingVal.toFixed(1)}/5 avg across ${user.total_ratings} ${user.total_ratings === 1 ? "party" : "parties"}`
-                      : "Attend parties to build your trust level"}
+                      : "Attend parties to build your trust level"
+                    }
                   </p>
+                  {/* Mini progress to next level */}
+                  {trustLevel.name !== "Inferno" && user.total_ratings > 0 && (
+                    <div className="mt-2">
+                      <div className="h-1.5 bg-surface-light rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-1000"
+                          style={{ backgroundColor: trustLevel.color, width: `${Math.min(100, (ratingVal / 5) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
+              {/* Rating Distribution */}
+              {ratingHistory.length > 0 && (
+                <div className="glass-panel rounded-2xl p-4 mb-4 border border-primary/[0.06]">
+                  <p className="text-[10px] uppercase tracking-[0.15em] text-text-dim font-bold mb-3 flex items-center gap-1.5">
+                    <BarChart3 className="w-3 h-3" /> Rating Distribution
+                  </p>
+                  <div className="space-y-2">
+                    {ratingDistribution.map((d) => (
+                      <div key={d.score} className="flex items-center gap-2.5">
+                        <span className="text-text-muted text-xs font-bold w-3 text-right">{d.score}</span>
+                        <Star className="w-3 h-3 text-warning shrink-0" />
+                        <div className="flex-1 h-2 bg-surface-light rounded-full overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${(d.count / maxDistCount) * 100}%` }}
+                            transition={{ duration: 0.8, delay: (5 - d.score) * 0.1 }}
+                            className="h-full rounded-full bg-warning"
+                          />
+                        </div>
+                        <span className="text-text-dim text-[10px] font-semibold w-5 tabular-nums">{d.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Rating History */}
               {ratingsLoading ? (
                 <div className="space-y-3">
                   {Array.from({ length: 3 }).map((_, i) => (
@@ -660,34 +1095,47 @@ export default function ProfilePage() {
                   ))}
                 </div>
               ) : ratingHistory.length === 0 ? (
-                <div className="text-center py-16 glass-panel rounded-2xl">
-                  <div className="w-14 h-14 rounded-2xl bg-surface-light mx-auto mb-3 flex items-center justify-center">
-                    <Star className="w-7 h-7 text-text-dim/30" />
+                <div className="text-center py-16 glass-panel rounded-2xl border border-primary/[0.06]">
+                  <div className="w-16 h-16 rounded-2xl bg-surface-light mx-auto mb-4 flex items-center justify-center">
+                    <Star className="w-8 h-8 text-text-dim/20" />
                   </div>
-                  <p className="text-text-dim font-semibold">No crowd ratings yet</p>
-                  <p className="text-text-dim/60 text-sm mt-1">Attend parties to build your reputation</p>
+                  <p className="text-text font-bold text-base">No crowd ratings yet</p>
+                  <p className="text-text-dim text-sm mt-1">Attend parties to build your reputation</p>
                 </div>
               ) : (
                 <div className="space-y-2">
                   {ratingHistory.map((entry, i) => {
                     const entryLevel = getTrustLevel(entry.avg_score, 1);
                     return (
-                      <motion.div key={entry.party_id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.04, 0.25) }}>
-                        <Link to={`/parties/${entry.party_id}`} className="glass-panel rounded-2xl p-4 flex items-center gap-3 tap-active block hover:border-primary/10 transition">
+                      <motion.div
+                        key={entry.party_id}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: Math.min(i * 0.04, 0.25) }}
+                      >
+                        <Link
+                          to={`/parties/${entry.party_id}`}
+                          className="glass-panel rounded-2xl p-4 flex items-center gap-3 tap-active block hover:border-primary/10 transition border border-transparent"
+                        >
                           <div
-                            className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0"
-                            style={{ backgroundColor: entryLevel.color, boxShadow: `0 0 12px ${entryLevel.color}30` }}
+                            className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0"
+                            style={{
+                              backgroundColor: entryLevel.color,
+                              boxShadow: `0 0 16px ${entryLevel.color}25`,
+                            }}
                           >
                             {entry.avg_score.toFixed(1)}
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-text font-bold text-sm truncate">{entry.party_title}</p>
-                            <p className="text-text-dim text-[10px]">
+                            <p className="text-text-dim text-[10px] mt-0.5">
                               {new Date(entry.party_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                              {" • "}{entry.total_votes} vote{entry.total_votes !== 1 ? "s" : ""}
+                              {" · "}{entry.total_votes} vote{entry.total_votes !== 1 ? "s" : ""}
                             </p>
                           </div>
-                          <span className="text-[10px] font-bold shrink-0" style={{ color: entryLevel.color }}>{entryLevel.name}</span>
+                          <span className="text-[10px] font-bold shrink-0 px-2 py-0.5 rounded-full" style={{ color: entryLevel.color, backgroundColor: `${entryLevel.color}12` }}>
+                            {entryLevel.name}
+                          </span>
                         </Link>
                       </motion.div>
                     );
@@ -697,24 +1145,45 @@ export default function ProfilePage() {
             </motion.div>
           )}
 
-          {/* FRIENDS TAB */}
+          {/* ═══ FRIENDS TAB ═══ */}
           {tab === "friends" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+              {/* Friend search */}
+              {friends.length > 5 && (
+                <div className="relative mb-4">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim" />
+                  <input
+                    type="text"
+                    placeholder="Search friends…"
+                    value={friendSearch}
+                    onChange={(e) => setFriendSearch(e.target.value)}
+                    className="input-luxe w-full rounded-xl pl-10 pr-4 py-2.5 text-sm"
+                  />
+                </div>
+              )}
+
               {/* Pending requests */}
               {(pendingLoading || pendingRequests.length > 0) && (
                 <div className="mb-5">
                   <h3 className="text-[10px] font-bold text-text-dim uppercase tracking-[0.15em] mb-3 flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-warning animate-pulse" />
-                    {pendingLoading ? "Loading\u2026" : `Pending Requests (${pendingRequests.length})`}
+                    {pendingLoading ? "Loading…" : `Pending Requests (${pendingRequests.length})`}
                   </h3>
                   {!pendingLoading && (
                     <div className="space-y-2">
                       {pendingRequests.map((req) => (
-                        <motion.div key={req.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} className="glass-panel rounded-2xl p-4 flex items-center gap-3">
+                        <motion.div
+                          key={req.id}
+                          initial={{ opacity: 0, x: -8 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          className="glass-panel rounded-2xl p-4 flex items-center gap-3 border border-warning/10"
+                        >
                           <Link to={`/profile/${req.id}`} className="shrink-0">
                             <div className="w-11 h-11 rounded-full bg-gradient-to-br from-primary to-accent p-[1.5px]">
                               <div className="w-full h-full rounded-full bg-bg overflow-hidden flex items-center justify-center text-text text-sm font-bold">
-                                {req.avatar_url ? <img src={req.avatar_url} alt={req.display_name} className="w-full h-full object-cover" /> : req.display_name.charAt(0).toUpperCase()}
+                                {req.avatar_url
+                                  ? <img src={req.avatar_url} alt={req.display_name} className="w-full h-full object-cover" />
+                                  : req.display_name.charAt(0).toUpperCase()}
                               </div>
                             </div>
                           </Link>
@@ -723,10 +1192,20 @@ export default function ProfilePage() {
                             <p className="text-text-muted text-xs">@{req.username}</p>
                           </Link>
                           <div className="flex gap-1.5 shrink-0">
-                            <button onClick={() => handleAcceptFriend(req.id)} disabled={pendingActionId === req.id}
-                              className="bg-primary/15 hover:bg-primary/25 text-primary font-bold text-xs px-3 py-2 rounded-xl transition disabled:opacity-50 tap-active">Accept</button>
-                            <button onClick={() => handleDeclineFriend(req.id)} disabled={pendingActionId === req.id}
-                              className="bg-text-dim/10 text-text-muted font-semibold text-xs px-3 py-2 rounded-xl transition disabled:opacity-50 tap-active">Decline</button>
+                            <button
+                              onClick={() => handleAcceptFriend(req.id)}
+                              disabled={pendingActionId === req.id}
+                              className="bg-primary/15 hover:bg-primary/25 text-primary font-bold text-xs px-3 py-2 rounded-xl transition disabled:opacity-50 tap-active"
+                            >
+                              Accept
+                            </button>
+                            <button
+                              onClick={() => handleDeclineFriend(req.id)}
+                              disabled={pendingActionId === req.id}
+                              className="bg-text-dim/10 text-text-muted font-semibold text-xs px-3 py-2 rounded-xl transition disabled:opacity-50 tap-active"
+                            >
+                              Decline
+                            </button>
                           </div>
                         </motion.div>
                       ))}
@@ -741,42 +1220,63 @@ export default function ProfilePage() {
                   {Array.from({ length: 4 }).map((_, i) => (
                     <div key={i} className="glass-panel rounded-2xl p-4 flex items-center gap-3">
                       <div className="w-11 h-11 rounded-full shimmer" />
-                      <div className="flex-1 space-y-2"><div className="h-3.5 shimmer rounded-lg w-24" /><div className="h-3 shimmer rounded-lg w-16" /></div>
+                      <div className="flex-1 space-y-2">
+                        <div className="h-3.5 shimmer rounded-lg w-24" />
+                        <div className="h-3 shimmer rounded-lg w-16" />
+                      </div>
                     </div>
                   ))}
                 </div>
               ) : friends.length === 0 && pendingRequests.length === 0 ? (
-                <div className="text-center py-16 glass-panel rounded-2xl">
-                  <div className="w-14 h-14 rounded-2xl bg-surface-light mx-auto mb-3 flex items-center justify-center">
-                    <Users className="w-7 h-7 text-text-dim/30" />
+                <div className="text-center py-16 glass-panel rounded-2xl border border-primary/[0.06]">
+                  <div className="w-16 h-16 rounded-2xl bg-surface-light mx-auto mb-4 flex items-center justify-center">
+                    <Users className="w-8 h-8 text-text-dim/20" />
                   </div>
-                  <p className="text-text-dim font-semibold">No friends yet</p>
-                  <p className="text-text-dim/60 text-sm mt-1 mb-4">Discover people at parties</p>
-                  <Link to="/parties" className="btn-primary-luxe text-sm font-bold px-5 py-2.5 rounded-xl tap-active inline-flex items-center gap-2">
+                  <p className="text-text font-bold text-base">No friends yet</p>
+                  <p className="text-text-dim text-sm mt-1 mb-5">Discover people at parties</p>
+                  <Link to="/parties" className="btn-primary-luxe text-sm font-bold px-6 py-2.5 rounded-xl tap-active inline-flex items-center gap-2">
                     <UserPlus className="w-4 h-4" /> Find Friends
                   </Link>
                 </div>
-              ) : friends.length > 0 ? (
+              ) : filteredFriends.length > 0 ? (
                 <div className="space-y-2">
-                  {friends.map((f, i) => (
-                    <motion.div key={f.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: Math.min(i * 0.03, 0.2) }}
-                      className="glass-panel rounded-2xl p-4 flex items-center gap-3">
+                  {filteredFriends.map((f, i) => (
+                    <motion.div
+                      key={f.id}
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: Math.min(i * 0.03, 0.2) }}
+                      className="glass-panel rounded-2xl p-4 flex items-center gap-3"
+                    >
                       <Link to={`/profile/${f.id}`} className="shrink-0">
                         <div className="w-11 h-11 rounded-full bg-gradient-to-br from-primary to-accent p-[1.5px]">
                           <div className="w-full h-full rounded-full bg-bg overflow-hidden flex items-center justify-center text-text font-bold text-sm">
-                            {f.avatar_url ? <img src={f.avatar_url} alt={f.display_name} className="w-full h-full object-cover" /> : f.display_name.charAt(0).toUpperCase()}
+                            {f.avatar_url
+                              ? <img src={f.avatar_url} alt={f.display_name} className="w-full h-full object-cover" />
+                              : f.display_name.charAt(0).toUpperCase()}
                           </div>
                         </div>
                       </Link>
                       <Link to={`/profile/${f.id}`} className="flex-1 min-w-0 hover:opacity-80 transition">
                         <p className="text-text font-bold text-sm truncate">{f.display_name}</p>
-                        <p className="text-xs font-bold" style={{ color: getTrustLevel(Number(f.social_rating), 1).color }}>{getTrustLevel(Number(f.social_rating), 1).name}</p>
+                        <p className="text-xs font-bold" style={{ color: getTrustLevel(Number(f.social_rating), 1).color }}>
+                          {getTrustLevel(Number(f.social_rating), 1).name}
+                        </p>
                       </Link>
-                      <button onClick={() => handleUnfriend(f.id)} className="text-text-dim hover:text-error text-xs p-2.5 rounded-xl transition shrink-0 tap-active hover:bg-error/10" title="Remove friend" aria-label={`Remove ${f.display_name} as friend`}>
+                      <button
+                        onClick={() => handleUnfriend(f.id)}
+                        className="text-text-dim hover:text-error text-xs p-2.5 rounded-xl transition shrink-0 tap-active hover:bg-error/10"
+                        title="Remove friend"
+                        aria-label={`Remove ${f.display_name} as friend`}
+                      >
                         <X className="w-4 h-4" />
                       </button>
                     </motion.div>
                   ))}
+                </div>
+              ) : friendSearch ? (
+                <div className="text-center py-12 glass-panel rounded-2xl">
+                  <p className="text-text-dim text-sm">No friends matching "{friendSearch}"</p>
                 </div>
               ) : null}
             </motion.div>
@@ -784,7 +1284,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* INSTAGRAM-STYLE SCROLLABLE FEED */}
+      {/* ═══ INSTAGRAM-STYLE SCROLLABLE FEED ═══ */}
       <AnimatePresence>
         {feedStartIndex !== null && (
           <motion.div
@@ -809,7 +1309,6 @@ export default function ProfilePage() {
                     key={photo.id}
                     ref={(el) => {
                       feedPhotoRefs.current[idx] = el;
-                      // Track view when post scrolls into viewport
                       if (el) {
                         const observer = new IntersectionObserver(([entry]) => {
                           if (entry.isIntersecting) { trackView(photo.id); observer.disconnect(); }
@@ -831,7 +1330,6 @@ export default function ProfilePage() {
                       <div className="flex-1 min-w-0">
                         <p className="text-text text-sm font-bold truncate">{user?.display_name}</p>
                       </div>
-                      {/* Actions menu */}
                       <button onClick={() => loadInsights(photo.id)} className="text-text-dim hover:text-primary transition p-2 rounded-lg hover:bg-primary/10 tap-active" aria-label="View insights" title="Insights">
                         <BarChart3 className="w-4 h-4" />
                       </button>
@@ -882,7 +1380,7 @@ export default function ProfilePage() {
                       <img src={photo.image_url} alt={photo.caption || "Photo"} className="w-full max-h-[70vh] object-contain" loading={idx > 2 ? "lazy" : undefined} />
                     </div>
 
-                    {/* Instagram-style actions & info */}
+                    {/* Actions & info */}
                     <div className="px-4 pt-3 pb-3">
                       <div className="flex items-center gap-4 mb-2">
                         <button className="tap-active" aria-label="Like">
@@ -946,7 +1444,7 @@ export default function ProfilePage() {
                         <span className="text-text-dim text-sm">Add a comment…</span>
                       </button>
 
-                      {/* Minimal view count + date */}
+                      {/* View count + date */}
                       <div className="flex items-center gap-3 mt-2">
                         <span className="text-text-dim text-[10px] flex items-center gap-1"><Eye className="w-3 h-3" /> {(photo.view_count || 0).toLocaleString()} views</span>
                         <span className="text-text-dim text-[10px] uppercase">
@@ -962,7 +1460,7 @@ export default function ProfilePage() {
         )}
       </AnimatePresence>
 
-      {/* COMMENTS BOTTOM SHEET */}
+      {/* ═══ COMMENTS BOTTOM SHEET ═══ */}
       <AnimatePresence>
         {activeCommentPhotoId && (
           <motion.div
@@ -1043,7 +1541,7 @@ export default function ProfilePage() {
         )}
       </AnimatePresence>
 
-      {/* INSTAGRAM-STYLE STORY VIEWER */}
+      {/* ═══ STORY VIEWER ═══ */}
       <AnimatePresence>
         {storyPartyId && storyPhotos.length > 0 && (
           <motion.div
