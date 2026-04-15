@@ -43,19 +43,16 @@ export function SkeletonCard({ lines = 3 }: { lines?: number }) {
 /** Party card shimmer */
 export function SkeletonPartyCard() {
   return (
-    <div className="glass-panel rounded-2xl overflow-hidden" aria-hidden="true">
-      <Skeleton className="w-full h-44 rounded-none" />
-      <div className="p-4 space-y-3">
+    <div className="rounded-2xl overflow-hidden discover-card" aria-hidden="true">
+      <Skeleton className="w-full aspect-[16/10] rounded-none" />
+      <div className="p-3.5 space-y-2.5">
         <Skeleton className="h-5 w-3/4" />
         <div className="flex gap-3">
-          <Skeleton className="h-3 w-20" />
-          <Skeleton className="h-3 w-24" />
-        </div>
-        <Skeleton className="h-2.5 w-full rounded-full" />
-        <div className="flex justify-between">
+          <Skeleton className="h-3 w-16" />
           <Skeleton className="h-3 w-16" />
           <Skeleton className="h-3 w-12" />
         </div>
+        <Skeleton className="h-1 w-full rounded-full" />
       </div>
     </div>
   );
