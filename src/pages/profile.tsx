@@ -495,6 +495,7 @@ export default function ProfilePage() {
 
   // ── Share profile ──
   async function handleShareProfile() {
+    if (!user) return;
     const url = `${window.location.origin}/profile/${user.id}`;
     if (navigator.share) {
       try { await navigator.share({ title: `${user.display_name} on maskOn`, url }); } catch { /* cancelled */ }

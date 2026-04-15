@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   MapPin, Clock, Users, Ticket, Shield, Loader2, Sparkles, X,
   ChevronRight, ChevronLeft, Camera, Upload, Calendar,
-  Zap, Crown, PartyPopper, Check, Save, Trash2, Info, Image,
+  Zap, Crown, PartyPopper, Check, Save, Trash2, Info,
 } from "lucide-react";
 
 // ═══════════════════════════════════════════════════════════
@@ -163,7 +163,6 @@ function TagChip({ tag, selected, onToggle }: { tag: string; selected: boolean; 
 
 function CapacitySelector({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   const [custom, setCustom] = useState(false);
-  const isPreset = !custom && CAPACITY_PRESETS.some((p) => p.value === value);
 
   return (
     <div className="space-y-3">

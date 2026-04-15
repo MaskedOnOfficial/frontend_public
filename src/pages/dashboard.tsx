@@ -457,7 +457,6 @@ export default function DashboardPage() {
                 >
                   <div className="space-y-2.5">
                     {pastParties.map((party) => {
-                      const capPct = party.max_capacity > 0 ? Math.round((party.current_attendees / party.max_capacity) * 100) : 0;
                       return (
                         <Link
                           key={party.id}

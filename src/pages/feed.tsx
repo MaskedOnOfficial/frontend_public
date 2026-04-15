@@ -7,8 +7,8 @@ import { hapticsMedium } from "../lib/haptics";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Heart, MessageCircle, Sparkles, Users, PartyPopper,
-  Loader2, RefreshCw, Send, MapPin, Calendar, Ticket, TrendingUp,
-  Flame, Eye, ChevronRight, Clock, Zap,
+  Loader2, RefreshCw, Send, MapPin, Calendar, TrendingUp,
+  Flame, Eye, ChevronRight, Zap,
 } from "lucide-react";
 
 // --- Types ---

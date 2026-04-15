@@ -5,8 +5,8 @@ import type { Party } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Search, MapPin, Calendar, Ticket, PartyPopper, Users, Clock, Flame,
-  Sparkles, Zap, X, SlidersHorizontal, ChevronRight, TrendingUp,
+  Search, MapPin, Calendar, Ticket, PartyPopper, Users, Clock,
+  Sparkles, Zap, X, SlidersHorizontal, TrendingUp,
   Star, RefreshCw,
 } from "lucide-react";
 import { SkeletonPartyCard } from "../components/skeleton";
