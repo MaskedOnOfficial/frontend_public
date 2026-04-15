@@ -25,6 +25,7 @@ import UserPhotosPage from "./pages/user-photos";
 import NotificationsPage from "./pages/notifications";
 import PublicProfilePage from "./pages/public-profile";
 import SearchPage from "./pages/search";
+import CreatePostPage from "./pages/create-post";
 import BottomTabNav from "./components/bottom-tab-nav.tsx";
 
 // ─── Error Boundary ───────────────────────────────────────────────────────────
@@ -215,6 +216,7 @@ function AppShell() {
           <Route path="/notifications"                  element={<NotificationsPage />} />
           <Route path="/search"                         element={<SearchPage />} />
           <Route path="/settings"                       element={<SettingsPage />} />
+          <Route path="/create-post"                    element={<CreatePostPage />} />
         </Route>
 
         {/* ── Catch-all: 404 page ── */}

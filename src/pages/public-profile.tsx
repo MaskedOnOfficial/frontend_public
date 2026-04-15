@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Camera, Grid3x3, Users, Heart, UserPlus, UserCheck, UserX, Clock,
   X, Loader2, ChevronLeft, ChevronRight, Edit3, Sparkles, Award,
-  MessageCircle, ArrowLeft, PartyPopper, ShieldBan, ShieldOff
+  MessageCircle, ArrowLeft, PartyPopper, ShieldBan, ShieldOff, Eye
 } from "lucide-react";
 
 type FriendStatus = "none" | "pending" | "accepted";
@@ -53,6 +53,7 @@ export default function PublicProfilePage() {
   const [postingComment, setPostingComment] = useState(false);
   const [commentError, setCommentError] = useState("");
   const [partyTitles, setPartyTitles] = useState<Record<string, string>>({});
+  const viewedPhotoIds = useRef<Set<string>>(new Set());
   const [storyPartyId, setStoryPartyId] = useState<string | null>(null);
   const [storyIndex, setStoryIndex] = useState(0);
 
@@ -854,7 +855,17 @@ export default function PublicProfilePage() {
                 {photos.map((photo, idx) => (
                   <div
                     key={photo.id}
-                    ref={(el) => { feedPhotoRefs.current[idx] = el; }}
+                    ref={(el) => {
+                      feedPhotoRefs.current[idx] = el;
+                      if (!el) return;
+                      const obs = new IntersectionObserver(([entry]) => {
+                        if (entry.isIntersecting && !viewedPhotoIds.current.has(photo.id)) {
+                          viewedPhotoIds.current.add(photo.id);
+                          api.post(`/photos/${photo.id}/view`).catch(() => {});
+                        }
+                      }, { threshold: 0.5 });
+                      obs.observe(el);
+                    }}
                     className="border-b border-primary/[0.06] snap-feed-item"
                   >
                     {/* Post header */}
@@ -907,6 +918,12 @@ export default function PublicProfilePage() {
                           </div>
                           <span className="text-text-dim text-sm">Add a comment…</span>
                         </button>
+                      )}
+                      {photo.view_count > 0 && (
+                        <div className="flex items-center gap-1 mt-2 text-text-dim">
+                          <Eye className="w-3.5 h-3.5" />
+                          <span className="text-[11px]">{photo.view_count.toLocaleString()} {photo.view_count === 1 ? "view" : "views"}</span>
+                        </div>
                       )}
                       <p className="text-text-dim text-[10px] uppercase mt-2">
                         {new Date(photo.created_at).toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" })}

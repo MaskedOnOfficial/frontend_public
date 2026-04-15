@@ -1,6 +1,7 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Home, Compass, Plus, Inbox, User } from "lucide-react";
+import { useAuth } from "../context/auth-hook";
 
 const tabs = [
   { to: "/", label: "Feed", icon: Home, end: true },
@@ -12,6 +13,7 @@ const tabs = [
 
 export default function BottomTabNav() {
   const location = useLocation();
+  const { user } = useAuth();
 
   // Highlight Profile tab for /profile/me and /settings
   function isProfileActive() {
@@ -56,6 +58,24 @@ export default function BottomTabNav() {
                             : "bg-gradient-to-br from-primary/80 to-accent/80 shadow-md shadow-primary/15"
                         }`}>
                           <Icon className="w-5 h-5 text-white" strokeWidth={2.5} />
+                        </div>
+                      ) : isProfileTab && user ? (
+                        <div className="relative p-1">
+                          {isActive && (
+                            <motion.div
+                              layoutId="bottom-tab-active"
+                              className="absolute inset-0 bg-primary/10 rounded-xl"
+                              transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                            />
+                          )}
+                          <div className={`relative z-10 w-[24px] h-[24px] rounded-full overflow-hidden transition-all ${
+                            isActive ? "ring-[1.5px] ring-primary ring-offset-1 ring-offset-transparent" : ""
+                          }`}>
+                            {user.avatar_url
+                              ? <img src={user.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                              : <div className="w-full h-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-[10px] font-bold text-white">{(user.display_name ?? "?").charAt(0).toUpperCase()}</div>
+                            }
+                          </div>
                         </div>
                       ) : (
                         <div className="relative p-1.5">

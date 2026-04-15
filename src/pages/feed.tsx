@@ -95,6 +95,20 @@ function PostCard({ post, onLikeToggle }: PostCardProps) {
   const [postingComment, setPostingComment] = useState(false);
   const [commentError, setCommentError] = useState("");
   const [showHeart, setShowHeart] = useState(false);
+  const viewTracked = useRef(false);
+
+  // Track view when post scrolls into viewport
+  const postRef = useCallback((el: HTMLElement | null) => {
+    if (!el || viewTracked.current) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && !viewTracked.current) {
+        viewTracked.current = true;
+        api.post(`/photos/${post.id}/view`).catch(() => {});
+        observer.disconnect();
+      }
+    }, { threshold: 0.5 });
+    observer.observe(el);
+  }, [post.id]);
 
   // #23 — Proper double-tap detection for mobile
   const lastTapRef = useRef(0);
@@ -161,6 +175,7 @@ function PostCard({ post, onLikeToggle }: PostCardProps) {
 
   return (
     <motion.article
+      ref={postRef}
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       className="post-card"

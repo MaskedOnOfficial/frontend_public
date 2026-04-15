@@ -113,7 +113,9 @@ export interface Photo {
   thumbnail_url: string | null;
   caption: string | null;
   like_count: number;
+  view_count: number;
   created_at: string;
+  updated_at: string;
   deleted_at: string | null;
   username?: string;
   display_name?: string;

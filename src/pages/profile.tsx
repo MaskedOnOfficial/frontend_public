@@ -12,8 +12,9 @@ import TrustBadge from "../components/trust-badge";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Camera, Grid3x3, Star, Users, Heart, Loader2, X, Trash2,
-  Edit3, ChevronLeft, ChevronRight, Settings, LayoutDashboard,
-  PartyPopper, Award, ImagePlus, Sparkles, Check, UserPlus, MessageCircle, ArrowLeft
+  Edit3, ChevronLeft, ChevronRight, LayoutDashboard,
+  PartyPopper, Award, ImagePlus, Sparkles, Check, UserPlus, MessageCircle, ArrowLeft,
+  Eye, BarChart3, Pencil
 } from "lucide-react";
 
 /* helpers */
@@ -33,7 +34,6 @@ function timeAgo(dateStr: string) {
 export default function ProfilePage() {
   const { user, refreshUser } = useAuth();
   const avatarInputRef = useRef<HTMLInputElement>(null);
-  const photoInputRef = useRef<HTMLInputElement>(null);
   const feedContainerRef = useRef<HTMLDivElement>(null);
   const feedPhotoRefs = useRef<(HTMLDivElement | null)[]>([]);
 
@@ -51,8 +51,6 @@ export default function ProfilePage() {
   const [photosTotal, setPhotosTotal] = useState(0);
   const [photosPage, setPhotosPage] = useState(1);
   const [photosLoading, setPhotosLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
-  const [caption, setCaption] = useState("");
   const [feedStartIndex, setFeedStartIndex] = useState<number | null>(null);
   const [activeCommentPhotoId, setActiveCommentPhotoId] = useState<string | null>(null);
   const [comments, setComments] = useState<any[]>([]);
@@ -63,6 +61,19 @@ export default function ProfilePage() {
   const [partyTitles, setPartyTitles] = useState<Record<string, string>>({});
   const [storyPartyId, setStoryPartyId] = useState<string | null>(null);
   const [storyIndex, setStoryIndex] = useState(0);
+
+  // Caption editing
+  const [editingCaptionId, setEditingCaptionId] = useState<string | null>(null);
+  const [editCaptionText, setEditCaptionText] = useState("");
+  const [savingCaption, setSavingCaption] = useState(false);
+
+  // Photo insights
+  const [insightsPhotoId, setInsightsPhotoId] = useState<string | null>(null);
+  const [insights, setInsights] = useState<{ view_count: number; like_count: number; comment_count: number } | null>(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+
+  // View tracking — IDs already sent
+  const viewedPhotoIds = useRef<Set<string>>(new Set());
 
   // Crowd Rating History
   const [ratingHistory, setRatingHistory] = useState<Array<{ party_id: string; party_title: string; party_date: string; avg_score: number; total_votes: number; user_voted: boolean }>>([]);
@@ -198,29 +209,6 @@ export default function ProfilePage() {
     if (isNative()) { handleNativeAvatarUpload(); } else { avatarInputRef.current?.click(); }
   }
 
-  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]; if (!file) return;
-    await uploadPhotoFile(file);
-    if (photoInputRef.current) photoInputRef.current.value = "";
-  }
-
-  async function uploadPhotoFile(file: File) {
-    if (file.size > 5 * 1024 * 1024) { showToast("File too large (max 5 MB)", "error"); return; }
-    setUploading(true);
-    try { const fd = new FormData(); fd.append("image", file); if (caption.trim()) fd.append("caption", caption.trim()); await api.post("/photos", fd, { headers: { "Content-Type": "multipart/form-data" } }); setCaption(""); loadPhotos(); showToast("Photo uploaded!"); }
-    catch (error) { showToast(getApiErrorMessage(error, "Upload failed"), "error"); }
-    finally { setUploading(false); }
-  }
-
-  async function handleNativePhotoUpload() {
-    const file = await takePhoto();
-    if (file) await uploadPhotoFile(file);
-  }
-
-  function triggerPhotoUpload() {
-    if (isNative()) { handleNativePhotoUpload(); } else { photoInputRef.current?.click(); }
-  }
-
   async function handleDeletePhoto(photoId: string) {
     try { await api.delete(`/photos/${photoId}`); setPhotos((p) => p.filter((x) => x.id !== photoId)); setPhotosTotal((t) => t - 1); if (activeCommentPhotoId === photoId) { setActiveCommentPhotoId(null); setComments([]); } showToast("Photo deleted"); }
     catch (error) { showToast(getApiErrorMessage(error, "Delete failed"), "error"); }
@@ -252,6 +240,37 @@ export default function ProfilePage() {
     setComments([]);
     setNewComment("");
     setCommentError("");
+    setEditingCaptionId(null);
+    setInsightsPhotoId(null);
+    setInsights(null);
+  }
+
+  async function handleEditCaption(photoId: string) {
+    setSavingCaption(true);
+    try {
+      const res = await api.patch(`/photos/${photoId}/caption`, { caption: editCaptionText.trim() || null });
+      setPhotos((prev) => prev.map((p) => p.id === photoId ? { ...p, caption: (res.data.data.photo?.caption ?? editCaptionText.trim()) || null } : p));
+      setEditingCaptionId(null);
+      showToast("Caption updated!");
+    } catch (error) { showToast(getApiErrorMessage(error, "Failed to update caption"), "error"); }
+    finally { setSavingCaption(false); }
+  }
+
+  async function loadInsights(photoId: string) {
+    if (insightsPhotoId === photoId) { setInsightsPhotoId(null); setInsights(null); return; }
+    setInsightsPhotoId(photoId);
+    setInsightsLoading(true);
+    try {
+      const res = await api.get(`/photos/${photoId}/insights`);
+      setInsights(res.data.data.insights);
+    } catch { setInsights(null); }
+    finally { setInsightsLoading(false); }
+  }
+
+  function trackView(photoId: string) {
+    if (viewedPhotoIds.current.has(photoId)) return;
+    viewedPhotoIds.current.add(photoId);
+    api.post(`/photos/${photoId}/view`).catch(() => {});
   }
 
   function toggleComments(photoId: string) {
@@ -326,6 +345,7 @@ export default function ProfilePage() {
   const partyPhotos = photos.filter((photo) => photo.party_id);
   const highlightPartyIds = Array.from(new Set(partyPhotos.map((photo) => photo.party_id).filter((partyId): partyId is string => Boolean(partyId))));
   const storyPhotos = storyPartyId ? partyPhotos.filter((photo) => photo.party_id === storyPartyId) : [];
+  const profilePhotos = photos.filter((photo) => !photo.party_id);
 
   function storyNext() {
     if (storyIndex < storyPhotos.length - 1) { setStoryIndex(storyIndex + 1); }
@@ -419,16 +439,8 @@ export default function ProfilePage() {
 
               {/* Name + meta */}
               <div className="flex-1 min-w-0 pt-1">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <h1 className="text-lg sm:text-xl font-extrabold text-text tracking-tight truncate leading-tight">{user.display_name}</h1>
-                    <p className="text-text-muted text-xs sm:text-sm mt-0.5">@{user.username}</p>
-                  </div>
-                  <Link to="/settings" className="btn-secondary-luxe text-[10px] sm:text-xs font-bold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl transition flex items-center gap-1 shrink-0 tap-active" aria-label="Settings">
-                    <Settings className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                    <span className="hidden sm:inline">Settings</span>
-                  </Link>
-                </div>
+                <h1 className="text-lg sm:text-xl font-extrabold text-text tracking-tight truncate leading-tight">{user.display_name}</h1>
+                <p className="text-text-muted text-xs sm:text-sm mt-0.5">@{user.username}</p>
 
                 {user.bio && (
                   <p className="text-text-muted/80 text-xs sm:text-sm mt-2 line-clamp-2 leading-relaxed">{user.bio}</p>
@@ -478,7 +490,7 @@ export default function ProfilePage() {
             {/* STATS ROW */}
             <div className="flex items-center justify-around mt-5 pt-5 border-t border-primary/[0.06]">
               {[
-                { label: "Posts", value: photosTotal, color: "text-text" },
+                { label: "Posts", value: profilePhotos.length, color: "text-text" },
                 { label: "Friends", value: friendCount === null ? "…" : friendCount, color: "text-text" },
                 { label: "Hosted", value: user.parties_hosted, color: "text-accent" },
                 { label: "Joined", value: user.parties_attended, color: "text-primary" },
@@ -568,16 +580,11 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              {/* Upload bar */}
-              <div className="glass-panel rounded-2xl p-3 mb-4 flex items-center gap-2">
-                <input type="text" aria-label="Photo caption" placeholder="Write a caption…" value={caption} onChange={(e) => setCaption(e.target.value)} className="input-luxe flex-1 rounded-xl px-3 py-2.5 text-sm min-w-0" />
-                <input ref={photoInputRef} type="file" aria-label="Upload profile photo" title="Upload profile photo" accept="image/jpeg,image/png,image/webp" onChange={handlePhotoUpload} className="hidden" />
-                <button onClick={triggerPhotoUpload} disabled={uploading}
-                  className="btn-primary-luxe text-sm font-bold px-3.5 py-2.5 rounded-xl transition disabled:opacity-50 shrink-0 flex items-center gap-1.5 tap-active">
-                  {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
-                  <span className="hidden sm:inline">{uploading ? "…" : "Post"}</span>
-                </button>
-              </div>
+              {/* New Post button */}
+              <Link to="/create-post" className="glass-panel rounded-2xl p-3 mb-4 flex items-center justify-center gap-2 tap-active hover:border-primary/15 transition border border-primary/[0.06]">
+                <ImagePlus className="w-4 h-4 text-primary" />
+                <span className="text-text font-semibold text-sm">Create New Post</span>
+              </Link>
 
               {/* Photo grid */}
               {photosLoading ? (
@@ -586,21 +593,21 @@ export default function ProfilePage() {
                     <div key={i} className="aspect-square shimmer" />
                   ))}
                 </div>
-              ) : photos.length === 0 ? (
+              ) : profilePhotos.length === 0 ? (
                 <div className="text-center py-16 glass-panel rounded-2xl">
                   <div className="w-14 h-14 rounded-2xl bg-surface-light mx-auto mb-3 flex items-center justify-center">
                     <Camera className="w-7 h-7 text-text-dim/30" />
                   </div>
                   <p className="text-text-dim font-semibold">No posts yet</p>
                   <p className="text-text-dim/60 text-sm mt-1 mb-4">Share your best moments</p>
-                  <button onClick={triggerPhotoUpload} className="btn-primary-luxe text-sm font-bold px-5 py-2.5 rounded-xl tap-active inline-flex items-center gap-2">
-                    <ImagePlus className="w-4 h-4" /> Upload Photo
-                  </button>
+                  <Link to="/create-post" className="btn-primary-luxe text-sm font-bold px-5 py-2.5 rounded-xl tap-active inline-flex items-center gap-2">
+                    <ImagePlus className="w-4 h-4" /> Create Post
+                  </Link>
                 </div>
               ) : (
                 <>
                   <div className="grid grid-cols-3 gap-[2px] sm:gap-1 rounded-xl overflow-hidden">
-                    {photos.map((photo, idx) => (
+                    {profilePhotos.map((photo, idx) => (
                       <div key={photo.id} className="aspect-square bg-surface overflow-hidden cursor-pointer group relative tap-active"
                         onClick={() => setFeedStartIndex(idx)}>
                         <img src={photo.image_url} alt={photo.caption || "Photo"} className="w-full h-full object-cover transition group-hover:scale-105 duration-300" loading="lazy" />
@@ -797,10 +804,19 @@ export default function ProfilePage() {
             {/* Snap-scroll feed */}
             <div ref={feedContainerRef} className="flex-1 overflow-y-auto snap-feed">
               <div className="max-w-lg mx-auto">
-                {photos.map((photo, idx) => (
+                {profilePhotos.map((photo, idx) => (
                   <div
                     key={photo.id}
-                    ref={(el) => { feedPhotoRefs.current[idx] = el; }}
+                    ref={(el) => {
+                      feedPhotoRefs.current[idx] = el;
+                      // Track view when post scrolls into viewport
+                      if (el) {
+                        const observer = new IntersectionObserver(([entry]) => {
+                          if (entry.isIntersecting) { trackView(photo.id); observer.disconnect(); }
+                        }, { threshold: 0.5 });
+                        observer.observe(el);
+                      }
+                    }}
                     className="border-b border-primary/[0.06] snap-feed-item"
                   >
                     {/* Post header */}
@@ -815,10 +831,51 @@ export default function ProfilePage() {
                       <div className="flex-1 min-w-0">
                         <p className="text-text text-sm font-bold truncate">{user?.display_name}</p>
                       </div>
+                      {/* Actions menu */}
+                      <button onClick={() => loadInsights(photo.id)} className="text-text-dim hover:text-primary transition p-2 rounded-lg hover:bg-primary/10 tap-active" aria-label="View insights" title="Insights">
+                        <BarChart3 className="w-4 h-4" />
+                      </button>
                       <button onClick={() => handleDeletePhoto(photo.id)} className="text-text-dim hover:text-error transition p-2 rounded-lg hover:bg-error/10 tap-active" aria-label="Delete photo">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
+
+                    {/* Insights bar */}
+                    <AnimatePresence>
+                      {insightsPhotoId === photo.id && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="mx-4 mb-3 glass-panel rounded-xl p-3 flex items-center justify-around">
+                            {insightsLoading ? (
+                              <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                            ) : insights ? (
+                              <>
+                                <div className="text-center">
+                                  <div className="flex items-center justify-center gap-1 text-text font-bold text-sm"><Eye className="w-3.5 h-3.5 text-primary" /> {insights.view_count}</div>
+                                  <p className="text-text-dim text-[9px] uppercase tracking-wider font-semibold mt-0.5">Views</p>
+                                </div>
+                                <div className="w-px h-8 bg-primary/10" />
+                                <div className="text-center">
+                                  <div className="flex items-center justify-center gap-1 text-text font-bold text-sm"><Heart className="w-3.5 h-3.5 text-hot" /> {insights.like_count}</div>
+                                  <p className="text-text-dim text-[9px] uppercase tracking-wider font-semibold mt-0.5">Likes</p>
+                                </div>
+                                <div className="w-px h-8 bg-primary/10" />
+                                <div className="text-center">
+                                  <div className="flex items-center justify-center gap-1 text-text font-bold text-sm"><MessageCircle className="w-3.5 h-3.5 text-accent" /> {insights.comment_count}</div>
+                                  <p className="text-text-dim text-[9px] uppercase tracking-wider font-semibold mt-0.5">Comments</p>
+                                </div>
+                              </>
+                            ) : (
+                              <p className="text-text-dim text-xs">Failed to load insights</p>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
 
                     {/* Image */}
                     <div className="w-full bg-black">
@@ -836,12 +893,45 @@ export default function ProfilePage() {
                         </button>
                       </div>
                       <p className="text-text text-sm font-bold">{photo.like_count.toLocaleString()} {photo.like_count === 1 ? "like" : "likes"}</p>
-                      {photo.caption && (
-                        <p className="text-text text-sm mt-1">
-                          <span className="font-bold">{user?.display_name}</span>{" "}
-                          <span className="text-text-muted">{photo.caption}</span>
-                        </p>
+
+                      {/* Caption with edit */}
+                      {editingCaptionId === photo.id ? (
+                        <div className="mt-2 flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={editCaptionText}
+                            onChange={(e) => setEditCaptionText(e.target.value)}
+                            maxLength={500}
+                            className="input-luxe flex-1 rounded-lg px-3 py-2 text-sm min-w-0"
+                            autoFocus
+                            onKeyDown={(e) => { if (e.key === "Enter") handleEditCaption(photo.id); if (e.key === "Escape") setEditingCaptionId(null); }}
+                          />
+                          <button onClick={() => handleEditCaption(photo.id)} disabled={savingCaption} className="text-primary font-bold text-sm tap-active disabled:opacity-50 shrink-0">
+                            {savingCaption ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save"}
+                          </button>
+                          <button onClick={() => setEditingCaptionId(null)} className="text-text-dim text-sm tap-active shrink-0">Cancel</button>
+                        </div>
+                      ) : (
+                        <div className="flex items-start gap-1 mt-1">
+                          {photo.caption ? (
+                            <p className="text-text text-sm flex-1">
+                              <span className="font-bold">{user?.display_name}</span>{" "}
+                              <span className="text-text-muted">{photo.caption}</span>
+                            </p>
+                          ) : (
+                            <p className="text-text-dim text-sm italic flex-1">No caption</p>
+                          )}
+                          <button
+                            onClick={() => { setEditingCaptionId(photo.id); setEditCaptionText(photo.caption || ""); }}
+                            className="text-text-dim hover:text-primary transition p-1 tap-active shrink-0"
+                            aria-label="Edit caption"
+                            title="Edit caption"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       )}
+
                       <button onClick={() => toggleComments(photo.id)} className="text-text-dim text-sm mt-1 hover:text-text-muted transition block">
                         View all comments
                       </button>
@@ -855,9 +945,14 @@ export default function ProfilePage() {
                         </div>
                         <span className="text-text-dim text-sm">Add a comment…</span>
                       </button>
-                      <p className="text-text-dim text-[10px] uppercase mt-2">
-                        {new Date(photo.created_at).toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" })}
-                      </p>
+
+                      {/* Minimal view count + date */}
+                      <div className="flex items-center gap-3 mt-2">
+                        <span className="text-text-dim text-[10px] flex items-center gap-1"><Eye className="w-3 h-3" /> {(photo.view_count || 0).toLocaleString()} views</span>
+                        <span className="text-text-dim text-[10px] uppercase">
+                          {new Date(photo.created_at).toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" })}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 ))}

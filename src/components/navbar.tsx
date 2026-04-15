@@ -5,7 +5,7 @@ import { useNotifications } from "../context/use-notifications-hook";
 import api from "../lib/api";
 import type { Party } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
-import { Search, Bell, LogOut, Compass, Plus, LayoutDashboard, Inbox, Loader2, Sparkles } from "lucide-react";
+import { Search, Bell, LogOut, Compass, Plus, LayoutDashboard, Inbox, Loader2, Sparkles, Settings } from "lucide-react";
 
 type SearchUser = { id: string; username: string; display_name: string; avatar_url: string | null; social_rating: number };
 type SearchResults = { users: SearchUser[]; parties: Party[] };
@@ -238,15 +238,9 @@ export default function Navbar() {
                 )}
               </Link>
 
-              {/* Profile avatar */}
-              <Link to="/profile/me" aria-label="My profile" className="ml-0.5">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary via-accent to-hot p-[1.5px] hover:shadow-md hover:shadow-primary/20 transition-shadow">
-                  <div className="w-full h-full rounded-full bg-bg flex items-center justify-center text-xs text-text font-bold overflow-hidden">
-                    {user.avatar_url
-                      ? <img src={user.avatar_url} alt={user.display_name} className="w-full h-full object-cover" />
-                      : (user.display_name ?? "?").charAt(0).toUpperCase()}
-                  </div>
-                </div>
+              {/* Settings */}
+              <Link to="/settings" aria-label="Settings" className="ml-0.5 text-text-muted hover:text-text transition p-2 rounded-lg hover:bg-white/[0.06]">
+                <Settings className="w-5 h-5" />
               </Link>
 
               {/* Logout */}
