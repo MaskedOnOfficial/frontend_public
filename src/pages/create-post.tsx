@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/auth-hook";
+import { compressAndStripMetadata } from "../lib/image-utils";
 import api from "../lib/api";
 import { getApiErrorMessage } from "../lib/errors";
 import { isNative } from "../lib/capacitor";
@@ -144,9 +145,10 @@ export default function CreatePostPage() {
     try {
       const processedFile = await getProcessedFile();
       if (!processedFile) throw new Error("Failed to process image");
+      const compressed = await compressAndStripMetadata(processedFile, { maxSizeMB: 1, maxWidthOrHeight: 1920 });
 
       const fd = new FormData();
-      fd.append("image", processedFile);
+      fd.append("image", compressed);
       if (caption.trim()) fd.append("caption", caption.trim());
 
       await api.post("/photos", fd, { headers: { "Content-Type": "multipart/form-data" } });

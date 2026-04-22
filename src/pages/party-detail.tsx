@@ -6,7 +6,7 @@ import type { Party, Attendee } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
 import { motion } from "framer-motion";
 import { getTrustLevel } from "../lib/trust-levels";
-import { ArrowLeft, MapPin, Calendar, Clock, Users, Star, Tag, Camera, Share2, Ticket, Shield, CheckCircle, Loader2, Send, PartyPopper, Edit3 } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar, Clock, Users, Star, Tag, Camera, Share2, Ticket, Shield, CheckCircle, Loader2, Send, PartyPopper, Edit3, MoreVertical, Flag, X } from "lucide-react";
 
 interface PartyDetailPayload {
   party: Party;
@@ -97,9 +97,51 @@ export default function PartyDetailPage() {
   const [shareToast, setShareToast] = useState("");
   const shareTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
+  // Report state
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reportDescription, setReportDescription] = useState("");
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState("");
+  const [reportSuccess, setReportSuccess] = useState(false);
+
   useEffect(() => {
     return () => clearTimeout(shareTimerRef.current);
   }, []);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) setShowMoreMenu(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  async function handleReport() {
+    if (!partyId || !reportReason || reportLoading) return;
+    setReportLoading(true);
+    setReportError("");
+    try {
+      await api.post("/reports", {
+        target_type: "party",
+        target_id: partyId,
+        reason: reportReason,
+        description: reportDescription.trim() || undefined,
+      });
+      setReportSuccess(true);
+    } catch (err: any) {
+      const code = err?.response?.data?.error?.code;
+      if (code === "ALREADY_REPORTED") {
+        setReportError("You've already reported this event.");
+      } else {
+        setReportError(getApiErrorMessage(err, "Failed to submit report"));
+      }
+    } finally {
+      setReportLoading(false);
+    }
+  }
 
   // #30 — Share / copy link
   function handleShare() {
@@ -177,11 +219,32 @@ export default function PartyDetailPage() {
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        {/* #30 — Share button instead of non-functional MoreVertical */}
-        <div className="absolute top-4 right-4 z-10">
+        {/* #30 — Share button + "..." report menu */}
+        <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
           <button onClick={handleShare} aria-label="Share this party" title="Share" className="w-10 h-10 rounded-full bg-bg/60 backdrop-blur-md border border-primary/10 flex items-center justify-center text-text hover:bg-bg/80 transition">
             <Share2 className="w-5 h-5" />
           </button>
+          {user && !isHost && (
+            <div className="relative" ref={moreMenuRef}>
+              <button
+                onClick={() => setShowMoreMenu((v) => !v)}
+                aria-label="More options"
+                className="w-10 h-10 rounded-full bg-bg/60 backdrop-blur-md border border-primary/10 flex items-center justify-center text-text hover:bg-bg/80 transition"
+              >
+                <MoreVertical className="w-5 h-5" />
+              </button>
+              {showMoreMenu && (
+                <div className="absolute top-full right-0 mt-1 glass-panel rounded-xl shadow-2xl overflow-hidden z-20 w-44">
+                  <button
+                    onClick={() => { setShowMoreMenu(false); setShowReportModal(true); }}
+                    className="w-full text-left px-4 py-2.5 text-xs text-warning hover:bg-warning/10 transition flex items-center gap-2"
+                  >
+                    <Flag className="w-3.5 h-3.5" /> Report Event
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -419,6 +482,82 @@ export default function PartyDetailPage() {
           </div>
         </motion.div>
       </div>
+
+      {/* REPORT MODAL */}
+      {showReportModal && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4"
+          onClick={() => { setShowReportModal(false); setReportReason(""); setReportDescription(""); setReportError(""); setReportSuccess(false); }}
+        >
+          <div className="glass-panel rounded-3xl overflow-hidden max-w-sm w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            {reportSuccess ? (
+              <div className="p-6 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-success/10 border border-success/15 mx-auto mb-4 flex items-center justify-center">
+                  <Flag className="w-7 h-7 text-success" />
+                </div>
+                <h3 className="text-text font-bold text-lg mb-1">Report Submitted</h3>
+                <p className="text-text-muted text-sm">Thank you. We'll review this report and take action if needed.</p>
+                <button
+                  onClick={() => { setShowReportModal(false); setReportReason(""); setReportDescription(""); setReportError(""); setReportSuccess(false); }}
+                  className="mt-5 btn-primary-luxe w-full py-3 rounded-2xl font-bold text-sm"
+                >
+                  Done
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-text font-bold text-lg">Report Event</h3>
+                    <button onClick={() => { setShowReportModal(false); setReportReason(""); setReportDescription(""); setReportError(""); setReportSuccess(false); }} className="w-8 h-8 rounded-full bg-surface-light flex items-center justify-center text-text-muted hover:text-text transition tap-active" title="Close">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <p className="text-text-muted text-xs mb-4">Why are you reporting <span className="font-bold text-text">{party.title}</span>?</p>
+                  <div className="space-y-2 mb-4">
+                    {([
+                      { value: "spam", label: "Spam or fake listing" },
+                      { value: "fake_event", label: "Fake or fraudulent event" },
+                      { value: "inappropriate_content", label: "Inappropriate content" },
+                      { value: "harassment", label: "Harassment" },
+                      { value: "underage", label: "Underage content" },
+                      { value: "other", label: "Other" },
+                    ] as const).map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => setReportReason(opt.value)}
+                        className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium transition border tap-active ${
+                          reportReason === opt.value
+                            ? "bg-warning/15 border-warning/30 text-warning"
+                            : "bg-surface-light border-primary/[0.06] text-text-muted hover:text-text hover:bg-surface"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                  <textarea
+                    placeholder="Additional details (optional)"
+                    value={reportDescription}
+                    onChange={(e) => setReportDescription(e.target.value.slice(0, 1000))}
+                    rows={3}
+                    className="input-luxe w-full resize-none text-sm"
+                  />
+                  {reportError && <p className="text-error text-xs mt-2">{reportError}</p>}
+                </div>
+                <div className="flex border-t border-primary/[0.06]">
+                  <button onClick={() => { setShowReportModal(false); setReportReason(""); setReportDescription(""); setReportError(""); setReportSuccess(false); }} className="flex-1 py-3.5 text-sm font-semibold text-text-muted hover:bg-surface-light transition tap-active">
+                    Cancel
+                  </button>
+                  <button onClick={handleReport} disabled={!reportReason || reportLoading} className="flex-1 py-3.5 text-sm font-bold text-warning hover:bg-warning/10 transition border-l border-primary/[0.06] tap-active disabled:opacity-40">
+                    {reportLoading ? "Submitting…" : "Submit Report"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

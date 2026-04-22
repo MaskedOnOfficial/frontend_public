@@ -7,7 +7,7 @@ import { hapticsMedium } from "../lib/haptics";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Heart, MessageCircle, Sparkles, Users, PartyPopper,
-  Loader2, RefreshCw, Send, MapPin, Calendar, TrendingUp,
+  Loader2, Send, MapPin, Calendar, TrendingUp,
   Flame, Eye, ChevronRight, Zap,
 } from "lucide-react";
 
@@ -503,6 +503,8 @@ function PostCard({ post, onLikeToggle }: PostCardProps) {
           <div className="flex items-center gap-4">
             <button
               onClick={() => onLikeToggle(post.id, post.liked_by_me)}
+              aria-label={post.liked_by_me ? "Unlike post" : "Like post"}
+              title={post.liked_by_me ? "Unlike post" : "Like post"}
               className={`transition-all duration-200 active:scale-75 ${
                 post.liked_by_me ? "text-hot" : "text-text-muted hover:text-text"
               }`}
@@ -511,6 +513,8 @@ function PostCard({ post, onLikeToggle }: PostCardProps) {
             </button>
             <button
               onClick={toggleComments}
+              aria-label="View comments"
+              title="View comments"
               className="text-text-muted hover:text-text transition-all duration-200 active:scale-90"
             >
               <MessageCircle className="w-[24px] h-[24px]" />
@@ -680,6 +684,10 @@ export default function FeedPage() {
   const [trendingPost, setTrendingPost] = useState<TrendingPost | null>(null);
   const [upcomingParties, setUpcomingParties] = useState<UpcomingParty[]>([]);
 
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isPulling, setIsPulling] = useState(false);
+  const pullStartYRef = useRef<number | null>(null);
+
   const LIMIT = 12;
 
   const fetchFeed = useCallback(async (pageNum: number, append: boolean) => {
@@ -776,37 +784,92 @@ export default function FeedPage() {
     });
   }
 
-  // Refresh
   const [refreshing, setRefreshing] = useState(false);
-  async function handleRefresh() {
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     setPage(1);
     await fetchFeed(1, false);
     setRefreshing(false);
-  }
+  }, [fetchFeed]);
+
+  // Pull-to-refresh (mobile style)
+  useEffect(() => {
+    const MAX_PULL = 110;
+    const TRIGGER_PULL = 70;
+
+    function onTouchStart(e: TouchEvent) {
+      if (refreshing || loading || window.scrollY > 0) return;
+      pullStartYRef.current = e.touches[0]?.clientY ?? null;
+    }
+
+    function onTouchMove(e: TouchEvent) {
+      if (pullStartYRef.current === null || window.scrollY > 0) return;
+      const y = e.touches[0]?.clientY;
+      if (y === undefined) return;
+
+      const delta = y - pullStartYRef.current;
+      if (delta <= 0) return;
+
+      const damped = Math.min(MAX_PULL, delta * 0.45);
+      setIsPulling(true);
+      setPullDistance(damped);
+      e.preventDefault();
+    }
+
+    function onTouchEnd() {
+      if (pullStartYRef.current === null) return;
+      const shouldRefresh = pullDistance >= TRIGGER_PULL;
+      pullStartYRef.current = null;
+      setIsPulling(false);
+      setPullDistance(0);
+      if (shouldRefresh && !refreshing) {
+        void handleRefresh();
+      }
+    }
+
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchend", onTouchEnd, { passive: true });
+    window.addEventListener("touchcancel", onTouchEnd, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
+      window.removeEventListener("touchcancel", onTouchEnd);
+    };
+  }, [handleRefresh, loading, pullDistance, refreshing]);
 
   return (
     <div className="min-h-screen bg-bg">
-      {/* Subtle top bar with refresh */}
-      <div className="max-w-2xl mx-auto px-4 pt-4 md:pt-6 pb-2 flex items-center justify-end">
-        <button
-          onClick={handleRefresh}
-          disabled={refreshing}
-          className="feed-refresh-btn tap-active"
-        >
-          <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
-        </button>
+      {/* Pull-to-refresh indicator */}
+      <div className="sticky top-2 z-30 pointer-events-none">
+        <div className="max-w-2xl mx-auto px-4 flex justify-center h-0 overflow-visible">
+          <motion.div
+            className="w-9 h-9 rounded-full bg-surface border border-border/60 shadow-sm flex items-center justify-center"
+            animate={{
+              y: refreshing ? 14 : Math.min(14, pullDistance - 36),
+              opacity: refreshing || pullDistance > 8 ? 1 : 0,
+            }}
+            transition={isPulling ? { duration: 0 } : { duration: 0.18, ease: "easeOut" }}
+          >
+            <Loader2 className={`w-4 h-4 text-primary ${refreshing ? "animate-spin" : ""}`} />
+          </motion.div>
+        </div>
       </div>
 
-      {/* Stories Strip */}
-      {loading ? (
-        <SkeletonStories />
-      ) : stories.length > 0 ? (
-        <StoriesStrip stories={stories} currentUserId={user?.id} />
-      ) : null}
+      <motion.div
+        animate={{ y: refreshing ? 12 : pullDistance }}
+        transition={isPulling ? { duration: 0 } : { duration: 0.22, ease: "easeOut" }}
+      >
+        {/* Stories Strip */}
+        {loading ? (
+          <SkeletonStories />
+        ) : stories.length > 0 ? (
+          <StoriesStrip stories={stories} currentUserId={user?.id} />
+        ) : null}
 
-      {/* Main Feed */}
-      <div className="max-w-2xl mx-auto px-4 pb-28 md:pb-16">
+        {/* Main Feed */}
+        <div className="max-w-2xl mx-auto px-4 pb-28 md:pb-16">
         {/* Error */}
         {error && (
           <motion.div
@@ -892,8 +955,9 @@ export default function FeedPage() {
         )}
 
         {/* Empty state */}
-        {!loading && posts.length === 0 && !error && <EmptyFeed />}
-      </div>
+          {!loading && posts.length === 0 && !error && <EmptyFeed />}
+        </div>
+      </motion.div>
     </div>
   );
 }

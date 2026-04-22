@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { compressAndStripMetadata } from "../lib/image-utils";
 import api from "../lib/api";
 import { getApiErrorMessage } from "../lib/errors";
 import { isNative } from "../lib/capacitor";
@@ -347,7 +348,7 @@ export default function CreatePartyPage() {
       fd.append("ticket_price", String(Math.round(Number(form.ticket_price) * 100)));
       if (form.tags.length > 0) fd.append("tags", JSON.stringify(form.tags));
       if (form.min_rating > 0) fd.append("min_rating", String(form.min_rating));
-      if (coverFile) fd.append("cover_image", coverFile);
+      if (coverFile) fd.append("cover_image", await compressAndStripMetadata(coverFile, { maxSizeMB: 1, maxWidthOrHeight: 1920 }));
 
       const res = await api.post("/parties", fd, {
         headers: { "Content-Type": "multipart/form-data" },

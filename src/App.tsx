@@ -4,6 +4,7 @@ import { AuthProvider } from "./context/auth-context";
 import { ThemeProvider } from "./context/theme-context";
 import { useAuth } from "./context/auth-hook";
 import { initCapacitor } from "./lib/capacitor";
+import { initPushNotifications } from "./lib/push-notifications";
 import api from "./lib/api";
 import Navbar from "./components/navbar";
 import CrowdRatingGate from "./components/crowd-rating-gate";
@@ -26,6 +27,7 @@ import NotificationsPage from "./pages/notifications";
 import PublicProfilePage from "./pages/public-profile";
 import SearchPage from "./pages/search";
 import CreatePostPage from "./pages/create-post";
+import VerifyEmailPage from "./pages/verify-email";
 import BottomTabNav from "./components/bottom-tab-nav.tsx";
 
 // ─── Error Boundary ───────────────────────────────────────────────────────────
@@ -159,6 +161,13 @@ function AppShell() {
     initCapacitor(navigate);
   }, [navigate]);
 
+  // Register push notification token whenever the user logs in
+  useEffect(() => {
+    if (user) {
+      initPushNotifications();
+    }
+  }, [user]);
+
   // Check for pending crowd ratings whenever user changes
   const checkPendingRatings = useCallback(async () => {
     if (!user) { setPendingRatings([]); setPendingChecked(true); return; }
@@ -196,6 +205,9 @@ function AppShell() {
           <Route path="/auth/login"    element={<LoginPage />} />
           <Route path="/auth/register" element={<RegisterPage />} />
         </Route>
+
+        {/* ── Public routes (no auth required) ── */}
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
 
         {/* ── Protected (requires login) ── */}
         <Route element={<ProtectedRoute />}>

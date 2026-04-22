@@ -11,6 +11,7 @@ export interface User {
   parties_attended: number;
   created_at: string;
   updated_at: string;
+  email_verified: boolean;
 }
 
 export interface AuthTokens {

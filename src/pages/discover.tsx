@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, MapPin, Calendar, Ticket, PartyPopper, Users, Clock,
   Sparkles, Zap, X, SlidersHorizontal, TrendingUp,
-  Star, RefreshCw,
+  Star, RefreshCw, Shield,
 } from "lucide-react";
 import { SkeletonPartyCard } from "../components/skeleton";
 import { useAuth } from "../context/auth-hook";
@@ -809,6 +809,13 @@ function EventCard({ party }: { party: Party }) {
                 style={{ width: `${capacityPercent}%` }}
               />
             </div>
+          </div>
+        )}
+
+        {party.min_rating > 0 && (
+          <div className="flex items-center gap-1 text-warning text-[10px] font-semibold">
+            <Shield className="w-3 h-3 shrink-0" />
+            <span>Requires {Number(party.min_rating).toFixed(1)}+ rating</span>
           </div>
         )}
       </div>

@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect, useRef, useCallback, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/auth-hook";
+import { compressAndStripMetadata } from "../lib/image-utils";
 import api from "../lib/api";
 import type { Photo, FriendUser, PendingFriendRequest } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
@@ -94,6 +95,10 @@ export default function ProfilePage() {
   // Toast
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Email verification banner
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendSent, setResendSent] = useState(false);
 
   // Avatar editing (filters/adjust)
   const avatarCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -270,7 +275,8 @@ export default function ProfilePage() {
     if (!processed) return;
     setAvatarUploading(true);
     try {
-      const fd = new FormData(); fd.append("avatar", processed);
+      const compressed = await compressAndStripMetadata(processed, { maxSizeMB: 0.5, maxWidthOrHeight: 512 });
+      const fd = new FormData(); fd.append("avatar", compressed);
       await api.put("/users/me/avatar", fd, { headers: { "Content-Type": "multipart/form-data" } });
       await refreshUser();
       showToast("Avatar updated!");
@@ -505,6 +511,20 @@ export default function ProfilePage() {
     }
   }
 
+  // ── Resend verification email ──
+  async function handleResendVerification() {
+    if (resendLoading || resendSent) return;
+    setResendLoading(true);
+    try {
+      await api.post("/auth/resend-verification");
+      setResendSent(true);
+    } catch {
+      showToast("Failed to resend — try again later", "error");
+    } finally {
+      setResendLoading(false);
+    }
+  }
+
 
   return (
     <div className="min-h-screen bg-bg pb-28 md:pb-12">
@@ -528,6 +548,29 @@ export default function ProfilePage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── EMAIL VERIFICATION BANNER ── */}
+      {user && !user.email_verified && (
+        <div className="max-w-2xl mx-auto px-4 pt-4 relative z-20">
+          <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-amber-500/15 border border-amber-400/30 text-amber-300">
+            <span className="text-lg shrink-0">✉️</span>
+            <p className="text-sm flex-1">
+              {resendSent
+                ? "Verification email sent! Check your inbox."
+                : "Please verify your email to unlock hosting parties."}
+            </p>
+            {!resendSent && (
+              <button
+                onClick={handleResendVerification}
+                disabled={resendLoading}
+                className="shrink-0 text-xs font-semibold underline underline-offset-2 hover:text-amber-200 disabled:opacity-50"
+              >
+                {resendLoading ? "Sending…" : "Resend"}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── HERO BANNER ── */}
       <div className="profile-hero h-52 sm:h-60 md:h-72 relative overflow-hidden">
