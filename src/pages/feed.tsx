@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Heart, MessageCircle, Sparkles, Users, PartyPopper,
   Loader2, Send, MapPin, Calendar, TrendingUp,
-  Flame, Eye, ChevronRight, Zap,
+  Flame, Eye, ChevronRight, Zap, Trophy,
 } from "lucide-react";
 
 // --- Types ---
@@ -68,6 +68,17 @@ interface UpcomingParty {
 interface TrendingPost extends FeedPost {
   comment_count: number;
   view_count: number;
+}
+
+interface AchievementUpdate {
+  id: string;
+  friend_id: string;
+  friend_username: string;
+  friend_display_name: string;
+  friend_avatar_url: string | null;
+  achievement_key: string;
+  achievement_name: string;
+  unlocked_at: string;
 }
 
 // --- Helpers ---
@@ -313,6 +324,45 @@ function UpcomingPartiesStrip({ parties }: { parties: UpcomingParty[] }) {
                 <MapPin className="w-2.5 h-2.5" />
                 <span className="text-[9px] truncate">{p.location_city}</span>
               </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AchievementUpdatesStrip({ updates }: { updates: AchievementUpdate[] }) {
+  if (updates.length === 0) return null;
+
+  return (
+    <div className="mb-4">
+      <div className="flex items-center gap-1.5 px-5 mb-2.5 text-primary">
+        <Trophy className="w-4 h-4" />
+        <span className="text-xs font-bold uppercase tracking-widest">Friend achievements</span>
+      </div>
+      <div className="space-y-2 px-2">
+        {updates.map((update) => (
+          <Link
+            key={update.id}
+            to={`/profile/${update.friend_id}`}
+            className="block feed-card p-3.5 hover:border-primary/20 transition"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-primary/20 bg-surface-light flex items-center justify-center">
+                {update.friend_avatar_url ? (
+                  <img src={update.friend_avatar_url} alt={update.friend_display_name} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-xs font-bold text-text">{getInitials(update.friend_display_name)}</span>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm text-text leading-snug">
+                  <span className="font-bold">{update.friend_display_name}</span> just unlocked a new achievement. Tap to view it.
+                </p>
+                <p className="text-xs text-primary/80 font-semibold mt-0.5">{update.achievement_name}</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-text-dim shrink-0" />
             </div>
           </Link>
         ))}
@@ -683,6 +733,7 @@ export default function FeedPage() {
   const [stories, setStories] = useState<StoryUser[]>([]);
   const [trendingPost, setTrendingPost] = useState<TrendingPost | null>(null);
   const [upcomingParties, setUpcomingParties] = useState<UpcomingParty[]>([]);
+  const [achievementUpdates, setAchievementUpdates] = useState<AchievementUpdate[]>([]);
 
   const [pullDistance, setPullDistance] = useState(0);
   const [isPulling, setIsPulling] = useState(false);
@@ -706,6 +757,7 @@ export default function FeedPage() {
         setStories(data.stories || []);
         setTrendingPost(data.trending_post || null);
         setUpcomingParties(data.upcoming_parties || []);
+        setAchievementUpdates(data.achievement_updates || []);
       }
     } catch (err) {
       setError(getApiErrorMessage(err, "Failed to load feed"));
@@ -907,8 +959,13 @@ export default function FeedPage() {
               <UpcomingPartiesStrip parties={upcomingParties} />
             )}
 
+            {/* Friend achievement updates */}
+            {achievementUpdates.length > 0 && (
+              <AchievementUpdatesStrip updates={achievementUpdates} />
+            )}
+
             {/* Divider before feed */}
-            {(trendingPost || upcomingParties.length > 0) && (
+            {(trendingPost || upcomingParties.length > 0 || achievementUpdates.length > 0) && (
               <div className="flex items-center gap-3 px-2 pt-1">
                 <div className="h-px flex-1 bg-border/50" />
                 <span className="text-[10px] font-bold uppercase tracking-widest text-text-dim">Your feed</span>

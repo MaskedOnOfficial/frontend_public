@@ -561,16 +561,33 @@ export default function ProfilePage() {
   const photoPages = Math.ceil(photosTotal / 36);
   const memberSince = new Date(user.created_at).toLocaleDateString("en-IN", { month: "short", year: "numeric" });
 
-  // ── Achievements (computed from existing user data) ──
+  // ── Achievements (computed from existing user activity) ──
+  const friendCountVal = friendCount ?? 0;
   const achievements = [
-    { id: "first-party", icon: PartyPopper, name: "First Party", desc: "Attended your first party", earned: user.parties_attended >= 1, color: "#F59E0B" },
-    { id: "party-animal", icon: Flame, name: "Party Animal", desc: "Attended 10+ parties", earned: user.parties_attended >= 10, color: "#EF4444" },
-    { id: "host-debut", icon: Crown, name: "Host Debut", desc: "Hosted your first event", earned: user.parties_hosted >= 1, color: "#8B5CF6" },
-    { id: "super-host", icon: Trophy, name: "Super Host", desc: "Hosted 5+ events", earned: user.parties_hosted >= 5, color: "#EC4899" },
-    { id: "social-10", icon: Users, name: "Social Butterfly", desc: "Made 10+ friends", earned: (friendCount ?? 0) >= 10, color: "#06B6D4" },
-    { id: "shutterbug", icon: Camera, name: "Shutterbug", desc: "Posted 5+ photos", earned: profilePhotos.length >= 5, color: "#10B981" },
-    { id: "five-star", icon: Star, name: "Five Star", desc: "Avg rating above 4.5", earned: hasEnoughRatings && ratingVal >= 4.5, color: "#F59E0B" },
-    { id: "trusted", icon: Shield, name: "Trusted", desc: "Reached Spark trust level", earned: ["Spark", "Luminary", "Inferno"].includes(trustLevel.name), color: "#8B5CF6" },
+    { id: "first-party", icon: PartyPopper, name: "First Party", desc: "Attend your first party", earned: user.parties_attended >= 1, color: "#F59E0B" },
+    { id: "weekend-warrior", icon: Flame, name: "Weekend Warrior", desc: "Attend 5+ parties", earned: user.parties_attended >= 5, color: "#F97316" },
+    { id: "party-animal", icon: Flame, name: "Party Animal", desc: "Attend 10+ parties", earned: user.parties_attended >= 10, color: "#EF4444" },
+    { id: "nightlife-legend", icon: Sparkles, name: "Nightlife Legend", desc: "Attend 25+ parties", earned: user.parties_attended >= 25, color: "#D946EF" },
+    { id: "host-debut", icon: Crown, name: "Host Debut", desc: "Host your first event", earned: user.parties_hosted >= 1, color: "#8B5CF6" },
+    { id: "super-host", icon: Trophy, name: "Super Host", desc: "Host 5+ events", earned: user.parties_hosted >= 5, color: "#EC4899" },
+    { id: "festival-host", icon: Award, name: "Festival Host", desc: "Host 15+ events", earned: user.parties_hosted >= 15, color: "#6366F1" },
+    { id: "social-spark", icon: Users, name: "Social Spark", desc: "Make 5+ friends", earned: friendCountVal >= 5, color: "#06B6D4" },
+    { id: "social-butterfly", icon: Users, name: "Social Butterfly", desc: "Make 10+ friends", earned: friendCountVal >= 10, color: "#0EA5E9" },
+    { id: "connector", icon: Heart, name: "Connector", desc: "Make 25+ friends", earned: friendCountVal >= 25, color: "#14B8A6" },
+    { id: "shutterbug", icon: Camera, name: "Shutterbug", desc: "Post 5+ profile photos", earned: profilePhotos.length >= 5, color: "#10B981" },
+    { id: "gallery-master", icon: Grid3x3, name: "Gallery Master", desc: "Post 20+ profile photos", earned: profilePhotos.length >= 20, color: "#22C55E" },
+    { id: "crowd-favorite", icon: Star, name: "Crowd Favorite", desc: "Keep average rating above 4.5", earned: hasEnoughRatings && ratingVal >= 4.5, color: "#EAB308" },
+    { id: "critic-choice", icon: Star, name: "Critic's Choice", desc: "Keep average rating above 4.8", earned: hasEnoughRatings && ratingVal >= 4.8, color: "#F59E0B" },
+    { id: "trusted", icon: Shield, name: "Trusted", desc: "Reach Spark trust level", earned: ["Spark", "Luminary", "Inferno"].includes(trustLevel.name), color: "#8B5CF6" },
+    { id: "legendary-trust", icon: Shield, name: "Legendary Trust", desc: "Reach Luminary or Inferno", earned: ["Luminary", "Inferno"].includes(trustLevel.name), color: "#A855F7" },
+    {
+      id: "all-rounder",
+      icon: BarChart3,
+      name: "All-Rounder",
+      desc: "Host 5+, attend 10+, make 10+ friends, post 5+ photos",
+      earned: user.parties_hosted >= 5 && user.parties_attended >= 10 && friendCountVal >= 10 && profilePhotos.length >= 5,
+      color: "#0EA5E9",
+    },
   ];
   const earnedAchievements = achievements.filter(a => a.earned);
 
@@ -990,7 +1007,7 @@ export default function ProfilePage() {
                   >
                     <a.icon className="w-6 h-6" style={a.earned ? { color: a.color } : {}} />
                     {a.earned && (
-                      <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-success flex items-center justify-center shadow-sm">
+                      <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-success flex items-center justify-center shadow-sm ring-1 ring-bg/70">
                         <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
                       </div>
                     )}

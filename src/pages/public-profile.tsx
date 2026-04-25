@@ -11,7 +11,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Camera, Grid3x3, Users, Heart, UserPlus, UserCheck, UserX, Clock,
   X, Loader2, ChevronLeft, ChevronRight, Edit3, Sparkles, Award,
-  MessageCircle, ArrowLeft, ShieldBan, ShieldOff, Eye, MoreVertical, Flag, CalendarDays
+  MessageCircle, ArrowLeft, ShieldBan, ShieldOff, Eye, MoreVertical, Flag, CalendarDays,
+  PartyPopper, Flame, Crown, Trophy, Star, Shield, Check, BarChart3
 } from "lucide-react";
 
 type FriendStatus = "none" | "pending" | "accepted";
@@ -438,6 +439,36 @@ export default function PublicProfilePage() {
   const photoPages = Math.ceil(photosTotal / 36);
   const friendPages = Math.ceil(friendsTotal / 20);
   const memberSince = new Date(profile.created_at).toLocaleDateString("en-IN", { month: "short", year: "numeric" });
+  const profilePhotos = photos.filter((photo) => !photo.party_id);
+
+  // ── Public achievements (same unlock logic as own profile) ──
+  const achievements = [
+    { id: "first-party", icon: PartyPopper, name: "First Party", desc: "Attend your first party", earned: profile.parties_attended >= 1, color: "#F59E0B" },
+    { id: "weekend-warrior", icon: Flame, name: "Weekend Warrior", desc: "Attend 5+ parties", earned: profile.parties_attended >= 5, color: "#F97316" },
+    { id: "party-animal", icon: Flame, name: "Party Animal", desc: "Attend 10+ parties", earned: profile.parties_attended >= 10, color: "#EF4444" },
+    { id: "nightlife-legend", icon: Sparkles, name: "Nightlife Legend", desc: "Attend 25+ parties", earned: profile.parties_attended >= 25, color: "#D946EF" },
+    { id: "host-debut", icon: Crown, name: "Host Debut", desc: "Host your first event", earned: profile.parties_hosted >= 1, color: "#8B5CF6" },
+    { id: "super-host", icon: Trophy, name: "Super Host", desc: "Host 5+ events", earned: profile.parties_hosted >= 5, color: "#EC4899" },
+    { id: "festival-host", icon: Award, name: "Festival Host", desc: "Host 15+ events", earned: profile.parties_hosted >= 15, color: "#6366F1" },
+    { id: "social-spark", icon: Users, name: "Social Spark", desc: "Make 5+ friends", earned: friendCount >= 5, color: "#06B6D4" },
+    { id: "social-butterfly", icon: Users, name: "Social Butterfly", desc: "Make 10+ friends", earned: friendCount >= 10, color: "#0EA5E9" },
+    { id: "connector", icon: Heart, name: "Connector", desc: "Make 25+ friends", earned: friendCount >= 25, color: "#14B8A6" },
+    { id: "shutterbug", icon: Camera, name: "Shutterbug", desc: "Post 5+ profile photos", earned: profilePhotos.length >= 5, color: "#10B981" },
+    { id: "gallery-master", icon: Grid3x3, name: "Gallery Master", desc: "Post 20+ profile photos", earned: profilePhotos.length >= 20, color: "#22C55E" },
+    { id: "crowd-favorite", icon: Star, name: "Crowd Favorite", desc: "Keep average rating above 4.5", earned: hasEnoughRatings && ratingVal >= 4.5, color: "#EAB308" },
+    { id: "critic-choice", icon: Star, name: "Critic's Choice", desc: "Keep average rating above 4.8", earned: hasEnoughRatings && ratingVal >= 4.8, color: "#F59E0B" },
+    { id: "trusted", icon: Shield, name: "Trusted", desc: "Reach Spark trust level", earned: ["Spark", "Luminary", "Inferno"].includes(trustLevel.name), color: "#8B5CF6" },
+    { id: "legendary-trust", icon: Shield, name: "Legendary Trust", desc: "Reach Luminary or Inferno", earned: ["Luminary", "Inferno"].includes(trustLevel.name), color: "#A855F7" },
+    {
+      id: "all-rounder",
+      icon: BarChart3,
+      name: "All-Rounder",
+      desc: "Host 5+, attend 10+, make 10+ friends, post 5+ photos",
+      earned: profile.parties_hosted >= 5 && profile.parties_attended >= 10 && friendCount >= 10 && profilePhotos.length >= 5,
+      color: "#0EA5E9",
+    },
+  ];
+  const earnedAchievements = achievements.filter((a) => a.earned);
 
   function storyNext() {
     if (storyIndex < storyPhotos.length - 1) { setStoryIndex(storyIndex + 1); }
@@ -655,6 +686,51 @@ export default function PublicProfilePage() {
             </div>
           </div>
         </motion.div>
+
+        {/* ACHIEVEMENTS */}
+        {!blockedByMe && !blockedByThem && achievements.length > 0 && (
+          <div className="mt-5">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-text-dim font-bold flex items-center gap-1.5">
+                <Trophy className="w-3 h-3" /> Achievements
+              </p>
+              <span className="text-[10px] text-text-dim font-semibold">
+                {earnedAchievements.length}/{achievements.length}
+              </span>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+              {achievements.map((a) => (
+                <motion.div
+                  key={a.id}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className={`shrink-0 flex flex-col items-center gap-1.5 transition ${
+                    a.earned ? "" : "opacity-25 grayscale"
+                  }`}
+                >
+                  <div
+                    className="w-14 h-14 rounded-2xl flex items-center justify-center relative"
+                    style={a.earned ? {
+                      backgroundColor: `${a.color}15`,
+                      boxShadow: `0 0 24px ${a.color}20`,
+                    } : { backgroundColor: "var(--color-surface-light)" }}
+                    title={a.desc}
+                  >
+                    <a.icon className="w-6 h-6" style={a.earned ? { color: a.color } : {}} />
+                    {a.earned && (
+                      <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-success flex items-center justify-center shadow-sm ring-1 ring-bg/70">
+                        <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-[9px] font-bold text-text-dim max-w-[64px] truncate text-center" title={a.desc}>
+                    {a.name}
+                  </span>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* TAB BAR */}
         {!blockedByMe && !blockedByThem && (

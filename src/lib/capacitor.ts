@@ -7,8 +7,14 @@ import { App } from '@capacitor/app';
 /**
  * Initialize native Capacitor plugins when running on a mobile device.
  * On web this is a no-op.
+ *
+ * @param navigate    React Router navigate function (accepts string paths or -1 for back)
+ * @param getLocation Returns the current pathname — use a ref so it's always fresh
  */
-export async function initCapacitor(navigate: (path: string) => void) {
+export async function initCapacitor(
+  navigate: (path: string | number) => void,
+  getLocation: () => string,
+) {
   if (!Capacitor.isNativePlatform()) return;
 
   // ── Status Bar ──
@@ -39,18 +45,37 @@ export async function initCapacitor(navigate: (path: string) => void) {
   }
 
   // ── Back Button (Android) ──
-  // Modals/lightboxes dispatch a custom event before history.back() so
-  // the React layer can close the top-most overlay instead of navigating.
-  App.addListener('backButton', ({ canGoBack }) => {
-    // Let any open modal/lightbox handle the back button first
-    const consumed = window.dispatchEvent(new CustomEvent('capacitor:backButton', { cancelable: true }));
-    // If the event was NOT cancelled, a modal consumed it
-    if (!consumed) return;
+  // Pages with modals call e.preventDefault() via useBackButton() to close the
+  // overlay first. If nothing intercepts the event, we decide navigation here
+  // based on whether the user is on a root tab page or a sub-page.
 
+  // Root tab pages: pressing back should NOT navigate further back through history
+  // (it would just traverse tab-switching history and land on Feed unexpectedly).
+  // On these pages, back either does nothing or exits the app on the home tab.
+  const ROOT_PATHS = new Set(['/', '/parties', '/my-requests', '/notifications', '/profile/me', '/search']);
+
+  App.addListener('backButton', ({ canGoBack }) => {
+    // Give modals/overlays first chance to intercept
+    const consumed = window.dispatchEvent(new CustomEvent('capacitor:backButton', { cancelable: true }));
+    if (!consumed) return; // A modal handled it (called preventDefault)
+
+    const currentPath = getLocation();
+
+    if (ROOT_PATHS.has(currentPath)) {
+      // On a root tab — only exit if on the home/feed tab, otherwise stay put
+      if (currentPath === '/') {
+        App.exitApp();
+      }
+      // Other root tabs: do nothing (back would go back through tab history, confusing)
+      return;
+    }
+
+    // On a sub-page — go back in history
     if (canGoBack) {
-      window.history.back();
+      navigate(-1);
     } else {
-      App.exitApp();
+      // No history available — fall back to home
+      navigate('/');
     }
   });
 

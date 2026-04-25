@@ -11,7 +11,7 @@ import {
   Plus, Calendar, MapPin, Users, ChevronDown, ChevronUp,
   Loader2, PartyPopper, TrendingUp, IndianRupee, Star,
   UserCheck, Clock, ArrowRight, Zap, Crown, BarChart3,
-  CircleDot, AlertCircle, Eye, Flame, ChevronRight
+  CircleDot, AlertCircle, Eye, Flame, ChevronRight, ArrowLeft
 } from "lucide-react";
 
 // ── Types ──
@@ -166,6 +166,11 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-bg pb-28 md:pb-12">
       <div className="max-w-5xl mx-auto px-4 pt-5 pb-6 md:pt-8">
+        {/* Back nav */}
+        <Link to="/profile/me" className="text-text-muted hover:text-text text-sm mb-4 inline-flex items-center gap-1.5 transition">
+          <ArrowLeft className="w-4 h-4" /> Back to Profile
+        </Link>
+
         {/* ══════ HERO HEADER ══════ */}
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
           <div className="flex items-center justify-between gap-4 mb-5">

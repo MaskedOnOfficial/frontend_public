@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useNavigate, Link } from "react-router-dom";
-import { useState, useEffect, useCallback, Component, type ReactNode } from "react";
+import { useState, useEffect, useRef, useCallback, Component, type ReactNode } from "react";
 import { AuthProvider } from "./context/auth-context";
 import { ThemeProvider } from "./context/theme-context";
 import { useAuth } from "./context/auth-hook";
@@ -185,9 +185,19 @@ function AppShell() {
     };
   }, []);
 
-  // Initialize Capacitor native plugins on first mount
+  // Initialize Capacitor native plugins on first mount.
+  // Use a ref for location so the back button handler always sees the current path
+  // without needing to re-register the listener on every navigation.
+  const locationRef = useRef(location.pathname);
   useEffect(() => {
-    initCapacitor(navigate);
+    locationRef.current = location.pathname;
+  }, [location.pathname]);
+
+  useEffect(() => {
+    initCapacitor(
+      (path) => navigate(path as any),
+      () => locationRef.current,
+    );
   }, [navigate]);
 
   // Register push notification token whenever the user logs in
