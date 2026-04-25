@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import axios from "axios";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/auth-hook";
 import { getApiErrorMessage } from "../lib/errors";
 import { ensureBackendAwake } from "../lib/api";
@@ -10,10 +10,16 @@ import { Eye, EyeOff, Sparkles, ArrowRight, Loader2 } from "lucide-react";
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState(
+    typeof location.state === "object" && location.state && "notice" in location.state && typeof location.state.notice === "string"
+      ? location.state.notice
+      : ""
+  );
   const [submitting, setSubmitting] = useState(false);
   const [wakingUp, setWakingUp] = useState(false);
   const mountedRef = useRef(true);
@@ -42,11 +48,23 @@ export default function LoginPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
+    setNotice("");
     setSubmitting(true);
     try {
       await login(email, password);
       navigate("/", { replace: true });
     } catch (error: unknown) {
+      if (axios.isAxiosError(error) && error.response?.data?.error?.code === "MOBILE_NOT_VERIFIED") {
+        navigate("/auth/verify-mobile", {
+          replace: true,
+          state: {
+            notice: error.response?.data?.error?.message || "Verify your mobile number before signing in.",
+            verification: error.response?.data?.data?.verification,
+          },
+        });
+        return;
+      }
+
       if (axios.isAxiosError(error) && !error.response) {
         setWakingUp(true);
         setError("Server is waking up. Retrying sign-in in a moment...");
@@ -114,6 +132,18 @@ export default function LoginPage() {
         >
           <h2 className="text-lg font-bold text-text mb-0.5">Welcome back</h2>
           <p className="text-text-muted text-sm mb-6">Sign in to your trusted circle.</p>
+
+          {notice && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              role="status"
+              aria-live="polite"
+              className="bg-primary/10 border border-primary/20 rounded-xl px-4 py-3 mb-6 text-primary text-sm"
+            >
+              {notice}
+            </motion.div>
+          )}
 
           {/* Error */}
           {error && (

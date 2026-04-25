@@ -7,11 +7,58 @@ import {
   getInflight,
   setInflight,
 } from "./api-cache";
+import type { AuthTokens } from "../types";
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim() || "/api/v1";
 const healthUrl = `${apiBaseUrl}/health`;
 let wakePromise: Promise<void> | null = null;
 let tokenRefreshPromise: Promise<void> | null = null;
+const ACCESS_TOKEN_STORAGE_KEY = "access_token";
+const REFRESH_TOKEN_STORAGE_KEY = "refresh_token";
+
+function readStorage(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeStorage(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // Ignore storage failures and continue with cookie auth when available.
+  }
+}
+
+function removeStorage(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // Ignore storage failures and continue with cookie auth when available.
+  }
+}
+
+export function getStoredAccessToken(): string | null {
+  return readStorage(ACCESS_TOKEN_STORAGE_KEY) || readStorage("auth_token");
+}
+
+export function getStoredRefreshToken(): string | null {
+  return readStorage(REFRESH_TOKEN_STORAGE_KEY);
+}
+
+export function persistAuthTokens(tokens: AuthTokens): void {
+  writeStorage(ACCESS_TOKEN_STORAGE_KEY, tokens.access_token);
+  writeStorage("auth_token", tokens.access_token);
+  writeStorage(REFRESH_TOKEN_STORAGE_KEY, tokens.refresh_token);
+}
+
+export function clearStoredAuthTokens(): void {
+  removeStorage(ACCESS_TOKEN_STORAGE_KEY);
+  removeStorage("auth_token");
+  removeStorage(REFRESH_TOKEN_STORAGE_KEY);
+}
 
 function isAuthPath(url: string): boolean {
   return url.startsWith("/auth/") || url.includes("/auth/");
@@ -63,6 +110,12 @@ const api = axios.create({
 // 2. Returns cached data immediately if STALE, but fires background revalidation
 // 3. Deduplicates concurrent identical requests
 api.interceptors.request.use(async (config) => {
+  const storedAccessToken = getStoredAccessToken();
+  if (storedAccessToken && !config.headers?.Authorization) {
+    config.headers = config.headers || {};
+    config.headers.Authorization = `Bearer ${storedAccessToken}`;
+  }
+
   // Only cache GET requests
   if (config.method !== "get") return config;
 
@@ -196,9 +249,7 @@ api.interceptors.response.use(
     const original = config;
 
     const requestUrl = ((original?.url as string | undefined) || "").trim();
-    const shouldSkipRefresh =
-      requestUrl.endsWith("/users/me") ||
-      isAuthPath(requestUrl);
+    const shouldSkipRefresh = isAuthPath(requestUrl);
 
     if (error.response?.status === 401 && original && !original._retry) {
       if (shouldSkipRefresh) {
@@ -218,9 +269,21 @@ api.interceptors.response.use(
       }
 
       // Be the refresh leader
+      const storedRefreshToken = getStoredRefreshToken();
       tokenRefreshPromise = axios
-        .post(`${apiBaseUrl}/auth/refresh`, {}, { withCredentials: true })
+        .post(
+          `${apiBaseUrl}/auth/refresh`,
+          storedRefreshToken ? { refresh_token: storedRefreshToken } : {},
+          { withCredentials: true }
+        )
+        .then((refreshRes) => {
+          const tokens = refreshRes.data?.data?.tokens as AuthTokens | undefined;
+          if (tokens) {
+            persistAuthTokens(tokens);
+          }
+        })
         .catch((refreshErr) => {
+          clearStoredAuthTokens();
           throw refreshErr;
         })
         .finally(() => {

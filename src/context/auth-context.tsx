@@ -1,10 +1,9 @@
 import { useState, useEffect, type ReactNode } from "react";
 import axios from "axios";
-import api from "../lib/api";
-import { ensureBackendAwake } from "../lib/api";
+import api, { clearStoredAuthTokens, ensureBackendAwake, persistAuthTokens } from "../lib/api";
 import { getApiErrorMessage } from "../lib/errors";
 import { AuthContext } from "./auth-context-base";
-import type { User } from "../types";
+import type { AuthTokens, User } from "../types";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -52,21 +51,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function login(email: string, password: string) {
     const res = await api.post("/auth/login", { email, password });
     const { user: userData } = res.data.data;
+    const tokens = res.data?.data?.tokens as AuthTokens | undefined;
+    if (tokens) persistAuthTokens(tokens);
     setUser(userData);
   }
 
-  async function register(email: string, username: string, password: string, displayName: string) {
+  async function register(email: string, username: string, password: string, displayName: string, mobileNumber: string) {
     const res = await api.post("/auth/register", {
       email,
+      mobile_number: mobileNumber,
       username,
       password,
       display_name: displayName,
     });
 
     const userData = res.data?.data?.user as User | undefined;
-    if (userData) {
-      setUser(userData);
+    const tokens = res.data?.data?.tokens as AuthTokens | undefined;
+    if (tokens) {
+      persistAuthTokens(tokens);
+      setUser(userData ?? null);
+    } else {
+      clearStoredAuthTokens();
+      setUser(null);
     }
+
+    return {
+      requiresVerification: !userData,
+      message:
+        typeof res.data?.data?.message === "string" ? res.data.data.message : undefined,
+      verification: res.data?.data?.verification,
+    };
   }
 
   async function logout() {
@@ -75,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error("Logout request failed:", getApiErrorMessage(error, "Unknown logout error"));
     }
+    clearStoredAuthTokens();
     setUser(null);
   }
 

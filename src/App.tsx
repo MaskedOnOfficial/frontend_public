@@ -29,7 +29,7 @@ import NotificationsPage from "./pages/notifications";
 import PublicProfilePage from "./pages/public-profile";
 import SearchPage from "./pages/search";
 import CreatePostPage from "./pages/create-post";
-import VerifyEmailPage from "./pages/verify-email";
+import VerifyMobilePage from "./pages/verify-mobile";
 import BottomTabNav from "./components/bottom-tab-nav.tsx";
 
 // ─── Error Boundary ───────────────────────────────────────────────────────────
@@ -253,7 +253,7 @@ function AppShell() {
         </Route>
 
         {/* ── Public routes (no auth required) ── */}
-        <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route path="/auth/verify-mobile" element={<VerifyMobilePage />} />
 
         {/* ── Protected (requires login) ── */}
         <Route element={<ProtectedRoute />}>

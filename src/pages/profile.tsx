@@ -653,13 +653,13 @@ export default function ProfilePage() {
         )}
       </AnimatePresence>
 
-      {/* ── EMAIL VERIFICATION BANNER ── */}
-      {user && !user.email_verified && (
+      {/* ── MOBILE VERIFICATION BANNER ── */}
+      {user && !user.mobile_verified && (
         <div className="max-w-2xl mx-auto px-4 pt-4 relative z-20">
           <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-amber-500/15 border border-amber-400/30 text-amber-300">
-            <span className="text-lg shrink-0">✉️</span>
+            <span className="text-lg shrink-0">📱</span>
             <p className="text-sm flex-1">
-              Please verify your email from your registration inbox before continuing.
+              Please verify your mobile number with OTP before continuing.
             </p>
           </div>
         </div>
