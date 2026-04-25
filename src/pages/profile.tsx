@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useCallback, type FormEvent } from "react";
+﻿import { useState, useEffect, useRef, useCallback, useMemo, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/auth-hook";
 import { compressAndStripMetadata } from "../lib/image-utils";
@@ -16,7 +16,7 @@ import {
   Edit3, ChevronLeft, ChevronRight, LayoutDashboard,
   PartyPopper, Award, ImagePlus, Sparkles, Check, UserPlus, MessageCircle, ArrowLeft,
   Eye, BarChart3, Pencil, Sun, Contrast, Droplets, RotateCw,
-  Flame, Crown, Shield, Share2, Search, Trophy
+  Flame, Crown, Shield, Share2, Search, Trophy, CalendarDays
 } from "lucide-react";
 
 /* helpers */
@@ -31,6 +31,17 @@ function timeAgo(dateStr: string) {
   return months === 1 ? "1 month ago" : `${months} months ago`;
 }
 
+interface PhotoComment {
+  id: string;
+  user_id: string;
+  comment_text: string;
+  like_count: number;
+  created_at: string;
+  display_name?: string;
+  username?: string;
+  avatar_url?: string | null;
+}
+
 /* main */
 
 export default function ProfilePage() {
@@ -38,6 +49,7 @@ export default function ProfilePage() {
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const feedContainerRef = useRef<HTMLDivElement>(null);
   const feedPhotoRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const storyOverlayRef = useRef<HTMLDivElement>(null);
 
   const [tab, setTab] = useState<"photos" | "ratings" | "friends">("photos");
   const [editing, setEditing] = useState(false);
@@ -55,7 +67,7 @@ export default function ProfilePage() {
   const [photosLoading, setPhotosLoading] = useState(true);
   const [feedStartIndex, setFeedStartIndex] = useState<number | null>(null);
   const [activeCommentPhotoId, setActiveCommentPhotoId] = useState<string | null>(null);
-  const [comments, setComments] = useState<any[]>([]);
+  const [comments, setComments] = useState<PhotoComment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [postingComment, setPostingComment] = useState(false);
@@ -63,6 +75,62 @@ export default function ProfilePage() {
   const [partyTitles, setPartyTitles] = useState<Record<string, string>>({});
   const [storyPartyId, setStoryPartyId] = useState<string | null>(null);
   const [storyIndex, setStoryIndex] = useState(0);
+
+  const partyPhotos = useMemo(() => photos.filter((photo) => photo.party_id), [photos]);
+
+  const pastEventReels = useMemo(() => {
+    const grouped = new Map<string, Photo[]>();
+    for (const photo of partyPhotos) {
+      if (!photo.party_id) continue;
+      const existing = grouped.get(photo.party_id) ?? [];
+      existing.push(photo);
+      grouped.set(photo.party_id, existing);
+    }
+
+    const now = Date.now();
+    const dayMs = 86_400_000;
+
+    const scorePhoto = (photo: Photo) => {
+      const likes = photo.like_count || 0;
+      const comments = photo.comment_count || 0;
+      const views = photo.view_count || 0;
+      const ageDays = Math.max(1, (now - new Date(photo.created_at).getTime()) / dayMs);
+      const recencyBoost = Math.max(1, 30 / (ageDays + 2));
+      return likes * 3 + comments * 2.4 + views * 0.3 + recencyBoost;
+    };
+
+    return Array.from(grouped.entries())
+      .map(([partyId, eventPhotos]) => {
+        const sortedSlides = [...eventPhotos].sort((a, b) => {
+          const scoreDiff = scorePhoto(b) - scorePhoto(a);
+          if (scoreDiff !== 0) return scoreDiff;
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
+
+        const cover = sortedSlides[0] ?? eventPhotos[0];
+        const totalEngagement = eventPhotos.reduce((sum, photo) => {
+          return sum + (photo.like_count || 0) * 3 + (photo.comment_count || 0) * 2 + (photo.view_count || 0) * 0.25;
+        }, 0);
+        const newestTimestamp = Math.max(...eventPhotos.map((photo) => new Date(photo.created_at).getTime()));
+        const daysSinceLatest = Math.max(1, (now - newestTimestamp) / dayMs);
+        const freshnessBoost = Math.max(1, 45 / (daysSinceLatest + 4));
+        const eventScore = totalEngagement + eventPhotos.length * 18 + freshnessBoost;
+
+        return {
+          partyId,
+          title: partyTitles[partyId] || "Past Event",
+          cover,
+          slides: sortedSlides,
+          score: eventScore,
+          latestAt: newestTimestamp,
+        };
+      })
+      .sort((a, b) => {
+        const scoreDiff = b.score - a.score;
+        if (scoreDiff !== 0) return scoreDiff;
+        return b.latestAt - a.latestAt;
+      });
+  }, [partyPhotos, partyTitles]);
 
   // Caption editing
   const [editingCaptionId, setEditingCaptionId] = useState<string | null>(null);
@@ -95,10 +163,6 @@ export default function ProfilePage() {
   // Toast
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Email verification banner
-  const [resendLoading, setResendLoading] = useState(false);
-  const [resendSent, setResendSent] = useState(false);
 
   // Avatar editing (filters/adjust)
   const avatarCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -404,19 +468,21 @@ export default function ProfilePage() {
   // Auto-advance story
   useEffect(() => {
     if (!storyPartyId) return;
-    const currentPhotos = photos.filter((p) => p.party_id === storyPartyId);
+    const currentEventIndex = pastEventReels.findIndex((event) => event.partyId === storyPartyId);
+    if (currentEventIndex < 0) return;
+    const currentPhotos = pastEventReels[currentEventIndex].slides;
     if (currentPhotos.length === 0) return;
-    const allPartyIds = [...new Set(photos.filter((p) => p.party_id).map((p) => p.party_id!))];
+
     const timer = setTimeout(() => {
       if (storyIndex < currentPhotos.length - 1) { setStoryIndex(storyIndex + 1); }
       else {
-        const idx = allPartyIds.indexOf(storyPartyId);
-        if (idx < allPartyIds.length - 1) { setStoryPartyId(allPartyIds[idx + 1]); setStoryIndex(0); }
+        if (currentEventIndex < pastEventReels.length - 1) { setStoryPartyId(pastEventReels[currentEventIndex + 1].partyId); setStoryIndex(0); }
         else { setStoryPartyId(null); setStoryIndex(0); }
       }
     }, 5000);
+
     return () => clearTimeout(timer);
-  }, [storyPartyId, storyIndex, photos]);
+  }, [pastEventReels, storyPartyId, storyIndex]);
 
   // Auto-scroll to tapped post when feed opens
   useEffect(() => {
@@ -427,20 +493,56 @@ export default function ProfilePage() {
     }
   }, [feedStartIndex]);
 
+  // Focus trap for story overlay (#26)
+  useEffect(() => {
+    if (!storyPartyId) return;
+    const overlay = storyOverlayRef.current;
+    if (!overlay) return;
+
+    // Focus the close button on open
+    const closeBtn = overlay.querySelector<HTMLElement>('[aria-label="Close story"]');
+    closeBtn?.focus();
+
+    function handleFocusTrap(e: KeyboardEvent) {
+      if (e.key !== "Tab") return;
+      const focusable = Array.from(
+        overlay!.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((el) => !el.hasAttribute("disabled"));
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    }
+    overlay.addEventListener("keydown", handleFocusTrap);
+    return () => overlay.removeEventListener("keydown", handleFocusTrap);
+  }, [storyPartyId]);
+
+  const activeEventIndex = storyPartyId
+    ? pastEventReels.findIndex((event) => event.partyId === storyPartyId)
+    : -1;
+  const storyPhotos = activeEventIndex >= 0 ? pastEventReels[activeEventIndex].slides : [];
+
   if (!user) return null;
 
   const ratingVal = Number(user.social_rating);
+  const hasEnoughRatings = user.total_ratings >= 3;
   const trustLevel = getTrustLevel(ratingVal, user.total_ratings);
-  const partyPhotos = photos.filter((photo) => photo.party_id);
-  const highlightPartyIds = Array.from(new Set(partyPhotos.map((photo) => photo.party_id).filter((partyId): partyId is string => Boolean(partyId))));
-  const storyPhotos = storyPartyId ? partyPhotos.filter((photo) => photo.party_id === storyPartyId) : [];
+
   const profilePhotos = photos.filter((photo) => !photo.party_id);
 
   function storyNext() {
     if (storyIndex < storyPhotos.length - 1) { setStoryIndex(storyIndex + 1); }
     else {
-      const idx = highlightPartyIds.indexOf(storyPartyId!);
-      if (idx < highlightPartyIds.length - 1) { setStoryPartyId(highlightPartyIds[idx + 1]); setStoryIndex(0); }
+      if (activeEventIndex >= 0 && activeEventIndex < pastEventReels.length - 1) {
+        setStoryPartyId(pastEventReels[activeEventIndex + 1].partyId);
+        setStoryIndex(0);
+      }
       else { setStoryPartyId(null); setStoryIndex(0); }
     }
   }
@@ -448,11 +550,10 @@ export default function ProfilePage() {
   function storyPrev() {
     if (storyIndex > 0) { setStoryIndex(storyIndex - 1); }
     else {
-      const idx = highlightPartyIds.indexOf(storyPartyId!);
-      if (idx > 0) {
-        const prevId = highlightPartyIds[idx - 1];
-        const prevPhotos = partyPhotos.filter((p) => p.party_id === prevId);
-        setStoryPartyId(prevId);
+      if (activeEventIndex > 0) {
+        const previousEvent = pastEventReels[activeEventIndex - 1];
+        setStoryPartyId(previousEvent.partyId);
+        const prevPhotos = previousEvent.slides;
         setStoryIndex(Math.max(0, prevPhotos.length - 1));
       }
     }
@@ -468,7 +569,7 @@ export default function ProfilePage() {
     { id: "super-host", icon: Trophy, name: "Super Host", desc: "Hosted 5+ events", earned: user.parties_hosted >= 5, color: "#EC4899" },
     { id: "social-10", icon: Users, name: "Social Butterfly", desc: "Made 10+ friends", earned: (friendCount ?? 0) >= 10, color: "#06B6D4" },
     { id: "shutterbug", icon: Camera, name: "Shutterbug", desc: "Posted 5+ photos", earned: profilePhotos.length >= 5, color: "#10B981" },
-    { id: "five-star", icon: Star, name: "Five Star", desc: "Avg rating above 4.5", earned: ratingVal >= 4.5 && user.total_ratings > 0, color: "#F59E0B" },
+    { id: "five-star", icon: Star, name: "Five Star", desc: "Avg rating above 4.5", earned: hasEnoughRatings && ratingVal >= 4.5, color: "#F59E0B" },
     { id: "trusted", icon: Shield, name: "Trusted", desc: "Reached Spark trust level", earned: ["Spark", "Luminary", "Inferno"].includes(trustLevel.name), color: "#8B5CF6" },
   ];
   const earnedAchievements = achievements.filter(a => a.earned);
@@ -511,20 +612,6 @@ export default function ProfilePage() {
     }
   }
 
-  // ── Resend verification email ──
-  async function handleResendVerification() {
-    if (resendLoading || resendSent) return;
-    setResendLoading(true);
-    try {
-      await api.post("/auth/resend-verification");
-      setResendSent(true);
-    } catch {
-      showToast("Failed to resend — try again later", "error");
-    } finally {
-      setResendLoading(false);
-    }
-  }
-
 
   return (
     <div className="min-h-screen bg-bg pb-28 md:pb-12">
@@ -555,19 +642,8 @@ export default function ProfilePage() {
           <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-amber-500/15 border border-amber-400/30 text-amber-300">
             <span className="text-lg shrink-0">✉️</span>
             <p className="text-sm flex-1">
-              {resendSent
-                ? "Verification email sent! Check your inbox."
-                : "Please verify your email to unlock hosting parties."}
+              Please verify your email from your registration inbox before continuing.
             </p>
-            {!resendSent && (
-              <button
-                onClick={handleResendVerification}
-                disabled={resendLoading}
-                className="shrink-0 text-xs font-semibold underline underline-offset-2 hover:text-amber-200 disabled:opacity-50"
-              >
-                {resendLoading ? "Sending…" : "Resend"}
-              </button>
-            )}
           </div>
         </div>
       )}
@@ -806,7 +882,7 @@ export default function ProfilePage() {
                 { label: "Friends", value: friendCount === null ? "…" : friendCount, icon: Users },
                 { label: "Hosted", value: user.parties_hosted, icon: Crown },
                 { label: "Joined", value: user.parties_attended, icon: PartyPopper },
-                { label: "Rating", value: user.total_ratings > 0 ? ratingVal.toFixed(1) : "—", icon: Star },
+                { label: "Rating", value: hasEnoughRatings ? ratingVal.toFixed(1) : "—", icon: Star },
               ].map((stat, i) => (
                 <motion.div
                   key={stat.label}
@@ -959,38 +1035,36 @@ export default function ProfilePage() {
           {/* ═══ PHOTOS TAB ═══ */}
           {tab === "photos" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-              {/* Event Highlights */}
-              {highlightPartyIds.length > 0 && (
+              {/* Past Events */}
+              {pastEventReels.length > 0 && (
                 <div className="mb-5">
                   <p className="text-[10px] uppercase tracking-[0.2em] text-text-dim font-bold mb-3 flex items-center gap-1.5">
-                    <PartyPopper className="w-3 h-3" /> Highlights
+                    <CalendarDays className="w-3 h-3" /> Past Events
                   </p>
                   <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide scroll-smooth-x">
-                    {highlightPartyIds.map((partyId) => {
-                      const eventPhotos = partyPhotos.filter((photo) => photo.party_id === partyId);
-                      const cover = eventPhotos[0];
-                      const isActive = storyPartyId === partyId;
+                    {pastEventReels.map((event, index) => {
+                      const isActive = storyPartyId === event.partyId;
                       return (
                         <button
-                          key={partyId}
-                          onClick={() => { setStoryPartyId(partyId); setStoryIndex(0); }}
+                          key={event.partyId}
+                          onClick={() => { setStoryPartyId(event.partyId); setStoryIndex(0); }}
                           className="shrink-0 flex flex-col items-center gap-1.5 group tap-active"
-                          title={partyTitles[partyId] || "Event"}
+                          title={event.title}
                         >
                           <div className={`p-[2.5px] rounded-full transition-all duration-300 ${
                             isActive
                               ? "bg-gradient-to-br from-primary via-warning to-accent shadow-lg shadow-primary/20 scale-105"
                               : "bg-text-dim/20 group-hover:bg-primary/40"
                           }`}>
-                            <div className="w-16 h-16 rounded-full overflow-hidden border-[3px] border-bg bg-surface">
-                              {cover
-                                ? <img src={cover.image_url} alt={partyTitles[partyId] || "Event"} className="w-full h-full object-cover" loading="lazy" />
-                                : <div className="w-full h-full flex items-center justify-center text-text-dim"><PartyPopper className="w-5 h-5" /></div>}
+                            <div className="w-16 h-16 rounded-full overflow-hidden border-[3px] border-bg bg-surface relative">
+                              <img src={event.cover.image_url} alt={event.title} className="w-full h-full object-cover" loading="lazy" />
+                              <div className="absolute top-0.5 right-0.5 min-w-4 h-4 rounded-full bg-black/70 text-white text-[8px] font-bold flex items-center justify-center px-1 border border-white/20">
+                                {index + 1}
+                              </div>
                             </div>
                           </div>
-                          <span className="text-[10px] text-text-dim max-w-[72px] truncate text-center font-medium">
-                            {partyTitles[partyId] || "Event"}
-                          </span>
+                          <span className="text-[10px] text-text-dim max-w-[84px] truncate text-center font-medium">{event.title}</span>
+                          <span className="text-[9px] text-text-dim/70">{event.slides.length} {event.slides.length === 1 ? "photo" : "photos"}</span>
                         </button>
                       );
                     })}
@@ -1080,13 +1154,13 @@ export default function ProfilePage() {
                 <div className="flex-1 min-w-0">
                   <div className="text-lg font-extrabold" style={{ color: trustLevel.color }}>{trustLevel.name}</div>
                   <p className="text-text-dim text-xs mt-0.5">
-                    {user.total_ratings > 0
+                    {hasEnoughRatings
                       ? `${ratingVal.toFixed(1)}/5 avg across ${user.total_ratings} ${user.total_ratings === 1 ? "party" : "parties"}`
-                      : "Attend parties to build your trust level"
+                      : "Not enough ratings yet"
                     }
                   </p>
                   {/* Mini progress to next level */}
-                  {trustLevel.name !== "Inferno" && user.total_ratings > 0 && (
+                  {trustLevel.name !== "Inferno" && hasEnoughRatings && (
                     <div className="mt-2">
                       <div className="h-1.5 bg-surface-light rounded-full overflow-hidden">
                         <div
@@ -1585,16 +1659,25 @@ export default function ProfilePage() {
         )}
       </AnimatePresence>
 
-      {/* ═══ STORY VIEWER ═══ */}
+      {/* ═══ PAST EVENT VIEWER ═══ */}
       <AnimatePresence>
         {storyPartyId && storyPhotos.length > 0 && (
           <motion.div
+            ref={storyOverlayRef}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black z-[70] flex flex-col"
           >
-            {/* Progress bars */}
+            <img
+              src={storyPhotos[storyIndex]?.image_url}
+              alt="Backdrop"
+              className="absolute inset-0 w-full h-full object-cover opacity-30 blur-2xl scale-110"
+              aria-hidden
+            />
+            <div className="absolute inset-0 bg-black/45" />
+
+            {/* Slide progress bars */}
             <div className="absolute top-0 left-0 right-0 z-20 px-2 pt-2 flex gap-1">
               {storyPhotos.map((_, i) => (
                 <div key={i} className="flex-1 h-[2px] bg-white/30 rounded-full overflow-hidden">
@@ -1616,8 +1699,10 @@ export default function ProfilePage() {
                   </div>
                 </div>
                 <div>
-                  <p className="text-white text-sm font-bold">{partyTitles[storyPartyId] || "Event"}</p>
-                  <p className="text-white/60 text-[10px]">{storyPhotos[storyIndex]?.created_at ? timeAgo(storyPhotos[storyIndex].created_at) : ""}</p>
+                  <p className="text-white text-sm font-bold">{pastEventReels[activeEventIndex]?.title || "Past Event"}</p>
+                  <p className="text-white/70 text-[10px]">
+                    Event {activeEventIndex + 1} of {pastEventReels.length} · Slide {storyIndex + 1} of {storyPhotos.length}
+                  </p>
                 </div>
               </div>
               <button onClick={() => { setStoryPartyId(null); setStoryIndex(0); }} className="w-9 h-9 flex items-center justify-center text-white/80 hover:text-white transition rounded-full" aria-label="Close story">
@@ -1629,7 +1714,7 @@ export default function ProfilePage() {
             <div className="flex-1 flex items-center justify-center relative select-none">
               <img
                 src={storyPhotos[storyIndex]?.image_url}
-                alt={storyPhotos[storyIndex]?.caption || "Story"}
+                alt={storyPhotos[storyIndex]?.caption || "Past event photo"}
                 className="max-w-full max-h-full object-contain"
                 draggable={false}
               />
@@ -1639,6 +1724,30 @@ export default function ProfilePage() {
                 <button className="w-1/3 h-full cursor-default" onClick={storyNext} aria-label="Next" />
               </div>
             </div>
+
+            {/* Event strip to distinguish between events */}
+            {pastEventReels.length > 1 && (
+              <div className="absolute bottom-20 left-0 right-0 z-20 px-4">
+                <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+                  {pastEventReels.map((event, eventIdx) => (
+                    <button
+                      key={event.partyId}
+                      onClick={() => { setStoryPartyId(event.partyId); setStoryIndex(0); }}
+                      className={`relative shrink-0 w-16 h-16 rounded-xl overflow-hidden border transition ${
+                        eventIdx === activeEventIndex
+                          ? "border-primary shadow-lg shadow-primary/25 scale-105"
+                          : "border-white/20 opacity-80"
+                      }`}
+                      aria-label={`Open event ${eventIdx + 1}`}
+                    >
+                      <img src={event.cover.image_url} alt={event.title} className="w-full h-full object-cover" loading="lazy" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                      <span className="absolute bottom-1 left-1 text-[9px] text-white font-bold">{eventIdx + 1}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Caption overlay */}
             {storyPhotos[storyIndex]?.caption && (

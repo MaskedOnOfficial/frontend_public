@@ -14,31 +14,76 @@ export default function RegisterPage() {
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [wakingUp, setWakingUp] = useState(false);
   const mountedRef = useRef(true);
+  const backendReadyRef = useRef(false);
+  const wakePromiseRef = useRef<Promise<void> | null>(null);
+
+  function ensureBackendReady(): Promise<void> {
+    if (backendReadyRef.current) return Promise.resolve();
+    if (!wakePromiseRef.current) {
+      wakePromiseRef.current = ensureBackendAwake(45000)
+        .then(() => {
+          backendReadyRef.current = true;
+        })
+        .finally(() => {
+          wakePromiseRef.current = null;
+        });
+    }
+    return wakePromiseRef.current;
+  }
 
   useEffect(() => {
-    void ensureBackendAwake(45000).catch(() => {});
+    void ensureBackendReady().catch(() => {});
     return () => { mountedRef.current = false; };
   }, []);
+
+  function getClientValidationError(): string | null {
+    const trimmedDisplayName = displayName.trim();
+    const trimmedUsername = username.trim();
+    const trimmedEmail = email.trim();
+
+    if (!trimmedDisplayName) return "Display name is required";
+    if (!trimmedUsername) return "Username is required";
+    if (trimmedUsername.length < 3) return "Username must be at least 3 characters";
+    if (!/^[a-zA-Z0-9_]+$/.test(trimmedUsername)) {
+      return "Username can only contain letters, numbers, and underscores";
+    }
+    if (!trimmedEmail) return "Email is required";
+    if (!/^\S+@\S+\.\S+$/.test(trimmedEmail)) return "Please enter a valid email";
+    if (password.length < 8) return "Password must be at least 8 characters";
+    if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password)) {
+      return "Password must include uppercase, lowercase, and a number";
+    }
+    if (password !== confirmPassword) return "Passwords do not match";
+    return null;
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
+
+    const clientError = getClientValidationError();
+    if (clientError) {
+      setError(clientError);
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await register(email, username, password, displayName);
-      navigate("/");
+      await register(email.trim(), username.trim(), password, displayName.trim());
+      navigate("/", { replace: true });
     } catch (error: unknown) {
       if (axios.isAxiosError(error) && !error.response) {
         setWakingUp(true);
         setError("Server is waking up. Retrying registration in a moment...");
         try {
-          await ensureBackendAwake();
-          await register(email, username, password, displayName);
-          navigate("/");
+          await ensureBackendReady();
+          await register(email.trim(), username.trim(), password, displayName.trim());
+          navigate("/", { replace: true });
           return;
         } catch (retryError: unknown) {
           setError(getApiErrorMessage(retryError, "Server is still waking up. Please try again in a few seconds."));
@@ -91,6 +136,8 @@ export default function RegisterPage() {
             <motion.div
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
+              role="alert"
+              aria-live="polite"
               className="bg-error/10 border border-error/20 rounded-xl p-3 mb-6 text-error text-sm"
             >
               {error}
@@ -118,23 +165,54 @@ export default function RegisterPage() {
                       value={f.value}
                       onChange={(e) => f.setter(e.target.value)}
                       required
-                      autoComplete={f.auto}
+                      autoComplete="off"
                       minLength={'min' in f ? f.min : undefined}
                       maxLength={'max' in f ? f.max : undefined}
+                      aria-describedby={f.id === "password" ? "password-requirements" : undefined}
                       className="input-luxe w-full rounded-xl pl-10 pr-4 py-3.5 text-sm"
                       placeholder={f.placeholder}
                     />
                   </div>
+                  {f.id === "password" && (
+                    <p id="password-requirements" className="text-[11px] text-text-dim mt-2">
+                      Password must be at least 8 characters.
+                    </p>
+                  )}
                 </motion.div>
               );
             })}
+
+            <motion.div
+              initial={{ opacity: 0, x: -16 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.42 }}
+            >
+              <label htmlFor="confirmPassword" className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">
+                Confirm Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim" />
+                <input
+                  id="confirmPassword"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  autoComplete="new-password"
+                  minLength={8}
+                  maxLength={128}
+                  className="input-luxe w-full rounded-xl pl-10 pr-4 py-3.5 text-sm"
+                  placeholder="Re-enter your password"
+                />
+              </div>
+            </motion.div>
 
             <motion.button
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5 }}
               type="submit"
-              disabled={submitting || !email.trim() || !username.trim() || !displayName.trim() || password.length < 8}
+              disabled={submitting}
               className="btn-primary-luxe w-full font-bold py-4 rounded-xl transition disabled:opacity-50 mt-3 flex items-center justify-center gap-2"
             >
               {submitting ? (

@@ -13,6 +13,10 @@ const healthUrl = `${apiBaseUrl}/health`;
 let wakePromise: Promise<void> | null = null;
 let tokenRefreshPromise: Promise<void> | null = null;
 
+function isAuthPath(url: string): boolean {
+  return url.startsWith("/auth/") || url.includes("/auth/");
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -49,16 +53,8 @@ export async function ensureBackendAwake(maxWaitMs = 65000): Promise<void> {
 
 const api = axios.create({
   baseURL: apiBaseUrl,
+  withCredentials: true,
   headers: { "Content-Type": "application/json" },
-});
-
-// ─── Request interceptor: auth token ────────────────────────────────
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("access_token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
 });
 
 // ─── Request interceptor: cache check (GET only) ────────────────────
@@ -106,9 +102,9 @@ api.interceptors.request.use(async (config) => {
       baseURL: config.baseURL,
       url: config.url,
       params: config.params,
+      withCredentials: true,
       headers: {
         ...config.headers,
-        Authorization: `Bearer ${localStorage.getItem("access_token") || ""}`,
       },
     })
       .then((res) => {
@@ -198,21 +194,23 @@ api.interceptors.response.use(
 
     // Auto-refresh on 401 (with deduplication to prevent parallel refreshes)
     const original = config;
+
+    const requestUrl = ((original?.url as string | undefined) || "").trim();
+    const shouldSkipRefresh =
+      requestUrl.endsWith("/users/me") ||
+      isAuthPath(requestUrl);
+
     if (error.response?.status === 401 && original && !original._retry) {
-      original._retry = true;
-      const refreshToken = localStorage.getItem("refresh_token");
-      if (!refreshToken) {
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("refresh_token");
-        window.location.href = "/auth/login";
+      if (shouldSkipRefresh) {
         return Promise.reject(error);
       }
+
+      original._retry = true;
 
       // If a refresh is already in progress, wait for it then retry
       if (tokenRefreshPromise) {
         try {
           await tokenRefreshPromise;
-          original.headers.Authorization = `Bearer ${localStorage.getItem("access_token") || ""}`;
           return api(original);
         } catch {
           return Promise.reject(error);
@@ -221,16 +219,8 @@ api.interceptors.response.use(
 
       // Be the refresh leader
       tokenRefreshPromise = axios
-        .post(`${apiBaseUrl}/auth/refresh`, { refresh_token: refreshToken })
-        .then((res) => {
-          const { access_token, refresh_token: newRefresh } = res.data.data.tokens;
-          localStorage.setItem("access_token", access_token);
-          localStorage.setItem("refresh_token", newRefresh);
-        })
+        .post(`${apiBaseUrl}/auth/refresh`, {}, { withCredentials: true })
         .catch((refreshErr) => {
-          localStorage.removeItem("access_token");
-          localStorage.removeItem("refresh_token");
-          window.location.href = "/auth/login";
           throw refreshErr;
         })
         .finally(() => {
@@ -239,7 +229,6 @@ api.interceptors.response.use(
 
       try {
         await tokenRefreshPromise;
-        original.headers.Authorization = `Bearer ${localStorage.getItem("access_token") || ""}`;
         return api(original);
       } catch {
         return Promise.reject(error);

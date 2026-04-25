@@ -1,8 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import axios from "axios";
 import { useSearchParams, Link } from "react-router-dom";
 import api from "../lib/api";
 import type { Party } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
+import { parseTags } from "../lib/parse-tags";
 import { motion } from "framer-motion";
 import { Search, MapPin, Calendar, Users, Star, Ticket, Tag, Loader2 } from "lucide-react";
 
@@ -40,12 +42,6 @@ function formatPrice(price: number) {
   return `₹${(price / 100).toLocaleString("en-IN")}`;
 }
 
-function parseTags(tags: string | string[] | null): string[] {
-  if (!tags) return [];
-  if (Array.isArray(tags)) return tags;
-  try { return JSON.parse(tags); } catch { return []; }
-}
-
 export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialQuery = searchParams.get("q") || "";
@@ -55,18 +51,34 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(initialQuery.length >= 2);
   const [tab, setTab] = useState<Tab>("all");
   const [searchError, setSearchError] = useState("");
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const debouncedQuery = useDebounce(inputValue, 350);
 
   const fetchSearch = useCallback((query: string) => {
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setSearchError("");
     api
-      .get("/search", { params: { q: query, limit: 20 } })
+      .get("/search", { params: { q: query, limit: 20 }, signal: controller.signal })
       .then((r) => setResults(r.data.data))
       .catch((error) => {
+        if (axios.isAxiosError(error) && error.code === "ERR_CANCELED") return;
         setSearchError(getApiErrorMessage(error, "Search failed. Please try again."));
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
   }, []);
 
   useEffect(() => {

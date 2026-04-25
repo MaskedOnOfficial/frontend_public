@@ -33,11 +33,7 @@ export default function RateCrowdPage() {
         average: ratingsRes.data.data.average,
         total_votes: ratingsRes.data.data.total_votes,
       });
-      // Check if the user already rated
-      const ratings = ratingsRes.data.data.ratings || [];
-      if (ratings.some((r: any) => r.user_id === user?.id)) {
-        setAlreadyRated(true);
-      }
+      setAlreadyRated(!!ratingsRes.data.data.has_rated);
     } catch (loadError) {
       console.error("Failed to load party:", getApiErrorMessage(loadError, "Unknown error"));
       setError("Failed to load party data");
@@ -85,10 +81,13 @@ export default function RateCrowdPage() {
   }
 
   const isEnded = new Date(party.end_time || party.date_time) < new Date();
+  const ratingDeadline = new Date(new Date(party.end_time || party.date_time).getTime() + 7 * 24 * 60 * 60 * 1000);
+  const isDeadlinePassed = ratingDeadline < new Date();
   const activeScore = hoverScore || score;
   const partyDate = new Date(party.end_time || party.date_time).toLocaleDateString("en-IN", {
     day: "numeric", month: "short", year: "numeric",
   });
+  const deadlineStr = ratingDeadline.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 
   return (
     <div className="min-h-screen bg-bg py-6 md:py-8 px-4 pb-28 md:pb-12">
@@ -140,6 +139,11 @@ export default function RateCrowdPage() {
             <Star className="w-10 h-10 text-text-dim mx-auto mb-3" />
             <p className="text-text-muted font-semibold">Ratings open once the party has ended.</p>
           </div>
+        ) : isDeadlinePassed ? (
+          <div className="glass-panel rounded-2xl p-8 text-center">
+            <Star className="w-10 h-10 text-text-dim mx-auto mb-3" />
+            <p className="text-text-muted font-semibold">The rating window for this event has closed.</p>
+          </div>
         ) : alreadyRated || submitted ? (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="glass-panel rounded-2xl p-8 text-center">
             <CheckCircle className="w-12 h-12 text-success mx-auto mb-3" />
@@ -151,17 +155,34 @@ export default function RateCrowdPage() {
           </motion.div>
         ) : (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="glass-panel rounded-2xl p-6 text-center">
-            <p className="text-text font-bold mb-4">How was the crowd energy?</p>
-            <div className="flex items-center justify-center gap-2 mb-3">
+            <p className="text-text font-bold mb-1">How was the crowd energy?</p>
+            <p className="text-text-dim text-xs mb-4">Rating window closes {deadlineStr}</p>
+            <div
+              className="flex items-center justify-center gap-2 mb-3"
+              role="radiogroup"
+              aria-label="Rate the crowd energy"
+              onKeyDown={(e) => {
+                if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setScore((s) => Math.min(5, s + 1));
+                } else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setScore((s) => Math.max(1, s - 1));
+                }
+              }}
+            >
               {[1, 2, 3, 4, 5].map((i) => (
                 <button
                   key={i}
                   type="button"
+                  role="radio"
+                  aria-checked={score === i}
+                  aria-label={`${i} star${i !== 1 ? "s" : ""}`}
                   onMouseEnter={() => setHoverScore(i)}
                   onMouseLeave={() => setHoverScore(0)}
                   onClick={() => setScore(i)}
                   disabled={submitting}
-                  className="transition-all duration-200 hover:scale-125 active:scale-95 tap-active"
+                  className="transition-all duration-200 hover:scale-125 active:scale-95 tap-active focus-visible:ring-2 focus-visible:ring-warning/60 rounded-full outline-none"
                 >
                   <Star
                     className={`w-10 h-10 transition-all duration-200 ${

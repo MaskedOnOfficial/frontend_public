@@ -7,17 +7,11 @@ import { AuthContext } from "./auth-context-base";
 import type { User } from "../types";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const tokenOnLoad = localStorage.getItem("access_token");
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(Boolean(tokenOnLoad));
+  const [loading, setLoading] = useState(true);
 
-  // On mount, try to load user if we have a token
+  // On mount, attempt to bootstrap the authenticated user via cookie auth.
   useEffect(() => {
-    const token = localStorage.getItem("access_token");
-    if (!token) {
-      return;
-    }
-
     let cancelled = false;
 
     const bootstrapAuth = async () => {
@@ -26,6 +20,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!cancelled) setUser(res.data.data.user);
         return;
       } catch (error) {
+        if (axios.isAxiosError(error) && error.response?.status === 401) {
+          if (!cancelled) setUser(null);
+          return;
+        }
+
         if (axios.isAxiosError(error) && !error.response) {
           try {
             await ensureBackendAwake(65000);
@@ -38,8 +37,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           console.error("Failed to bootstrap auth user:", getApiErrorMessage(error, "Unknown auth error"));
         }
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("refresh_token");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -54,9 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function login(email: string, password: string) {
     const res = await api.post("/auth/login", { email, password });
-    const { user: userData, tokens } = res.data.data;
-    localStorage.setItem("access_token", tokens.access_token);
-    localStorage.setItem("refresh_token", tokens.refresh_token);
+    const { user: userData } = res.data.data;
     setUser(userData);
   }
 
@@ -67,10 +62,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
       display_name: displayName,
     });
-    const { user: userData, tokens } = res.data.data;
-    localStorage.setItem("access_token", tokens.access_token);
-    localStorage.setItem("refresh_token", tokens.refresh_token);
-    setUser(userData);
+
+    const userData = res.data?.data?.user as User | undefined;
+    if (userData) {
+      setUser(userData);
+    }
   }
 
   async function logout() {
@@ -79,8 +75,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error("Logout request failed:", getApiErrorMessage(error, "Unknown logout error"));
     }
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
     setUser(null);
   }
 

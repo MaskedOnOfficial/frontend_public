@@ -46,23 +46,29 @@ export default function NotificationsPage() {
   }, [fetchNotifications]);
 
   async function markRead(id: string) {
+    const prevNotifications = notifications;
+    const prevUnread = unread;
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: 1 } : n)));
+    setUnread((u) => Math.max(0, u - 1));
     try {
       await api.patch(`/notifications/${id}/read`);
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, is_read: 1 } : n))
-      );
-      setUnread((u) => Math.max(0, u - 1));
     } catch (error) {
+      setNotifications(prevNotifications);
+      setUnread(prevUnread);
       console.error("Failed to mark notification read:", getApiErrorMessage(error, "Unknown error"));
     }
   }
 
   async function markAllRead() {
+    const prevNotifications = notifications;
+    const prevUnread = unread;
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: 1 })));
+    setUnread(0);
     try {
       await api.patch("/notifications/read-all");
-      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: 1 })));
-      setUnread(0);
     } catch (error) {
+      setNotifications(prevNotifications);
+      setUnread(prevUnread);
       console.error("Failed to mark all read:", getApiErrorMessage(error, "Unknown error"));
     }
   }
@@ -211,7 +217,7 @@ export default function NotificationsPage() {
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="text-text-muted text-sm font-semibold">{page} / {totalPages}</span>
+            <span className="text-text-muted text-sm font-semibold">{page} / {totalPages} · {total} total</span>
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}

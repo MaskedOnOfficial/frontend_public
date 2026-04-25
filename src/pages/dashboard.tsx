@@ -58,12 +58,6 @@ function getCountdown(dateStr: string): string {
   return `${mins}m`;
 }
 
-function isPartyActive(party: Party): boolean {
-  if (party.status === "cancelled" || party.status === "completed" || party.status === "archived") return false;
-  if (new Date(party.date_time) < new Date() && party.status === "upcoming") return false;
-  return true;
-}
-
 function getGreeting(): string {
   const h = new Date().getHours();
   if (h < 12) return "Good morning";
@@ -134,8 +128,14 @@ export default function DashboardPage() {
     load();
   }, []);
 
-  const activeParties = useMemo(() => parties.filter(isPartyActive), [parties]);
-  const pastParties = useMemo(() => parties.filter((p) => !isPartyActive(p)), [parties]);
+  const activeParties = useMemo(
+    () => parties.filter((p) => p.status === "upcoming" || p.status === "ongoing"),
+    [parties]
+  );
+  const pastParties = useMemo(
+    () => parties.filter((p) => p.status === "completed" || p.status === "cancelled" || p.status === "archived"),
+    [parties]
+  );
   const upcomingParties = useMemo(() =>
     activeParties
       .filter(p => p.status === "upcoming" || p.status === "ongoing")

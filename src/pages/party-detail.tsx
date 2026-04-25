@@ -5,6 +5,7 @@ import { useAuth } from "../context/auth-hook";
 import type { Party, Attendee } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
 import { motion } from "framer-motion";
+import { parseTags } from "../lib/parse-tags";
 import { getTrustLevel } from "../lib/trust-levels";
 import { ArrowLeft, MapPin, Calendar, Clock, Users, Star, Tag, Camera, Share2, Ticket, Shield, CheckCircle, Loader2, Send, PartyPopper, Edit3, MoreVertical, Flag, X } from "lucide-react";
 
@@ -13,6 +14,7 @@ interface PartyDetailPayload {
   attendees: Attendee[];
   viewer?: {
     request_status: string | null;
+    request_id: string | null;
     is_attending: boolean;
   };
 }
@@ -20,12 +22,6 @@ interface PartyDetailPayload {
 function formatPrice(price: number) {
   if (price === 0) return "Free";
   return `₹${(price / 100).toLocaleString("en-IN")}`;
-}
-
-function parseTags(tags: string | string[] | null): string[] {
-  if (!tags) return [];
-  if (Array.isArray(tags)) return tags;
-  try { return JSON.parse(tags); } catch { return []; }
 }
 
 export default function PartyDetailPage() {
@@ -37,7 +33,9 @@ export default function PartyDetailPage() {
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [loading, setLoading] = useState(true);
   const [requestStatus, setRequestStatus] = useState<string | null>(null);
+  const [requestId, setRequestId] = useState<string | null>(null);
   const [requesting, setRequesting] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
   const [paying, setPaying] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -52,6 +50,7 @@ export default function PartyDetailPage() {
       setParty(data.party);
       setAttendees(data.attendees || []);
       setRequestStatus(data.viewer?.request_status ?? null);
+      setRequestId(data.viewer?.request_id ?? null);
     } catch (loadError: unknown) {
       setError(getApiErrorMessage(loadError, "Party not found"));
     } finally {
@@ -67,14 +66,30 @@ export default function PartyDetailPage() {
     setRequesting(true);
     setError(""); // #31
     try {
-      await api.post(`/parties/${partyId}/requests`, { message: message || undefined });
+      const res = await api.post(`/parties/${partyId}/requests`, { message: message || undefined });
       setRequestStatus("pending");
+      setRequestId(res.data.data.request?.id ?? null);
       setMessage("");
       setError(""); // #31 — clear on success
     } catch (joinError: unknown) {
       setError(getApiErrorMessage(joinError, "Failed to send request"));
     } finally {
       setRequesting(false);
+    }
+  }
+
+  async function handleWithdraw() {
+    if (!requestId) return;
+    setWithdrawing(true);
+    setError("");
+    try {
+      await api.delete(`/parties/${partyId}/requests/${requestId}`);
+      setRequestStatus("withdrawn");
+      setRequestId(null);
+    } catch (withdrawError: unknown) {
+      setError(getApiErrorMessage(withdrawError, "Failed to withdraw request"));
+    } finally {
+      setWithdrawing(false);
     }
   }
 
@@ -429,7 +444,14 @@ export default function PartyDetailPage() {
                   </div>
                 ) : requestStatus === "pending" ? (
                   <div className="glass-panel rounded-2xl p-5 border-warning/20 border">
-                    <p className="text-warning font-bold text-center flex items-center justify-center gap-2"><Clock className="w-5 h-5" />Awaiting host approval</p>
+                    <p className="text-warning font-bold text-center flex items-center justify-center gap-2 mb-3"><Clock className="w-5 h-5" />Awaiting host approval</p>
+                    <button
+                      onClick={handleWithdraw}
+                      disabled={withdrawing}
+                      className="w-full text-error text-sm font-semibold py-2 rounded-xl border border-error/20 hover:bg-error/10 transition disabled:opacity-50 tap-active flex items-center justify-center gap-1.5"
+                    >
+                      {withdrawing ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Withdrawing…</> : <><X className="w-3.5 h-3.5" />Withdraw Request</>}
+                    </button>
                   </div>
                 ) : !canRequestToJoin ? (
                   <div className="glass-panel rounded-2xl p-5 border-text-dim/10 border">

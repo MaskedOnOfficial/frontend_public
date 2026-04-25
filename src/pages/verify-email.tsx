@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { CheckCircle, XCircle, Loader } from "lucide-react";
 import api from "../lib/api";
 import { getApiErrorMessage } from "../lib/errors";
+import { useAuth } from "../context/auth-hook";
 
 type Status = "loading" | "success" | "error";
 
@@ -11,6 +12,7 @@ export default function VerifyEmailPage() {
   const [searchParams] = useSearchParams();
   const [status, setStatus] = useState<Status>("loading");
   const [message, setMessage] = useState("");
+  const { refreshUser } = useAuth();
 
   useEffect(() => {
     const token = searchParams.get("token");
@@ -25,6 +27,7 @@ export default function VerifyEmailPage() {
       .then(() => {
         setStatus("success");
         setMessage("Your email has been verified! You can now host parties.");
+        refreshUser().catch(() => {});
       })
       .catch((err: unknown) => {
         setStatus("error");

@@ -4,6 +4,7 @@ import api from "../lib/api";
 import { useAuth } from "../context/auth-hook";
 import type { Party } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
+import { parseTags } from "../lib/parse-tags";
 import { getTrustLevel } from "../lib/trust-levels";
 import { isNative } from "../lib/capacitor";
 import { takePhoto } from "../lib/native-camera";
@@ -15,12 +16,6 @@ function toLocalDatetime(iso: string): string {
   const off = d.getTimezoneOffset();
   const local = new Date(d.getTime() - off * 60000);
   return local.toISOString().slice(0, 16);
-}
-
-function parseTags(tags: string | string[] | null): string[] {
-  if (!tags) return [];
-  if (Array.isArray(tags)) return tags;
-  try { return JSON.parse(tags); } catch { return []; }
 }
 
 interface PreviewForm {

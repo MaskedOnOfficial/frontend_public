@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/auth-hook";
 import { compressAndStripMetadata } from "../lib/image-utils";
 import api from "../lib/api";
 import { getApiErrorMessage } from "../lib/errors";
@@ -87,16 +88,16 @@ const EMPTY_FORM: FormState = {
 // Helpers
 // ═══════════════════════════════════════════════════════════
 
-function loadDraft(): Partial<FormState> | null {
+function loadDraft(draftKey: string): Partial<FormState> | null {
   try {
-    const raw = localStorage.getItem(DRAFT_KEY);
+    const raw = localStorage.getItem(draftKey);
     return raw ? JSON.parse(raw) : null;
   } catch { return null; }
 }
-function saveDraft(form: FormState) {
-  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(form)); } catch { /* quota */ }
+function saveDraft(draftKey: string, form: FormState) {
+  try { localStorage.setItem(draftKey, JSON.stringify(form)); } catch { /* quota */ }
 }
-function clearDraft() { localStorage.removeItem(DRAFT_KEY); }
+function clearDraft(draftKey: string) { localStorage.removeItem(draftKey); }
 
 function getRelativeDate(dateStr: string): string {
   const date = new Date(dateStr);
@@ -232,7 +233,10 @@ function TrustGateSelector({ value, onChange }: { value: number; onChange: (v: n
 
 export default function CreatePartyPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const draftKey = user ? `${DRAFT_KEY}_${user.id}` : DRAFT_KEY;
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -248,19 +252,19 @@ export default function CreatePartyPage() {
 
   // --- Draft load ---
   useEffect(() => {
-    const d = loadDraft();
+    const d = loadDraft(draftKey);
     if (d && (d.title || d.description || d.location_name)) {
       setForm((prev) => ({ ...prev, ...d }));
       setShowDraft(true);
     }
-  }, []);
+  }, [draftKey]);
 
   // --- Auto-save ---
   useEffect(() => {
     if (!form.title && !form.description && !form.location_name) return;
-    const t = setTimeout(() => saveDraft(form), 1200);
+    const t = setTimeout(() => saveDraft(draftKey, form), 1200);
     return () => clearTimeout(t);
-  }, [form]);
+  }, [draftKey, form]);
 
   // --- Handlers ---
   function set(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
@@ -353,7 +357,7 @@ export default function CreatePartyPage() {
       const res = await api.post("/parties", fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      clearDraft();
+      clearDraft(draftKey);
       navigate(`/parties/${res.data.data.party.id}`);
     } catch (err: unknown) {
       setError(getApiErrorMessage(err, "Failed to create party"));
@@ -407,7 +411,7 @@ export default function CreatePartyPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    clearDraft();
+                    clearDraft(draftKey);
                     setForm({ ...EMPTY_FORM });
                     removeCover();
                     setShowDraft(false);
@@ -429,6 +433,8 @@ export default function CreatePartyPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
+              role="alert"
+              aria-live="polite"
               className="bg-error/10 border border-error/20 text-error rounded-2xl p-4 mb-4 text-sm font-medium"
             >
               {error}

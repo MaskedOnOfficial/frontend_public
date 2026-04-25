@@ -70,13 +70,6 @@ function isThisWeekend(dateStr: string): boolean {
   return d >= friday && d <= monday;
 }
 
-function getHotScore(p: Party): number {
-  const fillRate = p.max_capacity > 0 ? p.current_attendees / p.max_capacity : 0;
-  const friendBoost = (p.friends_attending ?? 0) * 0.15;
-  const recencyBoost = Math.max(0, 1 - (new Date().getTime() - new Date(p.created_at).getTime()) / (7 * 86400000));
-  return fillRate * 0.5 + friendBoost + recencyBoost * 0.35;
-}
-
 type QuickFilter = "all" | "tonight" | "weekend" | "free" | "friends";
 type SortMode = "date_asc" | "trending" | "price_asc" | "price_desc";
 
@@ -122,14 +115,14 @@ export default function DiscoverPage() {
     setLoading(true);
     setLoadError("");
     try {
-      const res = await api.get("/parties?limit=200&page=1&sort=date_asc");
+      const res = await api.get(`/parties?limit=200&page=1&sort=${sortMode}`);
       setAllParties(res.data.data.parties || []);
     } catch (error) {
       setLoadError(getApiErrorMessage(error, "Failed to load events"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [sortMode]);
 
   useEffect(() => { fetchParties(); }, [fetchParties]);
 
@@ -140,7 +133,7 @@ export default function DiscoverPage() {
   /* --- derived data --- */
 
   const filtered = useMemo(() => {
-    let list = allParties.filter((p) => {
+    return allParties.filter((p) => {
       if (selectedCity && p.location_city !== selectedCity) return false;
       if (search.trim()) {
         const term = search.trim().toLowerCase();
@@ -159,25 +152,10 @@ export default function DiscoverPage() {
         default: return true;
       }
     });
-
-    switch (sortMode) {
-      case "trending":
-        list = [...list].sort((a, b) => getHotScore(b) - getHotScore(a));
-        break;
-      case "price_asc":
-        list = [...list].sort((a, b) => a.ticket_price - b.ticket_price);
-        break;
-      case "price_desc":
-        list = [...list].sort((a, b) => b.ticket_price - a.ticket_price);
-        break;
-      default:
-        list = [...list].sort((a, b) => new Date(a.date_time).getTime() - new Date(b.date_time).getTime());
-    }
-    return list;
   }, [allParties, selectedCity, search, quickFilter, sortMode]);
 
   const happeningNow = useMemo(
-    () => allParties.filter((p) => p.status === "ongoing").sort((a, b) => getHotScore(b) - getHotScore(a)),
+    () => allParties.filter((p) => p.status === "ongoing").sort((a, b) => new Date(a.date_time).getTime() - new Date(b.date_time).getTime()),
     [allParties]
   );
 
@@ -185,7 +163,7 @@ export default function DiscoverPage() {
     () =>
       allParties
         .filter((p) => p.status === "upcoming")
-        .sort((a, b) => getHotScore(b) - getHotScore(a))
+        .sort((a, b) => b.current_attendees - a.current_attendees)
         .slice(0, 6),
     [allParties]
   );

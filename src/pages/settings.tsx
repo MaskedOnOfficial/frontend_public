@@ -1,11 +1,11 @@
-import { useState, useEffect, type FormEvent } from "react";
+import { useState, useEffect, useRef, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/auth-hook";
 import { useTheme } from "../context/use-theme";
 import api from "../lib/api";
 import { getApiErrorMessage } from "../lib/errors";
-import { motion } from "framer-motion";
-import { ArrowLeft, Edit3, Moon, Sun, LogOut, Shield, User, Mail, Calendar, Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, Edit3, Moon, Sun, LogOut, Shield, User, Mail, Calendar, Loader2, Lock, Trash2, Eye, EyeOff } from "lucide-react";
 
 export default function SettingsPage() {
   const { user, logout, refreshUser } = useAuth();
@@ -19,12 +19,43 @@ export default function SettingsPage() {
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<"success" | "error">("success");
 
+  // Change password
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwMessage, setPwMessage] = useState("");
+  const [pwMessageType, setPwMessageType] = useState<"success" | "error">("success");
+
+  // Delete account
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [showDeletePw, setShowDeletePw] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const deleteDialogRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (user) {
       setDisplayName(user.display_name);
       setBio(user.bio || "");
     }
   }, [user]);
+
+  useEffect(() => {
+    if (!message || messageType !== "success") return;
+    const timer = setTimeout(() => setMessage(""), 4000);
+    return () => clearTimeout(timer);
+  }, [message, messageType]);
+
+  useEffect(() => {
+    if (!pwMessage || pwMessageType !== "success") return;
+    const timer = setTimeout(() => setPwMessage(""), 4000);
+    return () => clearTimeout(timer);
+  }, [pwMessage, pwMessageType]);
 
   async function handleSave(e: FormEvent) {
     e.preventDefault();
@@ -41,6 +72,51 @@ export default function SettingsPage() {
       setMessageType("error");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleChangePassword(e: FormEvent) {
+    e.preventDefault();
+    setPwMessage("");
+    if (newPassword !== confirmPassword) {
+      setPwMessage("New passwords do not match");
+      setPwMessageType("error");
+      return;
+    }
+    if (newPassword.length < 8) {
+      setPwMessage("New password must be at least 8 characters");
+      setPwMessageType("error");
+      return;
+    }
+    setPwSaving(true);
+    try {
+      await api.put("/users/me/password", { currentPassword, newPassword });
+      setPwMessage("Password changed successfully!");
+      setPwMessageType("success");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setShowChangePassword(false);
+    } catch (err: unknown) {
+      setPwMessage(getApiErrorMessage(err, "Failed to change password"));
+      setPwMessageType("error");
+    } finally {
+      setPwSaving(false);
+    }
+  }
+
+  async function handleDeleteAccount(e: FormEvent) {
+    e.preventDefault();
+    setDeleteError("");
+    setDeleting(true);
+    try {
+      await api.delete("/users/me", { data: { password: deletePassword } });
+      await logout();
+      navigate("/auth/login", { replace: true });
+    } catch (err: unknown) {
+      setDeleteError(getApiErrorMessage(err, "Failed to delete account"));
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -67,12 +143,19 @@ export default function SettingsPage() {
         </motion.div>
 
         {/* Status message */}
-        {message && (
+        {messageType === "error" && message ? (
           <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
-            className={`${messageType === "success" ? "bg-success/10 border-success/15 text-success" : "bg-error/10 border-error/20 text-error"} border rounded-xl px-4 py-3 mb-6 text-sm`}>
+            role="alert"
+            aria-live="polite"
+            className="bg-error/10 border-error/20 text-error border rounded-xl px-4 py-3 mb-6 text-sm">
             {message}
           </motion.div>
-        )}
+        ) : message ? (
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+            className="bg-success/10 border-success/15 text-success border rounded-xl px-4 py-3 mb-6 text-sm">
+            {message}
+          </motion.div>
+        ) : null}
 
         {/* Profile Edit section */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
@@ -128,6 +211,9 @@ export default function SettingsPage() {
                   </div>
                 </div>
               ))}
+              <p className="text-[11px] text-text-dim pt-1">
+                Username and email are permanent and cannot be changed.
+              </p>
             </div>
           )}
         </motion.div>
@@ -169,6 +255,111 @@ export default function SettingsPage() {
           <Link to="/dashboard" className="btn-secondary-luxe w-full px-4 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2">
             Open Host Dashboard
           </Link>
+        </motion.div>
+
+        {/* Change Password */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+          className="glass-panel rounded-2xl p-6 mb-4">
+          <button onClick={() => { setShowChangePassword(v => !v); setPwMessage(""); }}
+            className="w-full flex items-center justify-between text-left">
+            <div className="flex items-center gap-3">
+              <Lock className="w-5 h-5 text-primary" />
+              <div>
+                <p className="text-text font-semibold text-sm">Change Password</p>
+                <p className="text-text-dim text-xs mt-0.5">Update your account password</p>
+              </div>
+            </div>
+            <span className="text-text-dim text-xs">{showChangePassword ? "Cancel" : "Change"}</span>
+          </button>
+
+          <AnimatePresence>
+            {showChangePassword && (
+              <motion.form initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
+                onSubmit={handleChangePassword} className="mt-4 space-y-3 overflow-hidden">
+                {pwMessageType === "error" && pwMessage ? (
+                  <p role="alert" aria-live="polite" className="text-xs px-3 py-2 rounded-lg bg-error/10 text-error">
+                    {pwMessage}
+                  </p>
+                ) : pwMessage ? (
+                  <p className="text-xs px-3 py-2 rounded-lg bg-success/10 text-success">
+                    {pwMessage}
+                  </p>
+                ) : null}
+                <div className="relative">
+                  <input type={showCurrentPw ? "text" : "password"} placeholder="Current password" value={currentPassword}
+                    onChange={e => setCurrentPassword(e.target.value)} required autoComplete="current-password"
+                    className="input-luxe w-full text-sm pr-10" />
+                  <button type="button" onClick={() => setShowCurrentPw(v => !v)} aria-label={showCurrentPw ? "Hide" : "Show"}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-dim">
+                    {showCurrentPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <div className="relative">
+                  <input type={showNewPw ? "text" : "password"} placeholder="New password (min 8 chars)" value={newPassword}
+                    onChange={e => setNewPassword(e.target.value)} required autoComplete="new-password"
+                    className="input-luxe w-full text-sm pr-10" />
+                  <button type="button" onClick={() => setShowNewPw(v => !v)} aria-label={showNewPw ? "Hide" : "Show"}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-dim">
+                    {showNewPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <input type="password" placeholder="Confirm new password" value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)} required autoComplete="new-password"
+                  className="input-luxe w-full text-sm" />
+                <button type="submit" disabled={pwSaving}
+                  className="btn-primary-luxe w-full py-2.5 text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                  {pwSaving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : "Update Password"}
+                </button>
+              </motion.form>
+            )}
+          </AnimatePresence>
+        </motion.div>
+
+        {/* Delete Account */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}
+          className="glass-panel rounded-2xl p-6 mb-4">
+          <button onClick={() => { setShowDeleteConfirm(true); setDeleteError(""); setDeletePassword(""); }}
+            className="w-full flex items-center gap-3 text-left">
+            <Trash2 className="w-5 h-5 text-error" />
+            <div>
+              <p className="text-error font-semibold text-sm">Delete Account</p>
+              <p className="text-text-dim text-xs mt-0.5">Permanently remove your account and all data</p>
+            </div>
+          </button>
+
+          <AnimatePresence>
+            {showDeleteConfirm && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+                role="dialog" aria-modal="true" aria-labelledby="delete-dialog-title">
+                <motion.div ref={deleteDialogRef} initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+                  className="glass-panel rounded-2xl p-6 max-w-sm w-full">
+                  <h2 id="delete-dialog-title" className="text-error font-bold text-lg mb-1">Delete Account</h2>
+                  <p className="text-text-dim text-sm mb-4">This action is irreversible. Enter your password to confirm.</p>
+                  {deleteError && <p role="alert" aria-live="polite" className="text-xs bg-error/10 text-error px-3 py-2 rounded-lg mb-3">{deleteError}</p>}
+                  <form onSubmit={handleDeleteAccount} className="space-y-3">
+                    <div className="relative">
+                      <input type={showDeletePw ? "text" : "password"} placeholder="Your password" value={deletePassword}
+                        onChange={e => setDeletePassword(e.target.value)} required autoComplete="current-password"
+                        className="input-luxe w-full text-sm pr-10" />
+                      <button type="button" onClick={() => setShowDeletePw(v => !v)} aria-label={showDeletePw ? "Hide" : "Show"}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-text-dim">
+                        {showDeletePw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => setShowDeleteConfirm(false)}
+                        className="flex-1 btn-secondary-luxe py-2.5 text-sm">Cancel</button>
+                      <button type="submit" disabled={deleting}
+                        className="flex-1 bg-error text-white font-bold py-2.5 rounded-xl text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                        {deleting ? <><Loader2 className="w-4 h-4 animate-spin" />Deleting…</> : "Delete"}
+                      </button>
+                    </div>
+                  </form>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
 
         {/* Sign Out */}

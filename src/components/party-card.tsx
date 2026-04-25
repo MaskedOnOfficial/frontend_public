@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import type { Party } from "../types";
+import { parseTags } from "../lib/parse-tags";
 import { MapPin, Calendar, Users, Ticket } from "lucide-react";
 
 function formatDate(dateStr: string) {
@@ -17,12 +18,6 @@ function formatDate(dateStr: string) {
 function formatPrice(price: number) {
   if (price === 0) return "Free";
   return `₹${(price / 100).toLocaleString("en-IN")}`;
-}
-
-function parseTags(tags: string | string[] | null): string[] {
-  if (!tags) return [];
-  if (Array.isArray(tags)) return tags;
-  try { return JSON.parse(tags); } catch { return []; }
 }
 
 function getStatusClasses(status: string) {

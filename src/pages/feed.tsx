@@ -21,8 +21,8 @@ interface FeedPost {
   thumbnail_url: string | null;
   caption: string | null;
   like_count: number;
-  view_count?: number;
-  comment_count?: number;
+  view_count: number;
+  comment_count: number;
   created_at: string;
   username: string;
   display_name: string;

@@ -72,7 +72,7 @@ export default function BottomTabNav() {
                             isActive ? "ring-[1.5px] ring-primary ring-offset-1 ring-offset-transparent" : ""
                           }`}>
                             {user.avatar_url
-                              ? <img src={user.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                              ? <img src={user.avatar_url} alt="" aria-hidden="true" className="w-full h-full object-cover" />
                               : <div className="w-full h-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-[10px] font-bold text-white">{(user.display_name ?? "?").charAt(0).toUpperCase()}</div>
                             }
                           </div>

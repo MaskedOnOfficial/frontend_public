@@ -17,7 +17,15 @@ export function useBackButton(active: boolean, onBack: () => void) {
       onBack();
     }
 
+    function popstateHandler() {
+      onBack();
+    }
+
     window.addEventListener('capacitor:backButton', handler);
-    return () => window.removeEventListener('capacitor:backButton', handler);
+    window.addEventListener('popstate', popstateHandler);
+    return () => {
+      window.removeEventListener('capacitor:backButton', handler);
+      window.removeEventListener('popstate', popstateHandler);
+    };
   }, [active, onBack]);
 }

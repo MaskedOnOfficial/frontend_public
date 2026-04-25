@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import api from "../lib/api";
+import { compressAndStripMetadata } from "../lib/image-utils";
+import { isNative } from "../lib/capacitor";
+import { takePhoto } from "../lib/native-camera";
 import { useAuth } from "../context/auth-hook";
 import PhotoGrid from "../components/photo-grid";
 import type { Party, Photo, Attendee } from "../types";
@@ -53,25 +56,42 @@ export default function PartyPhotosPage() {
   useEffect(() => { if (partyId) loadParty(); }, [loadParty, partyId]);
   useEffect(() => { if (partyId) loadPhotos(); }, [loadPhotos, partyId]);
 
-  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  async function uploadFile(file: File) {
     setUploading(true);
     setError("");
+
     try {
+      const sanitizedFile = await compressAndStripMetadata(file, {
+        maxSizeMB: 4,
+        maxWidthOrHeight: 1920,
+      });
+
       const formData = new FormData();
-      formData.append("image", file);
+      formData.append("image", sanitizedFile, sanitizedFile.name || file.name);
       formData.append("party_id", partyId!);
       if (caption.trim()) formData.append("caption", caption.trim());
+
       await api.post("/photos", formData, { headers: { "Content-Type": "multipart/form-data" } });
       setCaption("");
-      loadPhotos();
+      await loadPhotos();
     } catch (uploadError: unknown) {
       setError(getApiErrorMessage(uploadError, "Upload failed"));
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
+  }
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await uploadFile(file);
+  }
+
+  async function handleNativeCapture() {
+    const file = await takePhoto();
+    if (!file) return;
+    await uploadFile(file);
   }
 
   const likeInFlightRef = useRef<Set<string>>(new Set());
@@ -170,6 +190,15 @@ export default function PartyPhotosPage() {
                 className="input-luxe flex-1 rounded-xl px-4 py-3 text-sm"
               />
               <input ref={fileInputRef} type="file" aria-label="Upload party photo" title="Upload party photo" accept="image/jpeg,image/png,image/webp" onChange={handleUpload} className="hidden" />
+              {isNative() && (
+                <button
+                  onClick={handleNativeCapture}
+                  disabled={uploading}
+                  className="btn-secondary-luxe text-sm font-bold px-5 py-3 rounded-xl transition disabled:opacity-50 flex items-center gap-2"
+                >
+                  {uploading ? <><Loader2 className="w-4 h-4 animate-spin" />Uploading...</> : <><Camera className="w-4 h-4" />Take Photo</>}
+                </button>
+              )}
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}

@@ -112,7 +112,7 @@ export default function PhotoGrid({ photos, onLike, onDelete, currentUserId, com
             onClick={() => handleOpenLightbox(photo)}
           >
             <img
-              src={photo.image_url}
+              src={photo.thumbnail_url || photo.image_url}
               alt={photo.caption || "Party photo"}
               className="w-full h-full object-cover transition duration-500 group-hover:scale-110"
               loading="lazy"

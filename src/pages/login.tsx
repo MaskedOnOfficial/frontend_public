@@ -17,9 +17,25 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [wakingUp, setWakingUp] = useState(false);
   const mountedRef = useRef(true);
+  const backendReadyRef = useRef(false);
+  const wakePromiseRef = useRef<Promise<void> | null>(null);
+
+  function ensureBackendReady(): Promise<void> {
+    if (backendReadyRef.current) return Promise.resolve();
+    if (!wakePromiseRef.current) {
+      wakePromiseRef.current = ensureBackendAwake(45000)
+        .then(() => {
+          backendReadyRef.current = true;
+        })
+        .finally(() => {
+          wakePromiseRef.current = null;
+        });
+    }
+    return wakePromiseRef.current;
+  }
 
   useEffect(() => {
-    void ensureBackendAwake(45000).catch(() => {});
+    void ensureBackendReady().catch(() => {});
     return () => { mountedRef.current = false; };
   }, []);
 
@@ -35,7 +51,7 @@ export default function LoginPage() {
         setWakingUp(true);
         setError("Server is waking up. Retrying sign-in in a moment...");
         try {
-          await ensureBackendAwake();
+          await ensureBackendReady();
           await login(email, password);
           navigate("/", { replace: true });
           return;
@@ -104,6 +120,8 @@ export default function LoginPage() {
             <motion.div
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
+              role="alert"
+              aria-live="polite"
               className="bg-error/10 border border-error/20 rounded-xl px-4 py-3 mb-6 text-error text-sm flex items-start gap-2"
             >
               <span className="mt-0.5">⚠️</span>
@@ -149,7 +167,6 @@ export default function LoginPage() {
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-text-dim hover:text-text transition p-1"
-                  tabIndex={-1}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}

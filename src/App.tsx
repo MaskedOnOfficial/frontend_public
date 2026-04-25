@@ -11,6 +11,8 @@ import CrowdRatingGate from "./components/crowd-rating-gate";
 import FeedPage from "./pages/feed";
 import LoginPage from "./pages/login";
 import RegisterPage from "./pages/register";
+import ForgotPasswordPage from "./pages/forgot-password";
+import ResetPasswordPage from "./pages/reset-password";
 import ProfilePage from "./pages/profile";
 import SettingsPage from "./pages/settings";
 import DiscoverPage from "./pages/discover";
@@ -37,6 +39,16 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
+interface PendingRatingParty {
+  id: string;
+  title: string;
+  date_time: string;
+  end_time: string | null;
+  cover_image_url: string | null;
+  location_name: string;
+  location_city: string;
+}
+
 class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryState> {
   state: ErrorBoundaryState = { hasError: false, error: null };
 
@@ -46,6 +58,10 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
 
   render() {
     if (this.state.hasError) {
+      const safeMessage = import.meta.env.PROD
+        ? "An unexpected error occurred. Please refresh and try again."
+        : this.state.error?.message || "An unexpected error occurred.";
+
       return (
         <div className="min-h-screen bg-bg flex items-center justify-center px-4">
           <div className="text-center max-w-md">
@@ -53,7 +69,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
               <span className="text-3xl">⚠️</span>
             </div>
             <h1 className="text-xl font-bold text-text mb-2">Something went wrong</h1>
-            <p className="text-text-muted text-sm mb-6">{this.state.error?.message || "An unexpected error occurred."}</p>
+            <p className="text-text-muted text-sm mb-6">{safeMessage}</p>
             <button
               onClick={() => { this.setState({ hasError: false, error: null }); window.location.href = "/"; }}
               className="btn-primary-luxe font-bold px-6 py-3 rounded-xl"
@@ -153,8 +169,21 @@ function AppShell() {
   const navigate = useNavigate();
 
   // Pending crowd ratings state
-  const [pendingRatings, setPendingRatings] = useState<any[]>([]);
+  const [pendingRatings, setPendingRatings] = useState<PendingRatingParty[]>([]);
   const [pendingChecked, setPendingChecked] = useState(false);
+
+  // Offline detection (#49)
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  useEffect(() => {
+    function handleOnline() { setIsOffline(false); }
+    function handleOffline() { setIsOffline(true); }
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   // Initialize Capacitor native plugins on first mount
   useEffect(() => {
@@ -191,6 +220,11 @@ function AppShell() {
   return (
     <div className="premium-shell min-h-screen text-text">
       <ScrollToTop />
+      {isOffline && (
+        <div className="fixed top-0 left-0 right-0 z-[200] bg-error/90 text-white text-xs font-semibold text-center py-2 px-4 backdrop-blur-sm">
+          No internet connection — some features may not work
+        </div>
+      )}
       {!isAuthPage && !showRatingGate && <Navbar />}
       {showRatingGate && (
         <CrowdRatingGate
@@ -198,12 +232,14 @@ function AppShell() {
           onAllRated={() => { setPendingRatings([]); }}
         />
       )}
-      <main className={`relative z-10 ${!isAuthPage && user ? "pb-24 md:pb-0" : ""}`} style={showRatingGate ? { display: "none" } : undefined}>
+      <main role="main" className={`relative z-10 ${!isAuthPage && user ? "pb-24 md:pb-0" : ""}`} style={showRatingGate ? { display: "none" } : undefined}>
         <Routes>
         {/* ── Guest-only (login / register) ── */}
         <Route element={<GuestOnlyRoute />}>
           <Route path="/auth/login"    element={<LoginPage />} />
           <Route path="/auth/register" element={<RegisterPage />} />
+          <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
         </Route>
 
         {/* ── Public routes (no auth required) ── */}
