@@ -5,13 +5,12 @@ import { useAuth } from "../context/auth-hook";
 import { getApiErrorMessage } from "../lib/errors";
 import { ensureBackendAwake } from "../lib/api";
 import { motion } from "framer-motion";
-import { Sparkles, ArrowRight, Loader2, User, AtSign, Mail, Lock, Smartphone } from "lucide-react";
+import { Sparkles, ArrowRight, Loader2, User, AtSign, Mail, Lock } from "lucide-react";
 
 export default function RegisterPage() {
   const { register } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
-  const [mobileNumber, setMobileNumber] = useState("");
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
@@ -46,7 +45,6 @@ export default function RegisterPage() {
     const trimmedDisplayName = displayName.trim();
     const trimmedUsername = username.trim();
     const trimmedEmail = email.trim();
-    const normalizedMobileNumber = mobileNumber.replace(/[^\d+]/g, "");
 
     if (!trimmedDisplayName) return "Display name is required";
     if (!trimmedUsername) return "Username is required";
@@ -56,8 +54,6 @@ export default function RegisterPage() {
     }
     if (!trimmedEmail) return "Email is required";
     if (!/^\S+@\S+\.\S+$/.test(trimmedEmail)) return "Please enter a valid email";
-    if (!normalizedMobileNumber) return "Mobile number is required";
-    if (!/^\+?\d{10,15}$/.test(normalizedMobileNumber)) return "Please enter a valid mobile number";
     if (password.length < 8) return "Password must be at least 8 characters";
     if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password)) {
       return "Password must include uppercase, lowercase, and a number";
@@ -78,17 +74,7 @@ export default function RegisterPage() {
 
     setSubmitting(true);
     try {
-      const result = await register(email.trim(), username.trim(), password, displayName.trim(), mobileNumber.trim());
-      if (result.requiresVerification) {
-        navigate("/auth/verify-mobile", {
-          replace: true,
-          state: {
-            notice: result.message || "Account created. Verify your mobile number with OTP.",
-            verification: result.verification,
-          },
-        });
-        return;
-      }
+      await register(email.trim(), username.trim(), password, displayName.trim());
       navigate("/", { replace: true });
     } catch (error: unknown) {
       if (axios.isAxiosError(error) && !error.response) {
@@ -96,17 +82,7 @@ export default function RegisterPage() {
         setError("Server is waking up. Retrying registration in a moment...");
         try {
           await ensureBackendReady();
-          const retryResult = await register(email.trim(), username.trim(), password, displayName.trim(), mobileNumber.trim());
-          if (retryResult.requiresVerification) {
-            navigate("/auth/verify-mobile", {
-              replace: true,
-              state: {
-                notice: retryResult.message || "Account created. Verify your mobile number with OTP.",
-                verification: retryResult.verification,
-              },
-            });
-            return;
-          }
+          await register(email.trim(), username.trim(), password, displayName.trim());
           navigate("/", { replace: true });
           return;
         } catch (retryError: unknown) {
@@ -126,7 +102,6 @@ export default function RegisterPage() {
     { id: "displayName", label: "Display Name", type: "text", value: displayName, setter: setDisplayName, placeholder: "Riya Sharma", icon: User, auto: "name", max: 100 },
     { id: "username", label: "Username", type: "text", value: username, setter: setUsername, placeholder: "riya_hosts", icon: AtSign, auto: "username", max: 50 },
     { id: "email", label: "Email", type: "email", value: email, setter: setEmail, placeholder: "you@example.com", icon: Mail, auto: "email", max: 254 },
-    { id: "mobileNumber", label: "Mobile Number", type: "tel", value: mobileNumber, setter: setMobileNumber, placeholder: "+91 9876543210", icon: Smartphone, auto: "tel", max: 20 },
     { id: "password", label: "Password", type: "password", value: password, setter: setPassword, placeholder: "Min 8 characters", icon: Lock, auto: "new-password", min: 8, max: 128 },
   ];
 

@@ -54,17 +54,6 @@ export default function LoginPage() {
       await login(email, password);
       navigate("/", { replace: true });
     } catch (error: unknown) {
-      if (axios.isAxiosError(error) && error.response?.data?.error?.code === "MOBILE_NOT_VERIFIED") {
-        navigate("/auth/verify-mobile", {
-          replace: true,
-          state: {
-            notice: error.response?.data?.error?.message || "Verify your mobile number before signing in.",
-            verification: error.response?.data?.data?.verification,
-          },
-        });
-        return;
-      }
-
       if (axios.isAxiosError(error) && !error.response) {
         setWakingUp(true);
         setError("Server is waking up. Retrying sign-in in a moment...");

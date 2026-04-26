@@ -653,18 +653,6 @@ export default function ProfilePage() {
         )}
       </AnimatePresence>
 
-      {/* ── MOBILE VERIFICATION BANNER ── */}
-      {user && !user.mobile_verified && (
-        <div className="max-w-2xl mx-auto px-4 pt-4 relative z-20">
-          <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-amber-500/15 border border-amber-400/30 text-amber-300">
-            <span className="text-lg shrink-0">📱</span>
-            <p className="text-sm flex-1">
-              Please verify your mobile number with OTP before continuing.
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* ── HERO BANNER ── */}
       <div className="profile-hero h-52 sm:h-60 md:h-72 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-bg/30 to-bg" />

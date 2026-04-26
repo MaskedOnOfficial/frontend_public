@@ -1,7 +1,6 @@
 export interface User {
   id: string;
   email: string;
-  mobile_number: string | null;
   username: string;
   display_name: string;
   bio: string | null;
@@ -12,8 +11,6 @@ export interface User {
   parties_attended: number;
   created_at: string;
   updated_at: string;
-  email_verified: boolean;
-  mobile_verified: boolean;
 }
 
 export interface AuthTokens {

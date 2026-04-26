@@ -56,10 +56,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(userData);
   }
 
-  async function register(email: string, username: string, password: string, displayName: string, mobileNumber: string) {
+  async function register(email: string, username: string, password: string, displayName: string) {
     const res = await api.post("/auth/register", {
       email,
-      mobile_number: mobileNumber,
       username,
       password,
       display_name: displayName,
@@ -74,13 +73,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearStoredAuthTokens();
       setUser(null);
     }
-
-    return {
-      requiresVerification: !userData,
-      message:
-        typeof res.data?.data?.message === "string" ? res.data.data.message : undefined,
-      verification: res.data?.data?.verification,
-    };
   }
 
   async function logout() {
