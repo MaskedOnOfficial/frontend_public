@@ -74,16 +74,28 @@ export default function RegisterPage() {
 
     setSubmitting(true);
     try {
-      await register(email.trim(), username.trim(), password, displayName.trim());
-      navigate("/", { replace: true });
+      const trimmedEmail = email.trim();
+      await register(trimmedEmail, username.trim(), password, displayName.trim());
+      navigate("/auth/verify-email", {
+        replace: true,
+        state: {
+          email: trimmedEmail,
+        },
+      });
     } catch (error: unknown) {
       if (axios.isAxiosError(error) && !error.response) {
         setWakingUp(true);
         setError("Server is waking up. Retrying registration in a moment...");
         try {
           await ensureBackendReady();
-          await register(email.trim(), username.trim(), password, displayName.trim());
-          navigate("/", { replace: true });
+          const trimmedEmail = email.trim();
+          await register(trimmedEmail, username.trim(), password, displayName.trim());
+          navigate("/auth/verify-email", {
+            replace: true,
+            state: {
+              email: trimmedEmail,
+            },
+          });
           return;
         } catch (retryError: unknown) {
           setError(getApiErrorMessage(retryError, "Server is still waking up. Please try again in a few seconds."));

@@ -11,6 +11,9 @@ import CrowdRatingGate from "./components/crowd-rating-gate";
 import FeedPage from "./pages/feed";
 import LoginPage from "./pages/login";
 import RegisterPage from "./pages/register";
+import VerifyEmailPage from "./pages/verify-email";
+import ForgotPasswordPage from "./pages/forgot-password";
+import ResetPasswordPage from "./pages/reset-password";
 import ProfilePage from "./pages/profile";
 import SettingsPage from "./pages/settings";
 import DiscoverPage from "./pages/discover";
@@ -243,8 +246,11 @@ function AppShell() {
         <Routes>
         {/* ── Guest-only (login / register) ── */}
         <Route element={<GuestOnlyRoute />}>
-          <Route path="/auth/login"    element={<LoginPage />} />
+          <Route path="/auth/login" element={<LoginPage />} />
           <Route path="/auth/register" element={<RegisterPage />} />
+          <Route path="/auth/verify-email" element={<VerifyEmailPage />} />
+          <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
         </Route>
 
         {/* ── Protected (requires login) ── */}

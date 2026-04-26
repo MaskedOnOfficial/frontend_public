@@ -68,7 +68,15 @@ export default function LoginPage() {
           setWakingUp(false);
         }
       } else {
-        setError(getApiErrorMessage(error, "Login failed. Please check your credentials."));
+        const errorCode = axios.isAxiosError(error)
+          ? error.response?.data?.error?.code
+          : undefined;
+        const message = getApiErrorMessage(error, "Login failed. Please check your credentials.");
+        setError(message);
+
+        if (errorCode === "EMAIL_NOT_VERIFIED") {
+          setNotice("Your email is not verified yet. Use the verification page to resend the link.");
+        }
       }
     } finally {
       if (mountedRef.current) setSubmitting(false);
@@ -215,16 +223,27 @@ export default function LoginPage() {
         </motion.div>
 
         {/* Register link */}
-        <p className="text-text-muted text-sm text-center mt-8">
-          New to maskOn?{" "}
-          <Link
-            to="/auth/register"
-            className="text-primary font-semibold hover:text-accent transition inline-flex items-center gap-1"
-          >
-            Create an account
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </p>
+        <div className="text-text-muted text-sm text-center mt-8 space-y-3">
+          <p>
+            New to maskOn?{" "}
+            <Link
+              to="/auth/register"
+              className="text-primary font-semibold hover:text-accent transition inline-flex items-center gap-1"
+            >
+              Create an account
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </p>
+          <p>
+            <Link to="/auth/forgot-password" className="text-primary font-semibold hover:text-accent transition">
+              Forgot password?
+            </Link>
+            {" · "}
+            <Link to="/auth/verify-email" className="text-primary font-semibold hover:text-accent transition">
+              Resend verification
+            </Link>
+          </p>
+        </div>
       </motion.div>
     </div>
   );
