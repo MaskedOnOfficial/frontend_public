@@ -14,6 +14,7 @@ import {
   MessageCircle, ArrowLeft, ShieldBan, ShieldOff, Eye, MoreVertical, Flag, CalendarDays,
   PartyPopper, Flame, Crown, Trophy, Star, Shield, Check, BarChart3
 } from "lucide-react";
+import ReportModal from "../components/ReportModal";
 
 type FriendStatus = "none" | "pending" | "accepted";
 type FriendDir = "incoming" | "outgoing" | null;
@@ -152,18 +153,13 @@ export default function PublicProfilePage() {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const [showReportModal, setShowReportModal] = useState(false);
-  const [reportReason, setReportReason] = useState<string>("");
-  const [reportDescription, setReportDescription] = useState("");
-  const [reportLoading, setReportLoading] = useState(false);
-  const [reportError, setReportError] = useState("");
-  const [reportSuccess, setReportSuccess] = useState(false);
 
   // Android back button: close overlays in reverse z-index order
   useBackButton(!!storyPartyId, useCallback(() => { setStoryPartyId(null); setStoryIndex(0); }, []));
   useBackButton(!storyPartyId && activeCommentPhotoId !== null, useCallback(() => { setActiveCommentPhotoId(null); setComments([]); setNewComment(""); setCommentError(""); }, []));
   useBackButton(!storyPartyId && activeCommentPhotoId === null && feedStartIndex !== null, useCallback(() => { setFeedStartIndex(null); setActiveCommentPhotoId(null); setComments([]); setNewComment(""); setCommentError(""); }, []));
   useBackButton(showBlockConfirm, useCallback(() => setShowBlockConfirm(false), []));
-  useBackButton(showReportModal, useCallback(() => { setShowReportModal(false); setReportReason(""); setReportDescription(""); setReportError(""); setReportSuccess(false); }, []));
+  useBackButton(showReportModal, useCallback(() => setShowReportModal(false), []));
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -310,30 +306,6 @@ export default function PublicProfilePage() {
       setBlockedByMe(false);
     } catch (error) { console.error("Failed to unblock user:", getApiErrorMessage(error, "Unknown unblock error")); }
     finally { setBlockLoading(false); }
-  }
-
-  async function handleReport() {
-    if (!userId || !reportReason || reportLoading) return;
-    setReportLoading(true);
-    setReportError("");
-    try {
-      await api.post("/reports", {
-        target_type: "user",
-        target_id: userId,
-        reason: reportReason,
-        description: reportDescription.trim() || undefined,
-      });
-      setReportSuccess(true);
-    } catch (err: unknown) {
-      const code = (err as { response?: { data?: { error?: { code?: string } } } })?.response?.data?.error?.code;
-      if (code === "ALREADY_REPORTED") {
-        setReportError("You've already reported this user.");
-      } else {
-        setReportError(getApiErrorMessage(err, "Failed to submit report"));
-      }
-    } finally {
-      setReportLoading(false);
-    }
   }
 
   // Comments
@@ -1005,91 +977,14 @@ export default function PublicProfilePage() {
       )}
 
       {/* REPORT MODAL */}
-      <AnimatePresence>
-        {showReportModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4"
-            onClick={() => { setShowReportModal(false); setReportReason(""); setReportDescription(""); setReportError(""); setReportSuccess(false); }}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="glass-panel rounded-3xl overflow-hidden max-w-sm w-full shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {reportSuccess ? (
-                <div className="p-6 text-center">
-                  <div className="w-14 h-14 rounded-2xl bg-success/10 border border-success/15 mx-auto mb-4 flex items-center justify-center">
-                    <Flag className="w-7 h-7 text-success" />
-                  </div>
-                  <h3 className="text-text font-bold text-lg mb-1">Report Submitted</h3>
-                  <p className="text-text-muted text-sm">Thank you. We'll review this report and take action if needed.</p>
-                  <button
-                    onClick={() => { setShowReportModal(false); setReportReason(""); setReportDescription(""); setReportError(""); setReportSuccess(false); }}
-                    className="mt-5 btn-primary-luxe w-full py-3 rounded-2xl font-bold text-sm"
-                  >
-                    Done
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <div className="p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-text font-bold text-lg">Report User</h3>
-                      <button onClick={() => { setShowReportModal(false); setReportReason(""); setReportDescription(""); setReportError(""); setReportSuccess(false); }} className="w-8 h-8 rounded-full bg-surface-light flex items-center justify-center text-text-muted hover:text-text transition tap-active" title="Close">
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                    <p className="text-text-muted text-xs mb-4">Why are you reporting <span className="font-bold text-text">{profile?.display_name}</span>?</p>
-                    <div className="space-y-2 mb-4">
-                      {([
-                        { value: "spam", label: "Spam or fake account" },
-                        { value: "harassment", label: "Harassment or bullying" },
-                        { value: "fake_event", label: "Fake or fraudulent event" },
-                        { value: "inappropriate_content", label: "Inappropriate content" },
-                        { value: "underage", label: "Underage user" },
-                        { value: "other", label: "Other" },
-                      ] as const).map((opt) => (
-                        <button
-                          key={opt.value}
-                          onClick={() => setReportReason(opt.value)}
-                          className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium transition border tap-active ${
-                            reportReason === opt.value
-                              ? "bg-warning/15 border-warning/30 text-warning"
-                              : "bg-surface-light border-primary/[0.06] text-text-muted hover:text-text hover:bg-surface"
-                          }`}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                    <textarea
-                      placeholder="Additional details (optional)"
-                      value={reportDescription}
-                      onChange={(e) => setReportDescription(e.target.value.slice(0, 1000))}
-                      rows={3}
-                      className="input-luxe w-full resize-none text-sm"
-                    />
-                    {reportError && <p className="text-error text-xs mt-2">{reportError}</p>}
-                  </div>
-                  <div className="flex border-t border-primary/[0.06]">
-                    <button onClick={() => { setShowReportModal(false); setReportReason(""); setReportDescription(""); setReportError(""); setReportSuccess(false); }} className="flex-1 py-3.5 text-sm font-semibold text-text-muted hover:bg-surface-light transition tap-active">
-                      Cancel
-                    </button>
-                    <button onClick={handleReport} disabled={!reportReason || reportLoading} className="flex-1 py-3.5 text-sm font-bold text-warning hover:bg-warning/10 transition border-l border-primary/[0.06] tap-active disabled:opacity-40">
-                      {reportLoading ? "Submitting…" : "Submit Report"}
-                    </button>
-                  </div>
-                </>
-              )}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {showReportModal && profile && (
+        <ReportModal
+          targetType="user"
+          targetId={profile.id}
+          targetName={profile.display_name}
+          onClose={() => setShowReportModal(false)}
+        />
+      )}
 
       {/* BLOCK CONFIRMATION MODAL */}
       <AnimatePresence>

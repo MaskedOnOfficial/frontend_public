@@ -623,7 +623,7 @@ export default function ProfilePage() {
     const appUrl = import.meta.env.VITE_APP_URL as string || window.location.origin;
     const url = `${appUrl}/profile/${user.id}`;
     if (navigator.share) {
-      try { await navigator.share({ title: `${user.display_name} on maskOn`, url }); } catch { /* cancelled */ }
+      try { await navigator.share({ title: `${user.display_name} on maskedOn`, url }); } catch { /* cancelled */ }
     } else {
       await navigator.clipboard.writeText(url);
       showToast("Profile link copied!");

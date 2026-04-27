@@ -4,14 +4,14 @@ import { setNativeTheme } from "../lib/capacitor";
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
-    const stored = localStorage.getItem("maskOn-theme");
+    const stored = localStorage.getItem("maskedon-theme");
     return (stored as Theme) || "dark";
   });
 
   useEffect(() => {
     const root = document.documentElement;
     root.setAttribute("data-theme", theme);
-    localStorage.setItem("maskOn-theme", theme);
+    localStorage.setItem("maskedon-theme", theme);
     // Sync native status bar color with theme
     setNativeTheme(theme);
     // Update the meta theme-color tag for mobile browsers

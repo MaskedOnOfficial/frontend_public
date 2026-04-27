@@ -5,7 +5,7 @@ import { useTheme } from "../context/use-theme";
 import api from "../lib/api";
 import { getApiErrorMessage } from "../lib/errors";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Edit3, Moon, Sun, LogOut, Shield, User, Mail, Calendar, Loader2, Lock, Trash2, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Edit3, Moon, Sun, LogOut, Shield, User, Mail, Calendar, Loader2, Lock, Trash2, Eye, EyeOff, HelpCircle, FileText, MessageCircle, Bug, ChevronRight } from "lucide-react";
 
 export default function SettingsPage() {
   const { user, logout, refreshUser } = useAuth();
@@ -371,6 +371,42 @@ export default function SettingsPage() {
             Sign Out
           </button>
         </motion.div>
+
+        {/* Support & Legal */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22 }}
+          className="glass-panel rounded-2xl p-5 mt-4">
+          <h2 className="text-[11px] font-bold text-text-dim uppercase tracking-[0.15em] mb-4">Support & Legal</h2>
+          <div className="divide-y divide-primary/[0.06]">
+            {[
+              { icon: HelpCircle, label: "Help & FAQ", desc: "Common questions answered", to: "/faq", color: "text-warning" },
+              { icon: MessageCircle, label: "Contact Us", desc: "Get in touch with our team", to: "/contact", color: "text-accent" },
+              { icon: Bug, label: "Report a Bug", desc: "Something broken? Let us know", to: "/bug-report", color: "text-error" },
+              { icon: Shield, label: "Privacy Policy", desc: "How we handle your data", to: "/privacy", color: "text-primary" },
+              { icon: FileText, label: "Terms of Service", desc: "Platform rules and guidelines", to: "/terms", color: "text-text-muted" },
+            ].map(({ icon: Icon, label, desc, to, color }) => (
+              <Link
+                key={to}
+                to={to}
+                state={{ from: "/settings" }}
+                className="flex items-center justify-between py-3.5 group tap-active"
+              >
+                <div className="flex items-center gap-3">
+                  <Icon className={`w-4 h-4 ${color} shrink-0`} />
+                  <div>
+                    <p className="text-text text-sm font-semibold">{label}</p>
+                    <p className="text-text-dim text-xs">{desc}</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-text-dim group-hover:text-text-muted transition" />
+              </Link>
+            ))}
+          </div>
+
+          <div className="mt-4 pt-4 border-t border-primary/[0.06] text-center">
+            <p className="text-text-dim text-[11px]">maskedOn v1.0.0 · © {new Date().getFullYear()}</p>
+          </div>
+        </motion.div>
+
       </div>
     </div>
   );

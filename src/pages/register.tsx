@@ -5,7 +5,7 @@ import { useAuth } from "../context/auth-hook";
 import { getApiErrorMessage } from "../lib/errors";
 import { ensureBackendAwake } from "../lib/api";
 import { motion } from "framer-motion";
-import { Sparkles, ArrowRight, Loader2, User, AtSign, Mail, Lock } from "lucide-react";
+import { ArrowRight, Loader2, User, AtSign, Mail, Lock } from "lucide-react";
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -131,14 +131,13 @@ export default function RegisterPage() {
             initial={{ scale: 0.5, opacity: 0, rotate: -10 }}
             animate={{ scale: 1, opacity: 1, rotate: 0 }}
             transition={{ duration: 0.6, delay: 0.1, type: "spring", stiffness: 200 }}
-            className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-primary via-accent to-hot shadow-2xl shadow-primary/30 mb-3 glow-badge"
+            className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-3"
           >
-            <Sparkles className="w-7 h-7 text-white" />
+            <img src="/symbol.png" alt="" className="w-14 h-14 object-contain" />
           </motion.div>
-          <motion.h1 initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="text-2xl font-extrabold tracking-tight">
-            <span className="text-text">mask</span>
-            <span className="brand-gradient-text">On</span>
-          </motion.h1>
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="flex justify-center">
+            <img src="/name.png" alt="maskedOn" className="h-9 w-auto object-contain" />
+          </motion.div>
           <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }} className="text-text-dim text-sm mt-1">Create your exclusive social identity.</motion.p>
         </div>
 

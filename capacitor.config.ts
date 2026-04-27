@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.maskon.app',
-  appName: 'maskOn',
+  appId: 'com.maskedon.app',
+  appName: 'maskedOn',
   webDir: 'dist',
   server: {
     // Allow mixed content and navigation to any origin

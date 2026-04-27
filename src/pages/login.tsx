@@ -5,7 +5,7 @@ import { useAuth } from "../context/auth-hook";
 import { getApiErrorMessage } from "../lib/errors";
 import { ensureBackendAwake } from "../lib/api";
 import { motion } from "framer-motion";
-import { Eye, EyeOff, Sparkles, ArrowRight, Loader2 } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -97,19 +97,18 @@ export default function LoginPage() {
             initial={{ scale: 0.5, opacity: 0, rotate: -10 }}
             animate={{ scale: 1, opacity: 1, rotate: 0 }}
             transition={{ duration: 0.6, delay: 0.1, type: "spring", stiffness: 200 }}
-            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary via-accent to-hot shadow-2xl shadow-primary/30 mb-4 glow-badge"
+            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4"
           >
-            <Sparkles className="w-8 h-8 text-white" />
+            <img src="/symbol.png" alt="" className="w-16 h-16 object-contain" />
           </motion.div>
-          <motion.h1
+          <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="text-3xl font-extrabold tracking-tight"
+            className="flex justify-center"
           >
-            <span className="text-text">mask</span>
-            <span className="brand-gradient-text">On</span>
-          </motion.h1>
+            <img src="/name.png" alt="maskedOn" className="h-10 w-auto object-contain" />
+          </motion.div>
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -225,7 +224,7 @@ export default function LoginPage() {
         {/* Register link */}
         <div className="text-text-muted text-sm text-center mt-8 space-y-3">
           <p>
-            New to maskOn?{" "}
+            New to maskedOn?{" "}
             <Link
               to="/auth/register"
               className="text-primary font-semibold hover:text-accent transition inline-flex items-center gap-1"

@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useNavigate, Link } from "react-router-dom";
 import { useState, useEffect, useRef, useCallback, Component, type ReactNode } from "react";
+import { AnimatePresence } from "framer-motion";
+import SplashScreen from "./components/splash-screen";
 import { AuthProvider } from "./context/auth-context";
 import { ThemeProvider } from "./context/theme-context";
 import { useAuth } from "./context/auth-hook";
@@ -30,6 +32,21 @@ import NotificationsPage from "./pages/notifications";
 import PublicProfilePage from "./pages/public-profile";
 import SearchPage from "./pages/search";
 import CreatePostPage from "./pages/create-post";
+import FriendsPage from "./pages/friends";
+import AchievementsPage from "./pages/achievements";
+import AttendeesPage from "./pages/attendees";
+import DigitalTicketPage from "./pages/digital-ticket";
+import MyRatingsPage from "./pages/my-ratings";
+import BlockedUsersPage from "./pages/blocked-users";
+import PaymentHistoryPage from "./pages/payment-history";
+import OnboardingPage from "./pages/onboarding";
+import HostAnalyticsPage from "./pages/host-analytics";
+import LandingPage from "./pages/landing";
+import PrivacyPolicyPage from "./pages/privacy";
+import TermsPage from "./pages/terms";
+import FAQPage from "./pages/faq";
+import ContactPage from "./pages/contact";
+import BugReportPage from "./pages/bug-report";
 import BottomTabNav from "./components/bottom-tab-nav.tsx";
 
 // ─── Error Boundary ───────────────────────────────────────────────────────────
@@ -111,7 +128,23 @@ function ScrollToTop() {
   return null;
 }
 
-// ─── Auth Guards ──────────────────────────────────────────────────────────────
+// ─── Home Route (Landing for guests, Feed for logged-in users) ───────────────
+
+function HomeRoute() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-bg flex items-center justify-center">
+        <div className="w-10 h-10 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return user ? <FeedPage /> : <LandingPage />;
+}
+
+// ─── Auth Guards ────────────────────────────────────────────────────────────────
 
 /**
  * ProtectedRoute: Requires the user to be logged in.
@@ -126,7 +159,7 @@ function ProtectedRoute() {
       <div className="min-h-screen bg-bg flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-          <p className="text-text-muted text-sm">Loading maskOn…</p>
+          <p className="text-text-muted text-sm">Loading maskedOn…</p>
         </div>
       </div>
     );
@@ -221,8 +254,23 @@ function AppShell() {
 
   useEffect(() => { checkPendingRatings(); }, [checkPendingRatings]);
 
-  // #22 — Hide navbar on auth pages
-  const isAuthPage = location.pathname.startsWith("/auth");
+  // Auto-redirect brand-new users (account < 24h, no onboarding flag) to onboarding
+  useEffect(() => {
+    if (
+      user &&
+      !localStorage.getItem("maskedon-onboarding-done") &&
+      Date.now() - new Date(user.created_at).getTime() < 24 * 60 * 60 * 1000 &&
+      location.pathname !== "/onboarding"
+    ) {
+      navigate("/onboarding", { replace: true });
+    }
+  }, [user, navigate, location.pathname]);
+
+  // #22 — Hide navbar/bottom-tab on auth pages and onboarding
+  const isAuthPage =
+    location.pathname.startsWith("/auth") ||
+    location.pathname === "/onboarding" ||
+    (location.pathname === "/" && !user);
 
   // Show rating gate if user has pending crowd ratings
   const showRatingGate = user && pendingChecked && pendingRatings.length > 0;
@@ -244,6 +292,16 @@ function AppShell() {
       )}
       <main role="main" className={`relative z-10 ${!isAuthPage && user ? "pb-24 md:pb-0" : ""}`} style={showRatingGate ? { display: "none" } : undefined}>
         <Routes>
+        {/* ── Home: Landing (guest) or Feed (logged in) ── */}
+        <Route path="/"                               element={<HomeRoute />} />
+
+        {/* ── Public informational pages ── */}
+        <Route path="/privacy"                        element={<PrivacyPolicyPage />} />
+        <Route path="/terms"                          element={<TermsPage />} />
+        <Route path="/faq"                            element={<FAQPage />} />
+        <Route path="/contact"                        element={<ContactPage />} />
+        <Route path="/bug-report"                     element={<BugReportPage />} />
+
         {/* ── Guest-only (login / register) ── */}
         <Route element={<GuestOnlyRoute />}>
           <Route path="/auth/login" element={<LoginPage />} />
@@ -255,7 +313,6 @@ function AppShell() {
 
         {/* ── Protected (requires login) ── */}
         <Route element={<ProtectedRoute />}>
-          <Route path="/"                               element={<FeedPage />} />
           <Route path="/parties"                        element={<DiscoverPage />} />
           <Route path="/parties/create"                 element={<CreatePartyPage />} />
           <Route path="/parties/:partyId"               element={<PartyDetailPage />} />
@@ -263,6 +320,13 @@ function AppShell() {
           <Route path="/parties/:partyId/rate"          element={<RateCrowdPage />} />
           <Route path="/parties/:partyId/photos"        element={<PartyPhotosPage />} />
           <Route path="/my-requests"                    element={<MyRequestsPage />} />
+          <Route path="/my-requests/:requestId/ticket" element={<DigitalTicketPage />} />
+          <Route path="/my-ratings"                    element={<MyRatingsPage />} />
+          <Route path="/blocked-users"                 element={<BlockedUsersPage />} />
+          <Route path="/payment-history"               element={<PaymentHistoryPage />} />
+          <Route path="/friends"                        element={<FriendsPage />} />
+          <Route path="/achievements"                   element={<AchievementsPage />} />
+          <Route path="/dashboard/:partyId/attendees"   element={<AttendeesPage />} />
           <Route path="/dashboard"                      element={<DashboardPage />} />
           <Route path="/dashboard/:partyId/requests"   element={<ManageRequestsPage />} />
           <Route path="/profile/me"                     element={<ProfilePage />} />
@@ -273,6 +337,8 @@ function AppShell() {
           <Route path="/search"                         element={<SearchPage />} />
           <Route path="/settings"                       element={<SettingsPage />} />
           <Route path="/create-post"                    element={<CreatePostPage />} />
+          <Route path="/onboarding"                     element={<OnboardingPage />} />
+          <Route path="/dashboard/analytics"            element={<HostAnalyticsPage />} />
         </Route>
 
         {/* ── Catch-all: 404 page ── */}
@@ -285,11 +351,18 @@ function AppShell() {
 }
 
 function App() {
+  const [splashDone, setSplashDone] = useState(false);
+
   return (
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
           <ErrorBoundary>
+            <AnimatePresence>
+              {!splashDone && (
+                <SplashScreen key="splash" onComplete={() => setSplashDone(true)} />
+              )}
+            </AnimatePresence>
             <AppShell />
           </ErrorBoundary>
         </AuthProvider>

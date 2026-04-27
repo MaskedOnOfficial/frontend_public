@@ -47,7 +47,7 @@ type CacheStatus = "fresh" | "stale" | "expired";
 // ─── Constants ──────────────────────────────────────────────────────
 const MAX_ENTRIES = 200;
 const PRUNE_COUNT = 50;
-const STORAGE_KEY = "maskon_api_cache";
+const STORAGE_KEY = "maskedon_api_cache";
 const STORAGE_BUDGET = 2 * 1024 * 1024; // 2 MB
 
 // ─── TTL Tiers (matched via regex patterns) ─────────────────────────

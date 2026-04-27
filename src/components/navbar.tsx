@@ -87,13 +87,7 @@ export default function Navbar() {
 
         {/* Logo */}
         <Link to="/" className="flex items-center gap-1.5 shrink-0 group">
-          {/* <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary via-accent to-hot flex items-center justify-center shadow-md shadow-primary/15 group-hover:shadow-primary/30 transition-shadow">
-            <Sparkles className="w-3.5 h-3.5 text-white" />
-          </div> */}
-          <span className="text-base md:text-lg font-extrabold tracking-tight">
-            <span className="text-text">mask</span>
-            <span className="brand-gradient-text">On</span>
-          </span>
+          <img src="/name.png" alt="maskedOn" className="h-6 md:h-7 w-auto object-contain" />
         </Link>
 
         {/* Search bar — visible only when logged in */}

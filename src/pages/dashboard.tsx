@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import api from "../lib/api";
 import { useAuth } from "../context/auth-hook";
 import { getApiErrorMessage } from "../lib/errors";
@@ -95,12 +95,23 @@ function StatPill({ icon: Icon, label, value, color = "text-primary" }: { icon: 
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [parties, setParties] = useState<Party[]>([]);
   const [analytics, setAnalytics] = useState<HostAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [showPast, setShowPast] = useState(false);
   const [now, setNow] = useState(Date.now());
+
+  // Android hardware back button → go to Profile
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      navigate("/profile/me");
+    };
+    window.addEventListener("capacitor:backButton", handler);
+    return () => window.removeEventListener("capacitor:backButton", handler);
+  }, [navigate]);
 
   // Tick every minute for countdown updates
   useEffect(() => {
@@ -384,6 +395,10 @@ export default function DashboardPage() {
                           <UserCheck className="w-3.5 h-3.5" />
                           Requests
                         </Link>
+                        <Link to={`/dashboard/${party.id}/attendees`} className="dash-action-btn flex-1">
+                          <Users className="w-3.5 h-3.5" />
+                          Guests
+                        </Link>
                         <Link to={`/parties/${party.id}`} className="dash-action-btn flex-1">
                           <Eye className="w-3.5 h-3.5" />
                           View
@@ -419,6 +434,27 @@ export default function DashboardPage() {
                 </div>
                 <ArrowRight className="w-5 h-5 text-text-dim group-hover:text-primary transition shrink-0" />
               </div>
+            </Link>
+          </motion.div>
+        )}
+
+        {/* ══════ FULL ANALYTICS LINK ══════ */}
+        {analytics && analytics.parties.total > 0 && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22 }} className="mb-6">
+            <Link
+              to="/dashboard/analytics"
+              className="flex items-center justify-between p-4 rounded-2xl border border-primary/15 bg-primary/5 hover:bg-primary/10 transition tap-active group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <BarChart3 className="w-4.5 h-4.5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-text font-bold text-sm">Full Analytics</p>
+                  <p className="text-text-dim text-xs">Revenue, attendance, requests & more</p>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-text-dim group-hover:text-primary transition" />
             </Link>
           </motion.div>
         )}

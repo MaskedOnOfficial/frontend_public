@@ -68,6 +68,13 @@ export interface PartyRequest {
   party_title?: string;
   party_date_time?: string;
   party_location_city?: string;
+  party_cover_image_url?: string | null;
+  party_ticket_price?: number;
+  party_max_capacity?: number;
+  party_current_attendees?: number;
+  party_host_id?: string;
+  party_end_time?: string | null;
+  party_tags?: string | null;
 }
 
 export interface Payment {

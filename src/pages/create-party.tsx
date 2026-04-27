@@ -18,7 +18,7 @@ import {
 // Constants
 // ═══════════════════════════════════════════════════════════
 
-const DRAFT_KEY = "maskon_party_draft";
+const DRAFT_KEY = "maskedon_party_draft";
 
 const SUGGESTED_TAGS = [
   "rooftop", "underground", "house-music", "afro-house", "techno", "hip-hop",

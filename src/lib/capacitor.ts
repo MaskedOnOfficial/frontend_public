@@ -93,7 +93,7 @@ export async function initCapacitor(
       const parsed = new URL(url);
       path = parsed.pathname + parsed.search;
     } catch {
-      path = url.replace(/^maskon:\/\//, '/').replace(/^https?:\/\/[^/]+/, '');
+      path = url.replace(/^maskedon:\/\//, '/').replace(/^https?:\/\/[^/]+/, '');
     }
     // Only navigate to known app routes
     if (path && path !== '/' && ALLOWED_DEEP_LINK_PREFIXES.some((prefix) => path.startsWith(prefix))) {
