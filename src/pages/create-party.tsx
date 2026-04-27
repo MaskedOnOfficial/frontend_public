@@ -273,8 +273,27 @@ export default function CreatePartyPage() {
   function blur(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) {
     setTouched((p) => ({ ...p, [e.target.name]: true }));
   }
-  function fieldErr(name: string, val: string) {
-    return touched[name] === true && !val.trim();
+  function getFieldError(name: string): string {
+    if (!touched[name]) return "";
+    switch (name) {
+      case "title":
+        if (!form.title.trim()) return "Give your party a name so guests know what to expect";
+        if (form.title.trim().length < 3) return "Title needs to be at least 3 characters long";
+        return "";
+      case "location_name":
+        if (!form.location_name.trim()) return "Add the venue or place name — guests need to know where to go";
+        if (form.location_name.trim().length < 2) return "Venue name is too short";
+        return "";
+      case "location_city":
+        if (!form.location_city.trim()) return "Which city is this happening in?";
+        return "";
+      case "date_time":
+        if (!form.date_time) return "Pick a date and time for the party";
+        if (new Date(form.date_time) <= new Date()) return "That date is already in the past — choose a future date";
+        return "";
+      default:
+        return "";
+    }
   }
   function toggleTag(tag: string) {
     setForm((p) => {
@@ -314,10 +333,21 @@ export default function CreatePartyPage() {
   // --- Step nav ---
   function canProceed(): boolean {
     if (step === 1) return form.title.trim().length >= 3;
-    if (step === 2) return !!form.location_name.trim() && !!form.location_city.trim() && !!form.date_time;
+    if (step === 2) {
+      return !!form.location_name.trim() &&
+        form.location_name.trim().length >= 2 &&
+        !!form.location_city.trim() &&
+        !!form.date_time &&
+        new Date(form.date_time) > new Date();
+    }
     return true;
   }
   function goNext() {
+    if (step === 1) {
+      setTouched((p) => ({ ...p, title: true }));
+    } else if (step === 2) {
+      setTouched((p) => ({ ...p, location_name: true, location_city: true, date_time: true }));
+    }
     if (!canProceed()) return;
     setDir(1);
     setStep((s) => Math.min(s + 1, 3));
@@ -342,7 +372,7 @@ export default function CreatePartyPage() {
       fd.append("date_time", new Date(form.date_time).toISOString());
       if (form.end_time) {
         if (new Date(form.end_time) <= new Date(form.date_time)) {
-          setError("End time must be after start time");
+          setError("The end time needs to be after the start time — please go back and fix it");
           setLoading(false);
           return;
         }
@@ -500,11 +530,11 @@ export default function CreatePartyPage() {
                       onBlur={blur}
                       placeholder="e.g., Rooftop Vibes Vol. 3"
                       maxLength={100}
-                      className={`input-luxe w-full rounded-xl px-4 py-3.5 text-base ${fieldErr("title", form.title) ? "ring-2 ring-error/50" : ""}`}
+                      className={`input-luxe w-full rounded-xl px-4 py-3.5 text-base ${getFieldError("title") ? "ring-2 ring-error/50" : ""}`}
                     />
                     <div className="flex items-center justify-between mt-1.5">
-                      {fieldErr("title", form.title) && <p className="text-error text-[10px] font-semibold">Title is required (min 3 chars)</p>}
-                      <p className="text-text-dim text-[10px] ml-auto">{form.title.length}/100</p>
+                      {getFieldError("title") && <p className="text-error text-xs font-medium break-words">{getFieldError("title")}</p>}
+                      <p className="text-text-dim text-[10px] ml-auto shrink-0">{form.title.length}/100</p>
                     </div>
                   </div>
                   <div>
@@ -584,9 +614,9 @@ export default function CreatePartyPage() {
                       onChange={set}
                       onBlur={blur}
                       placeholder="Skydeck, Indiranagar"
-                      className={`input-luxe w-full rounded-xl px-4 py-3.5 ${fieldErr("location_name", form.location_name) ? "ring-2 ring-error/50" : ""}`}
+                      className={`input-luxe w-full rounded-xl px-4 py-3.5 ${getFieldError("location_name") ? "ring-2 ring-error/50" : ""}`}
                     />
-                    {fieldErr("location_name", form.location_name) && <p className="text-error text-[10px] mt-1 font-semibold">Venue name is required</p>}
+                    {getFieldError("location_name") && <p className="text-error text-xs mt-1 font-medium break-words">{getFieldError("location_name")}</p>}
                   </div>
                   <div>
                     <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">City *</label>
@@ -596,9 +626,9 @@ export default function CreatePartyPage() {
                       onChange={set}
                       onBlur={blur}
                       placeholder="Bangalore"
-                      className={`input-luxe w-full rounded-xl px-4 py-3.5 ${fieldErr("location_city", form.location_city) ? "ring-2 ring-error/50" : ""}`}
+                      className={`input-luxe w-full rounded-xl px-4 py-3.5 ${getFieldError("location_city") ? "ring-2 ring-error/50" : ""}`}
                     />
-                    {fieldErr("location_city", form.location_city) && <p className="text-error text-[10px] mt-1 font-semibold">City is required</p>}
+                    {getFieldError("location_city") && <p className="text-error text-xs mt-1 font-medium break-words">{getFieldError("location_city")}</p>}
                   </div>
                 </div>
 
@@ -616,10 +646,11 @@ export default function CreatePartyPage() {
                       type="datetime-local"
                       name="date_time"
                       value={form.date_time}
-                      onChange={set}
-                      className="input-luxe w-full rounded-xl px-4 py-3.5"
+                      onChange={(e) => { set(e); setTouched((p) => ({ ...p, date_time: true })); }}
+                      className={`input-luxe w-full rounded-xl px-4 py-3.5 ${getFieldError("date_time") ? "ring-2 ring-error/50" : ""}`}
                     />
-                    {form.date_time && (
+                    {getFieldError("date_time") && <p className="text-error text-xs mt-1 font-medium break-words">{getFieldError("date_time")}</p>}
+                    {form.date_time && !getFieldError("date_time") && (
                       <p className="text-accent text-[10px] mt-1.5 font-semibold">{getRelativeDate(form.date_time)}</p>
                     )}
                   </div>
@@ -634,7 +665,7 @@ export default function CreatePartyPage() {
                       className="input-luxe w-full rounded-xl px-4 py-3.5"
                     />
                     {form.end_time && form.date_time && new Date(form.end_time) <= new Date(form.date_time) && (
-                      <p className="text-error text-[10px] mt-1 font-semibold">End time must be after start</p>
+                      <p className="text-error text-xs mt-1 font-medium">End time needs to be after the start time</p>
                     )}
                     {form.end_time && form.date_time && new Date(form.end_time) > new Date(form.date_time) && (
                       <p className="text-text-dim text-[10px] mt-1.5 font-medium">
@@ -751,7 +782,7 @@ export default function CreatePartyPage() {
                   {coverPreview && (
                     <img src={coverPreview} alt="" className="w-full h-24 object-cover rounded-xl" />
                   )}
-                  <h3 className="text-lg font-bold text-text truncate">{form.title || "Untitled Experience"}</h3>
+                  <h3 className="text-lg font-bold text-text break-words line-clamp-3">{form.title || "Untitled Experience"}</h3>
                   <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm">
                     <div className="flex items-center gap-2 text-text-muted">
                       <MapPin className="w-3.5 h-3.5 text-accent shrink-0" />

@@ -9,7 +9,7 @@ import { takePhoto } from "../lib/native-camera";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, ArrowRight, ImagePlus, Sun, Contrast, Droplets,
-  Loader2, X, RotateCw, Sparkles, Check
+  Loader2, X, RotateCw, Sparkles, Check, Globe, Lock
 } from "lucide-react";
 
 /* ─── Filter presets ─── */
@@ -49,6 +49,7 @@ export default function CreatePostPage() {
 
   // Caption state
   const [caption, setCaption] = useState("");
+  const [globalVisibility, setGlobalVisibility] = useState(false);
 
   const adjustCSS = `brightness(${brightness / 100}) contrast(${contrast / 100}) saturate(${saturation / 100})`;
   const filterCSS = FILTERS[selectedFilter].css;
@@ -150,6 +151,7 @@ export default function CreatePostPage() {
       const fd = new FormData();
       fd.append("image", compressed);
       if (caption.trim()) fd.append("caption", caption.trim());
+      fd.append("global_visibility", String(globalVisibility));
 
       await api.post("/photos", fd, { headers: { "Content-Type": "multipart/form-data" } });
       navigate("/profile/me", { replace: true });
@@ -170,6 +172,7 @@ export default function CreatePostPage() {
     setSaturation(100);
     setRotation(0);
     setCaption("");
+    setGlobalVisibility(false);
     setError("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
@@ -458,6 +461,49 @@ export default function CreatePostPage() {
                 </p>
               </div>
             )}
+          </div>
+
+          {/* Global visibility toggle */}
+          <div className="mt-5 glass-panel rounded-2xl px-4 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+                  globalVisibility ? "bg-primary/15" : "bg-surface-light"
+                }`}>
+                  {globalVisibility
+                    ? <Globe className="w-4.5 h-4.5 text-primary" />
+                    : <Lock className="w-4.5 h-4.5 text-text-muted" />}
+                </div>
+                <div>
+                  <p className="text-text text-sm font-bold">
+                    {globalVisibility ? "Show to everyone" : "Friends only"}
+                  </p>
+                  <p className="text-text-dim text-xs mt-0.5">
+                    {globalVisibility
+                      ? "This post may appear in discovery feeds"
+                      : "Only your friends will see this"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Toggle switch */}
+              <button
+                type="button"
+                role="switch"
+                aria-checked={globalVisibility ? "true" : "false"}
+                title={globalVisibility ? "Show to everyone (tap to change)" : "Friends only (tap to change)"}
+                onClick={() => setGlobalVisibility((v) => !v)}
+                className={`relative w-12 h-6 rounded-full transition-colors tap-active flex-shrink-0 ${
+                  globalVisibility ? "bg-primary" : "bg-surface-light border border-primary/20"
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-md transition-transform ${
+                    globalVisibility ? "translate-x-6" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
           </div>
 
           {/* Discard button */}

@@ -118,6 +118,7 @@ export interface Photo {
   like_count: number;
   comment_count: number;
   view_count: number;
+  global_visibility: boolean;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;

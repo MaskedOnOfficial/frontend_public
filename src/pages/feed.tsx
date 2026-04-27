@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Heart, MessageCircle, Sparkles, Users, PartyPopper,
   Loader2, Send, MapPin, Calendar, TrendingUp,
-  Flame, Eye, ChevronRight, Zap, Trophy,
+  Flame, Eye, ChevronRight, Zap, Trophy, Globe,
 } from "lucide-react";
 
 // --- Types ---
@@ -68,6 +68,10 @@ interface UpcomingParty {
 interface TrendingPost extends FeedPost {
   comment_count: number;
   view_count: number;
+}
+
+interface DiscoveryPost extends FeedPost {
+  is_global: true;
 }
 
 interface AchievementUpdate {
@@ -734,6 +738,7 @@ export default function FeedPage() {
   const [trendingPost, setTrendingPost] = useState<TrendingPost | null>(null);
   const [upcomingParties, setUpcomingParties] = useState<UpcomingParty[]>([]);
   const [achievementUpdates, setAchievementUpdates] = useState<AchievementUpdate[]>([]);
+  const [discoveryPost, setDiscoveryPost] = useState<DiscoveryPost | null>(null);
 
   const [pullDistance, setPullDistance] = useState(0);
   const [isPulling, setIsPulling] = useState(false);
@@ -758,6 +763,7 @@ export default function FeedPage() {
         setTrendingPost(data.trending_post || null);
         setUpcomingParties(data.upcoming_parties || []);
         setAchievementUpdates(data.achievement_updates || []);
+        setDiscoveryPost(data.discovery_post || null);
       }
     } catch (err) {
       setError(getApiErrorMessage(err, "Failed to load feed"));
@@ -973,13 +979,33 @@ export default function FeedPage() {
               </div>
             )}
 
-            {/* Feed posts */}
-            {posts.map((post) => (
-              <PostCard
-                key={post.id}
-                post={post}
-                onLikeToggle={handleLikeToggle}
-              />
+            {/* Feed posts — inject discovery post after position 3 */}
+            {posts.map((post, index) => (
+              <>
+                <PostCard
+                  key={post.id}
+                  post={post}
+                  onLikeToggle={handleLikeToggle}
+                />
+                {index === 2 && discoveryPost && discoveryPost.id !== post.id && (
+                  <motion.div
+                    key={`discovery-${discoveryPost.id}`}
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="relative"
+                  >
+                    {/* Discovery badge */}
+                    <div className="flex items-center gap-1.5 mb-2 px-1">
+                      <Globe className="w-3.5 h-3.5 text-accent" />
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-accent">Discover people</span>
+                    </div>
+                    <PostCard
+                      post={discoveryPost}
+                      onLikeToggle={handleLikeToggle}
+                    />
+                  </motion.div>
+                )}
+              </>
             ))}
 
             {/* Infinite scroll sentinel */}
