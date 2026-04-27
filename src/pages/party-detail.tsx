@@ -160,7 +160,8 @@ export default function PartyDetailPage() {
 
   // #30 — Share / copy link
   function handleShare() {
-    const url = window.location.href;
+    const appUrl = import.meta.env.VITE_APP_URL as string || window.location.origin;
+    const url = `${appUrl}/parties/${partyId}`;
     if (navigator.share) {
       navigator.share({ title: party?.title || "maskOn Party", url }).catch(() => {});
     } else {

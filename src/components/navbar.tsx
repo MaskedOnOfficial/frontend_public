@@ -5,7 +5,7 @@ import { useNotifications } from "../context/use-notifications-hook";
 import api from "../lib/api";
 import type { Party } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
-import { Search, Bell, LogOut, Compass, Plus, LayoutDashboard, Inbox, Loader2, Sparkles, Settings } from "lucide-react";
+import { Search, Bell, LogOut, Compass, Plus, LayoutDashboard, Inbox, Loader2, Settings } from "lucide-react";
 
 type SearchUser = { id: string; username: string; display_name: string; avatar_url: string | null; social_rating: number };
 type SearchResults = { users: SearchUser[]; parties: Party[] };
@@ -87,9 +87,9 @@ export default function Navbar() {
 
         {/* Logo */}
         <Link to="/" className="flex items-center gap-1.5 shrink-0 group">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary via-accent to-hot flex items-center justify-center shadow-md shadow-primary/15 group-hover:shadow-primary/30 transition-shadow">
+          {/* <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary via-accent to-hot flex items-center justify-center shadow-md shadow-primary/15 group-hover:shadow-primary/30 transition-shadow">
             <Sparkles className="w-3.5 h-3.5 text-white" />
-          </div>
+          </div> */}
           <span className="text-base md:text-lg font-extrabold tracking-tight">
             <span className="text-text">mask</span>
             <span className="brand-gradient-text">On</span>

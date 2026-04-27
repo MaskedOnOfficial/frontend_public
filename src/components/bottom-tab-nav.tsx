@@ -5,7 +5,7 @@ import { useAuth } from "../context/auth-hook";
 
 const tabs = [
   { to: "/", label: "Feed", icon: Home, end: true },
-  { to: "/parties", label: "Discover", icon: Compass, end: false },
+  { to: "/parties", label: "Discover", icon: Compass, end: true },
   { to: "/parties/create", label: "Host", icon: Plus, end: false, special: true },
   { to: "/my-requests", label: "Requests", icon: Inbox, end: false },
   { to: "/profile/me", label: "Profile", icon: User, end: false },
