@@ -59,10 +59,6 @@ export default function CreatePostPage() {
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      setError("File too large (max 5 MB)");
-      return;
-    }
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
       setError("Only JPEG, PNG, and WebP images are allowed");
       return;
@@ -264,7 +260,7 @@ export default function CreatePostPage() {
             </div>
           </div>
 
-          <p className="text-text-dim text-xs text-center mt-4">JPEG, PNG, WebP · Max 5 MB</p>
+          <p className="text-text-dim text-xs text-center mt-4">JPEG, PNG, WebP</p>
         </motion.div>
       )}
 

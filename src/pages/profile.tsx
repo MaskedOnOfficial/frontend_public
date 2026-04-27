@@ -298,7 +298,6 @@ export default function ProfilePage() {
 
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { showToast("File too large (max 5 MB)", "error"); return; }
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) { showToast("Only JPEG, PNG, WebP allowed", "error"); return; }
     setAvatarEditFile(file);
     setAvatarEditPreview(URL.createObjectURL(file));

@@ -306,7 +306,6 @@ export default function CreatePartyPage() {
   function applyCover(file: File) {
     const allowedMimes = ["image/jpeg", "image/png", "image/webp"];
     if (!allowedMimes.includes(file.type)) { setError("Only JPEG, PNG, and WebP images are allowed"); return; }
-    if (file.size > 5 * 1024 * 1024) { setError("Cover image too large (max 5 MB)"); return; }
     setCoverFile(file);
     const r = new FileReader();
     r.onload = (e) => setCoverPreview(e.target?.result as string);
@@ -512,7 +511,7 @@ export default function CreatePartyPage() {
                       </div>
                       <div className="text-center">
                         <p className="text-sm font-semibold text-text">Add Cover Image</p>
-                        <p className="text-[11px] text-text-dim mt-0.5">JPEG, PNG, WebP \u2022 Max 5 MB</p>
+                        <p className="text-[11px] text-text-dim mt-0.5">JPEG, PNG, WebP</p>
                       </div>
                     </button>
                   )}

@@ -144,7 +144,6 @@ export default function EditPartyPage() {
   }
 
   function applyCoverImage(file: File) {
-    if (file.size > 5 * 1024 * 1024) { setError("Cover image too large (max 5 MB)"); return; }
     setCoverImage(file);
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -297,7 +296,7 @@ export default function EditPartyPage() {
                 <Image className="w-4 h-4" />
                 {coverImage ? "Change Image" : coverImagePreview ? "Replace Image" : "Choose Cover Image"}
               </button>
-              <p className="text-text-dim text-xs">JPEG, PNG, or WebP (Max 5 MB)</p>
+              <p className="text-text-dim text-xs">JPEG, PNG, or WebP</p>
             </section>
 
             {/* Location & Time */}
