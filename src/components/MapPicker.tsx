@@ -56,7 +56,7 @@ export default function MapPicker({ initialLat, initialLng, onChange, mapClassNa
       ? { lat: initialLat, lng: initialLng }
       : null
   );
-  const searchTimer = useRef<ReturnType<typeof setTimeout>>();
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // Move/create marker on the Leaflet map
   const placeMarker = useCallback((lat: number, lng: number, displayName?: string) => {
