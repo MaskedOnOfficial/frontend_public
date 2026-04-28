@@ -8,6 +8,7 @@ import { getApiErrorMessage } from "../lib/errors";
 import { useBackButton } from "../lib/use-back-button";
 import { isNative } from "../lib/capacitor";
 import { takePhoto } from "../lib/native-camera";
+import { Share } from "@capacitor/share";
 import { getTrustLevel } from "../lib/trust-levels";
 import TrustBadge from "../components/trust-badge";
 import { motion, AnimatePresence } from "framer-motion";
@@ -376,8 +377,22 @@ export default function ProfilePage() {
     finally { setBannerUploading(false); if (bannerInputRef.current) bannerInputRef.current.value = ''; }
   }
 
+  async function handleNativeBannerUpload() {
+    const file = await takePhoto();
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { showToast('Only JPEG, PNG, WebP allowed', 'error'); return; }
+    setBannerUploading(true);
+    try {
+      const fd = new FormData(); fd.append('banner', file);
+      await api.put('/users/me/banner', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      await refreshUser();
+      showToast('Banner updated!');
+    } catch (error) { showToast(getApiErrorMessage(error, 'Upload failed'), 'error'); }
+    finally { setBannerUploading(false); }
+  }
+
   function triggerBannerUpload() {
-    bannerInputRef.current?.click();
+    if (isNative()) { void handleNativeBannerUpload(); } else { bannerInputRef.current?.click(); }
   }
 
   async function handleDeletePhoto(photoId: string) {
@@ -640,8 +655,11 @@ export default function ProfilePage() {
     if (!user) return;
     const appUrl = import.meta.env.VITE_APP_URL as string || window.location.origin;
     const url = `${appUrl}/profile/${user.id}`;
-    if (navigator.share) {
-      try { await navigator.share({ title: `${user.display_name} on maskedOn`, url }); } catch { /* cancelled */ }
+    const shareData = { title: `${user.display_name} on maskOn`, url };
+    if (isNative()) {
+      try { await Share.share(shareData); } catch { /* cancelled */ }
+    } else if (navigator.share) {
+      try { await navigator.share(shareData); } catch { /* cancelled */ }
     } else {
       await navigator.clipboard.writeText(url);
       showToast("Profile link copied!");
