@@ -7,8 +7,9 @@ import { getApiErrorMessage } from "../lib/errors";
 import { motion } from "framer-motion";
 import { parseTags } from "../lib/parse-tags";
 import { getTrustLevel } from "../lib/trust-levels";
-import { ArrowLeft, MapPin, Calendar, Clock, Users, Star, Tag, Camera, Share2, Ticket, Shield, CheckCircle, Loader2, Send, PartyPopper, Edit3, MoreVertical, Flag, X } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar, Clock, Users, Star, Tag, Camera, Share2, Ticket, Shield, CheckCircle, Loader2, Send, PartyPopper, Edit3, MoreVertical, Flag, X, Lock, Copy, Leaf, Wine, Cigarette, AlertTriangle, EyeOff, MessageCircle, Megaphone } from "lucide-react";
 import ReportModal from "../components/ReportModal";
+import type { PartyAnnouncement } from "../types";
 
 interface PartyDetailPayload {
   party: Party;
@@ -40,6 +41,10 @@ export default function PartyDetailPage() {
   const [paying, setPaying] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [announcementBody, setAnnouncementBody] = useState("");
+  const [announcements, setAnnouncements] = useState<PartyAnnouncement[]>([]);
+  const [announcementSending, setAnnouncementSending] = useState(false);
+  const [conversationStarting, setConversationStarting] = useState(false);
 
   const isHost = party && user && party.host_id === user.id;
 
@@ -62,6 +67,15 @@ export default function PartyDetailPage() {
   useEffect(() => {
     loadParty();
   }, [loadParty]);
+
+  useEffect(() => {
+    if (!party || !user) return;
+    const canViewAnnouncements = party.host_id === user.id || requestStatus === "approved";
+    if (!canViewAnnouncements) return;
+    api.get(`/parties/${partyId}/announcements`)
+      .then((res) => setAnnouncements(res.data.data.announcements || []))
+      .catch(() => setAnnouncements([]));
+  }, [party, partyId, requestStatus, user]);
 
   // Android hardware back button → go to Discover
   useEffect(() => {
@@ -119,9 +133,38 @@ export default function PartyDetailPage() {
     }
   }
 
+  async function handleMessageHost() {
+    if (!partyId) return;
+    setConversationStarting(true);
+    setError("");
+    try {
+      const res = await api.post("/messages/conversations", { party_id: partyId });
+      navigate(`/messages/${res.data.data.conversation.id}`);
+    } catch (messageError: unknown) {
+      setError(getApiErrorMessage(messageError, "Unable to open message thread"));
+    } finally {
+      setConversationStarting(false);
+    }
+  }
+
+  async function handlePostAnnouncement() {
+    if (!partyId || !announcementBody.trim()) return;
+    setAnnouncementSending(true);
+    try {
+      const res = await api.post(`/parties/${partyId}/announcements`, { body: announcementBody.trim() });
+      setAnnouncements((prev) => [res.data.data.announcement, ...prev]);
+      setAnnouncementBody("");
+    } catch (announcementError: unknown) {
+      setError(getApiErrorMessage(announcementError, "Failed to send announcement"));
+    } finally {
+      setAnnouncementSending(false);
+    }
+  }
+
   // Share state
   const [shareToast, setShareToast] = useState("");
   const shareTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [codeCopied, setCodeCopied] = useState(false);
 
   // Report state
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -314,6 +357,174 @@ export default function PartyDetailPage() {
             </div>
           )}
 
+          {/* Food type + badges */}
+          {(party.food_type || party.allow_photos === false) && (
+            <div className="flex flex-wrap gap-2 mb-6">
+              {party.food_type === "veg" && (
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-success/10 text-success border border-success/20">
+                  <Leaf className="w-3.5 h-3.5" /> Veg
+                </span>
+              )}
+              {party.food_type === "non_veg" && (
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-error/10 text-error border border-error/20">
+                  🍖 Non-Veg
+                </span>
+              )}
+              {party.food_type === "vegan" && (
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-accent/10 text-accent border border-accent/20">
+                  <Leaf className="w-3.5 h-3.5" /> Vegan
+                </span>
+              )}
+              {party.allow_photos === false && (
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-surface-light text-text-dim border border-border">
+                  <EyeOff className="w-3.5 h-3.5" /> No Photo Uploads
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Substance disclosures */}
+          {(party.allows_alcohol || party.allows_smoking || party.allows_other_substances) && (
+            <div className="mb-8 space-y-2">
+              <div className="flex items-start gap-3 px-4 py-3.5 rounded-2xl bg-warning/8 border border-warning/20">
+                <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-warning">Atmosphere Disclosure</p>
+                  <div className="flex flex-wrap gap-2 mt-1.5">
+                    {party.allows_alcohol && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-warning/90 bg-warning/10 px-2.5 py-1 rounded-full border border-warning/20">
+                        <Wine className="w-3 h-3" /> Alcohol
+                      </span>
+                    )}
+                    {party.allows_smoking && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-warning/90 bg-warning/10 px-2.5 py-1 rounded-full border border-warning/20">
+                        <Cigarette className="w-3 h-3" /> Smoking
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              {party.allows_other_substances && (
+                <div className="flex items-start gap-3 px-4 py-3.5 rounded-2xl bg-error/8 border border-error/20">
+                  <AlertTriangle className="w-4 h-4 text-error shrink-0 mt-0.5" />
+                  <p className="text-xs font-semibold text-error/90 leading-relaxed">
+                    Other substances may be present. 18+ advisory. Ensure compliance with local laws before attending.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Private code (host only) */}
+          {isHost && party.is_private && party.private_code && (
+            <div className="mb-8">
+              <div className="glass-panel rounded-2xl p-5 border border-warning/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <Lock className="w-4 h-4 text-warning" />
+                  <p className="text-[11px] font-bold text-text-dim uppercase tracking-[0.15em]">Private Access Code</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <code className="flex-1 text-xl font-mono font-bold text-warning tracking-[0.25em] py-2 px-4 bg-warning/8 rounded-xl border border-warning/15">
+                    {party.private_code}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(party.private_code!).then(() => {
+                        setCodeCopied(true);
+                        setTimeout(() => setCodeCopied(false), 2000);
+                      }).catch(() => {});
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-warning/10 text-warning text-xs font-bold border border-warning/20 hover:bg-warning/20 transition tap-active"
+                  >
+                    {codeCopied ? <><CheckCircle className="w-3.5 h-3.5" />Copied!</> : <><Copy className="w-3.5 h-3.5" />Copy</>}
+                  </button>
+                </div>
+                <p className="text-[11px] text-text-dim mt-2.5">Share this code only with guests you want to invite.</p>
+              </div>
+            </div>
+          )}
+
+          {/* Announcements */}
+          {(isHost || requestStatus === "approved") && (
+            <div className="mb-8">
+              <div className="glass-panel rounded-2xl p-5 border border-accent/15">
+                <div className="flex items-center gap-2 mb-4">
+                  <Megaphone className="w-4 h-4 text-accent" />
+                  <p className="text-[11px] font-bold text-text-dim uppercase tracking-[0.15em]">Party Announcements</p>
+                </div>
+
+                {isHost && (
+                  <div className="mb-5 space-y-3">
+                    <textarea
+                      value={announcementBody}
+                      onChange={(e) => setAnnouncementBody(e.target.value.slice(0, 2000))}
+                      rows={3}
+                      placeholder="Share an update with approved attendees..."
+                      className="input-luxe w-full rounded-2xl px-4 py-3 resize-none text-sm"
+                    />
+                    <div className="flex justify-end">
+                      <button
+                        onClick={handlePostAnnouncement}
+                        disabled={announcementSending || !announcementBody.trim()}
+                        className="btn-primary-luxe px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 disabled:opacity-50"
+                      >
+                        {announcementSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                        Post update
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {announcements.length === 0 ? (
+                  <p className="text-sm text-text-muted">No announcements yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {announcements.map((announcement) => (
+                      <div key={announcement.id} className="rounded-2xl border border-border bg-bg/60 p-4">
+                        <p className="text-sm text-text leading-relaxed whitespace-pre-wrap">{announcement.body}</p>
+                        <p className="text-[10px] text-text-dim mt-2">
+                          {new Date(announcement.created_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Map */}
+          {party.latitude != null && party.longitude != null ? (
+            <div className="mb-8">
+              <h3 className="text-[11px] font-bold text-text-dim uppercase tracking-[0.15em] mb-3 flex items-center gap-2">
+                <MapPin className="w-3.5 h-3.5" />
+                Location Map
+              </h3>
+              <div className="rounded-2xl overflow-hidden border border-border h-52">
+                <iframe
+                  title="Party location"
+                  width="100%"
+                  height="100%"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  src={`https://maps.google.com/maps?q=${party.latitude},${party.longitude}&z=16&output=embed`}
+                  className="border-0"
+                />
+              </div>
+            </div>
+          ) : party.ticket_price > 0 && !alreadyAttending && requestStatus !== "paid" ? (
+            <div className="mb-8">
+              <div className="relative rounded-2xl overflow-hidden border border-border h-36 bg-surface-light flex items-center justify-center">
+                <div className="absolute inset-0 backdrop-blur-sm" />
+                <div className="relative text-center space-y-2">
+                  <Lock className="w-6 h-6 text-text-dim mx-auto" />
+                  <p className="text-xs font-semibold text-text-muted">Exact location revealed after ticket purchase</p>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           {/* Host */}
           {party.host_display_name && (
             <div className="glass-panel rounded-2xl p-5 mb-8">
@@ -330,7 +541,7 @@ export default function PartyDetailPage() {
                     </div>
                   </div>
                 </Link>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <Link to={`/profile/${party.host_id}`} className="text-text font-bold hover:text-primary transition block">{party.host_display_name}</Link>
                   <p className="text-text-muted text-xs flex items-center gap-1.5">
                     @{party.host_username}
@@ -339,25 +550,25 @@ export default function PartyDetailPage() {
                     )}
                   </p>
                 </div>
-                {isHost && (
-                  <div className="flex gap-2 shrink-0">
-                    {party.status === "upcoming" && (
-                      <button
-                        onClick={() => navigate(`/parties/${party.id}/edit`)}
-                        className="btn-primary-luxe px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-1.5"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" /> Edit Event
-                      </button>
-                    )}
-                    <button
-                      onClick={() => navigate(`/dashboard/${party.id}/requests`)}
-                      className="btn-secondary-luxe px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap"
-                    >
-                      Manage Requests
-                    </button>
-                  </div>
-                )}
               </div>
+              {isHost && (
+                <div className="flex gap-2 mt-4">
+                  {party.status === "upcoming" && (
+                    <button
+                      onClick={() => navigate(`/parties/${party.id}/edit`)}
+                      className="btn-primary-luxe flex-1 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" /> Edit Event
+                    </button>
+                  )}
+                  <button
+                    onClick={() => navigate(`/dashboard/${party.id}/requests`)}
+                    className="btn-secondary-luxe flex-1 py-2.5 rounded-xl text-xs font-bold"
+                  >
+                    Manage Requests
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -463,6 +674,16 @@ export default function PartyDetailPage() {
                         : requestStatus === "rejected" || requestStatus === "withdrawn" ? <><Send className="w-4 h-4" />Request Again</>
                         : <><Send className="w-4 h-4" />Send Invite Request</>}
                     </button>
+                    {user && !isHost && requestStatus && requestStatus !== "withdrawn" && (
+                      <button
+                        onClick={handleMessageHost}
+                        disabled={conversationStarting}
+                        className="btn-secondary-luxe w-full px-4 py-4 rounded-2xl font-bold disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {conversationStarting ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageCircle className="w-4 h-4" />}
+                        Message Host
+                      </button>
+                    )}
                   </div>
                 )}
               </>

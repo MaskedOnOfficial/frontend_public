@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "./auth-hook";
 import io from "socket.io-client";
+import api from "../lib/api";
 
 const WS_URL = (import.meta.env.VITE_WS_URL as string | undefined)?.trim();
 
@@ -13,6 +14,15 @@ interface FrontendNotification {
   reference_type?: string;
 }
 
+interface FrontendMessage {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  body: string;
+  created_at: string;
+  read_at: string | null;
+}
+
 /**
  * Hook for real-time notifications via WebSocket
  * Automatically connects when user is logged in and disconnects on logout
@@ -20,15 +30,39 @@ interface FrontendNotification {
 export function useNotifications() {
   const { user } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [messageUnreadCount, setMessageUnreadCount] = useState(0);
   const [notification, setNotification] = useState<FrontendNotification | null>(null);
+  const [latestMessage, setLatestMessage] = useState<FrontendMessage | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [socketError, setSocketError] = useState<string | null>(null);
+
+  // Fetch initial unread count via REST so the bell badge is correct
+  // immediately on load — before the WebSocket handshake completes.
+  useEffect(() => {
+    if (!user) {
+      setUnreadCount(0);
+      setMessageUnreadCount(0);
+      setNotification(null);
+      setLatestMessage(null);
+      return;
+    }
+    api.get("/notifications/unread-count")
+      .then((res) => setUnreadCount(res.data.data.count ?? 0))
+      .catch(() => { /* non-critical — WS will update it */ });
+
+    api.get("/messages/unread-count")
+      .then((res) => setMessageUnreadCount(res.data.data.count ?? 0))
+      .catch(() => { /* non-critical — WS will update it */ });
+  }, [user]);
 
   // Initialize WebSocket connection
   useEffect(() => {
     if (!user) {
       setIsConnected(false);
       setUnreadCount(0);
+      setMessageUnreadCount(0);
+      setNotification(null);
+      setLatestMessage(null);
       return;
     }
 
@@ -76,6 +110,17 @@ export function useNotifications() {
       setUnreadCount(data.count);
     });
 
+    newSocket.on("message:new", (message: FrontendMessage) => {
+      setLatestMessage(message);
+      if (message.sender_id !== user.id) {
+        setMessageUnreadCount((prev) => prev + 1);
+      }
+    });
+
+    newSocket.on("message:unread-count", (data: { count: number }) => {
+      setMessageUnreadCount(data.count);
+    });
+
     // Error event
     newSocket.on("error", (err: string) => {
       setSocketError(err);
@@ -93,7 +138,9 @@ export function useNotifications() {
 
   return {
     unreadCount,
+    messageUnreadCount,
     notification,
+    latestMessage,
     isConnected,
     socketError,
     updateUnreadCount,

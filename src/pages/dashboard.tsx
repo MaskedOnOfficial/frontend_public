@@ -390,20 +390,20 @@ export default function DashboardPage() {
                       </div>
 
                       {/* Actions */}
-                      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-primary/[0.05]">
-                        <Link to={`/dashboard/${party.id}/requests`} className="dash-action-btn flex-1">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 pt-3 border-t border-primary/[0.05]">
+                        <Link to={`/dashboard/${party.id}/requests`} className="dash-action-btn">
                           <UserCheck className="w-3.5 h-3.5" />
                           Requests
                         </Link>
-                        <Link to={`/dashboard/${party.id}/attendees`} className="dash-action-btn flex-1">
+                        <Link to={`/dashboard/${party.id}/attendees`} className="dash-action-btn">
                           <Users className="w-3.5 h-3.5" />
                           Guests
                         </Link>
-                        <Link to={`/parties/${party.id}`} className="dash-action-btn flex-1">
+                        <Link to={`/parties/${party.id}`} className="dash-action-btn">
                           <Eye className="w-3.5 h-3.5" />
                           View
                         </Link>
-                        <Link to={`/parties/${party.id}/edit`} className="dash-action-btn flex-1">
+                        <Link to={`/parties/${party.id}/edit`} className="dash-action-btn">
                           <BarChart3 className="w-3.5 h-3.5" />
                           Edit
                         </Link>

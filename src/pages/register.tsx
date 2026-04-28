@@ -6,9 +6,11 @@ import { getApiErrorMessage } from "../lib/errors";
 import { ensureBackendAwake } from "../lib/api";
 import { motion } from "framer-motion";
 import { ArrowRight, Loader2, User, AtSign, Mail, Lock } from "lucide-react";
+import { useTheme } from "../context/use-theme";
 
 export default function RegisterPage() {
   const { register } = useAuth();
+  const { theme } = useTheme();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
@@ -136,7 +138,7 @@ export default function RegisterPage() {
             <img src="/symbol.png" alt="" className="w-14 h-14 object-contain" />
           </motion.div>
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="flex justify-center">
-            <img src="/name.png" alt="maskedOn" className="h-9 w-auto object-contain" />
+            <img src={theme === "light" ? "/name_lighttheme.png" : "/name.png"} alt="maskedOn" className="h-9 w-auto object-contain" />
           </motion.div>
           <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }} className="text-text-dim text-sm mt-1">Create your exclusive social identity.</motion.p>
         </div>

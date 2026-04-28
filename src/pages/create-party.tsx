@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+﻿import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/auth-hook";
 import { compressAndStripMetadata } from "../lib/image-utils";
@@ -7,18 +7,20 @@ import { getApiErrorMessage } from "../lib/errors";
 import { isNative } from "../lib/capacitor";
 import { takePhoto } from "../lib/native-camera";
 import { hapticsMedium } from "../lib/haptics";
+import { COUNTRIES, getStatesForCountry, getDistrictsForState } from "../lib/location-data";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MapPin, Clock, Users, Ticket, Shield, Loader2, Sparkles, X,
-  ChevronRight, ChevronLeft, Camera, Upload, Calendar,
-  Zap, Crown, PartyPopper, Check, Save, Trash2, Info,
+  ChevronLeft, Camera, Upload, Calendar, Zap, Crown, PartyPopper,
+  Check, Save, Trash2, Info, Lock, Eye, EyeOff, UtensilsCrossed,
+  Leaf, Wine, Cigarette, AlertTriangle, Globe, Image, Navigation,
 } from "lucide-react";
 
-// ═══════════════════════════════════════════════════════════
+// -----------------------------------------------------------------------------
 // Constants
-// ═══════════════════════════════════════════════════════════
+// -----------------------------------------------------------------------------
 
-const DRAFT_KEY = "maskedon_party_draft";
+const DRAFT_KEY = "maskedon_party_draft_v2";
 
 const SUGGESTED_TAGS = [
   "rooftop", "underground", "house-music", "afro-house", "techno", "hip-hop",
@@ -30,17 +32,17 @@ const SUGGESTED_TAGS = [
 
 const PRICE_PRESETS = [
   { label: "Free", value: 0, icon: PartyPopper, desc: "Open to all" },
-  { label: "\u20B9100\u2013500", value: 300, icon: Ticket, desc: "Budget friendly" },
-  { label: "\u20B9500\u20132K", value: 1000, icon: Crown, desc: "Premium vibes" },
+  { label: "₹100–500", value: 300, icon: Ticket, desc: "Budget friendly" },
+  { label: "₹500–2K", value: 1000, icon: Crown, desc: "Premium vibes" },
   { label: "Custom", value: -1, icon: Zap, desc: "Set your own" },
 ];
 
 const CAPACITY_PRESETS = [
-  { label: "Intimate", value: 10, emoji: "\uD83D\uDD6F\uFE0F" },
-  { label: "Small", value: 30, emoji: "\uD83C\uDF78" },
-  { label: "Medium", value: 75, emoji: "\uD83C\uDF89" },
-  { label: "Large", value: 200, emoji: "\uD83C\uDFDF\uFE0F" },
-  { label: "Massive", value: 500, emoji: "\uD83D\uDD25" },
+  { label: "Intimate", value: 10, emoji: "🕯️" },
+  { label: "Small", value: 30, emoji: "🍸" },
+  { label: "Medium", value: 75, emoji: "🎉" },
+  { label: "Large", value: 200, emoji: "🏟️" },
+  { label: "Massive", value: 500, emoji: "🔥" },
 ];
 
 const TRUST_GATES = [
@@ -54,56 +56,89 @@ const TRUST_GATES = [
 
 const STEP_META = [
   { title: "The Vibe", sub: "Name your experience" },
-  { title: "When & Where", sub: "Set the scene" },
-  { title: "Access & Pricing", sub: "Control the gate" },
+  { title: "Location", sub: "Set the scene" },
+  { title: "Date & Time", sub: "When does it happen?" },
+  { title: "Access & Privacy", sub: "Control the gate" },
+  { title: "Party Details", sub: "Food & atmosphere" },
 ];
+
+// -----------------------------------------------------------------------------
+// Types
+// -----------------------------------------------------------------------------
 
 interface FormState {
   title: string;
   description: string;
+  // Location
+  location_country: string;
+  location_state: string;
+  location_district: string;
   location_name: string;
   location_city: string;
+  latitude: number | null;
+  longitude: number | null;
+  // Time
   date_time: string;
   end_time: string;
+  // Capacity & pricing
   max_capacity: number;
   ticket_price: number;
+  // Tags & trust
   tags: string[];
   min_rating: number;
+  // Privacy
+  is_private: boolean;
+  allow_photos: boolean;
+  // Attributes
+  food_type: "veg" | "non_veg" | "vegan" | "";
+  allows_alcohol: boolean;
+  allows_smoking: boolean;
+  allows_other_substances: boolean;
 }
 
 const EMPTY_FORM: FormState = {
   title: "",
   description: "",
+  location_country: "India",
+  location_state: "",
+  location_district: "",
   location_name: "",
   location_city: "",
+  latitude: null,
+  longitude: null,
   date_time: "",
   end_time: "",
   max_capacity: 30,
   ticket_price: 0,
   tags: [],
   min_rating: 0,
+  is_private: false,
+  allow_photos: true,
+  food_type: "",
+  allows_alcohol: false,
+  allows_smoking: false,
+  allows_other_substances: false,
 };
 
-// ═══════════════════════════════════════════════════════════
+// -----------------------------------------------------------------------------
 // Helpers
-// ═══════════════════════════════════════════════════════════
+// -----------------------------------------------------------------------------
 
-function loadDraft(draftKey: string): Partial<FormState> | null {
+function loadDraft(key: string): Partial<FormState> | null {
   try {
-    const raw = localStorage.getItem(draftKey);
+    const raw = localStorage.getItem(key);
     return raw ? JSON.parse(raw) : null;
   } catch { return null; }
 }
-function saveDraft(draftKey: string, form: FormState) {
-  try { localStorage.setItem(draftKey, JSON.stringify(form)); } catch { /* quota */ }
+function saveDraft(key: string, form: FormState) {
+  try { localStorage.setItem(key, JSON.stringify(form)); } catch { /* quota */ }
 }
-function clearDraft(draftKey: string) { localStorage.removeItem(draftKey); }
+function clearDraft(key: string) { localStorage.removeItem(key); }
 
 function getRelativeDate(dateStr: string): string {
   const date = new Date(dateStr);
   const now = new Date();
-  const diffMs = date.getTime() - now.getTime();
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  const diffDays = Math.ceil((date.getTime() - now.getTime()) / 86400000);
   if (diffDays < 0) return "In the past";
   if (diffDays === 0) return "Today";
   if (diffDays === 1) return "Tomorrow";
@@ -121,13 +156,13 @@ function getDuration(start: string, end: string): string {
   return `${h}h ${m}m`;
 }
 
-// ═══════════════════════════════════════════════════════════
+// -----------------------------------------------------------------------------
 // Sub-Components
-// ═══════════════════════════════════════════════════════════
+// -----------------------------------------------------------------------------
 
 function StepIndicator({ current, total }: { current: number; total: number }) {
   return (
-    <div className="flex items-center gap-1.5 w-full max-w-xs mx-auto">
+    <div className="flex items-center gap-1 w-full max-w-xs mx-auto">
       {Array.from({ length: total }, (_, i) => {
         const s = i + 1;
         const done = s < current;
@@ -135,13 +170,13 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
         return (
           <div key={s} className="flex items-center flex-1">
             <div className={`
-              flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold transition-all duration-300
-              ${done ? "bg-primary text-white shadow-[0_0_12px_rgba(139,92,246,0.4)]" : active ? "host-step-active" : "bg-surface-light text-text-dim border border-border"}
+              flex items-center justify-center w-7 h-7 rounded-full text-[10px] font-bold transition-all duration-300
+              ${done ? "bg-primary text-white" : active ? "host-step-active" : "bg-surface-light text-text-dim border border-border"}
             `}>
-              {done ? <Check className="w-3.5 h-3.5" /> : s}
+              {done ? <Check className="w-3 h-3" /> : s}
             </div>
             {s < total && (
-              <div className={`flex-1 h-0.5 mx-1.5 rounded-full transition-all duration-500 ${done ? "bg-primary" : "bg-border"}`} />
+              <div className={`flex-1 h-0.5 mx-1 rounded-full transition-all duration-500 ${done ? "bg-primary" : "bg-border"}`} />
             )}
           </div>
         );
@@ -163,79 +198,41 @@ function TagChip({ tag, selected, onToggle }: { tag: string; selected: boolean; 
   );
 }
 
-function CapacitySelector({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  const [custom, setCustom] = useState(false);
-
+function Toggle({ checked, onChange, label, description, icon: Icon }: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+  description?: string;
+  icon?: React.ComponentType<{ className?: string }>;
+}) {
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-5 gap-2">
-        {CAPACITY_PRESETS.map((p) => (
-          <button
-            key={p.value}
-            type="button"
-            onClick={() => { setCustom(false); onChange(p.value); hapticsMedium(); }}
-            className={`flex flex-col items-center gap-0.5 p-2.5 rounded-xl transition-all duration-200 tap-active
-              ${!custom && value === p.value ? "host-capacity-active" : "host-capacity-idle"}`}
-          >
-            <span className="text-base leading-none">{p.emoji}</span>
-            <span className="text-[9px] font-bold uppercase tracking-wider mt-0.5">{p.label}</span>
-            <span className="text-[9px] text-text-dim">{p.value}</span>
-          </button>
-        ))}
+    <button
+      type="button"
+      onClick={() => { onChange(!checked); hapticsMedium(); }}
+      className="w-full flex items-center justify-between gap-3 py-1 tap-active"
+    >
+      <div className="flex items-center gap-3 min-w-0">
+        {Icon && <Icon className="w-4 h-4 text-text-dim shrink-0" />}
+        <div className="min-w-0 text-left">
+          <p className="text-sm font-semibold text-text">{label}</p>
+          {description && <p className="text-[11px] text-text-dim mt-0.5">{description}</p>}
+        </div>
       </div>
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => { setCustom(true); hapticsMedium(); }}
-          className={`text-xs font-semibold transition-colors ${custom ? "text-primary" : "text-text-dim hover:text-text-muted"}`}
-        >
-          Custom capacity \u2192
-        </button>
-        {custom && (
-          <motion.div initial={{ opacity: 0, width: 0 }} animate={{ opacity: 1, width: "auto" }}>
-            <input
-              type="number"
-              value={value}
-              onChange={(e) => onChange(Math.max(2, Math.min(10000, Number(e.target.value))))}
-              min={2}
-              max={10000}
-              className="input-luxe w-24 rounded-lg px-3 py-2 text-sm text-center"
-            />
-          </motion.div>
-        )}
+      <div className={`relative w-12 h-6 rounded-full transition-colors duration-300 shrink-0 ${checked ? "bg-primary" : "bg-surface-light border border-border"}`}>
+        <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all duration-300 ${checked ? "left-6" : "left-0.5"}`} />
       </div>
-    </div>
+    </button>
   );
 }
 
-function TrustGateSelector({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  return (
-    <div className="grid grid-cols-3 gap-2">
-      {TRUST_GATES.map((g) => (
-        <button
-          key={g.rating}
-          type="button"
-          onClick={() => { onChange(g.rating); hapticsMedium(); }}
-          className={`flex flex-col items-center gap-0.5 p-2.5 rounded-xl transition-all duration-200 tap-active
-            ${value === g.rating ? "host-gate-active" : "host-gate-idle"}`}
-        >
-          <span className={`text-sm font-bold ${g.color}`}>{g.label}</span>
-          <span className="text-[9px] text-text-dim">{g.desc}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════
+// -----------------------------------------------------------------------------
 // Main Page
-// ═══════════════════════════════════════════════════════════
+// -----------------------------------------------------------------------------
 
 export default function CreatePartyPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
-
   const draftKey = user ? `${DRAFT_KEY}_${user.id}` : DRAFT_KEY;
 
   const [loading, setLoading] = useState(false);
@@ -244,55 +241,55 @@ export default function CreatePartyPage() {
   const [dir, setDir] = useState(1);
   const [showDraft, setShowDraft] = useState(false);
   const [priceTier, setPriceTier] = useState(0);
+  const [locationLoading, setLocationLoading] = useState(false);
 
   const [form, setForm] = useState<FormState>({ ...EMPTY_FORM });
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState("");
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
-  // --- Draft load ---
+  const states = getStatesForCountry(form.location_country);
+  const districts = getDistrictsForState(form.location_country, form.location_state);
+
+  // Draft load
   useEffect(() => {
     const d = loadDraft(draftKey);
-    if (d && (d.title || d.description || d.location_name)) {
+    if (d && (d.title || d.location_name)) {
       setForm((prev) => ({ ...prev, ...d }));
       setShowDraft(true);
     }
   }, [draftKey]);
 
-  // --- Auto-save ---
+  // Auto-save
   useEffect(() => {
-    if (!form.title && !form.description && !form.location_name) return;
+    if (!form.title && !form.location_name) return;
     const t = setTimeout(() => saveDraft(draftKey, form), 1200);
     return () => clearTimeout(t);
   }, [draftKey, form]);
 
-  // --- Handlers ---
-  function set(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
-    setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
+  function set(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
+    const { name, value } = e.target;
+    setForm((p) => ({ ...p, [name]: value }));
   }
-  function blur(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) {
+  function blur(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     setTouched((p) => ({ ...p, [e.target.name]: true }));
   }
   function getFieldError(name: string): string {
     if (!touched[name]) return "";
     switch (name) {
       case "title":
-        if (!form.title.trim()) return "Give your party a name so guests know what to expect";
-        if (form.title.trim().length < 3) return "Title needs to be at least 3 characters long";
+        if (!form.title.trim()) return "Give your party a name";
+        if (form.title.trim().length < 3) return "Title needs at least 3 characters";
         return "";
-      case "location_name":
-        if (!form.location_name.trim()) return "Add the venue or place name — guests need to know where to go";
-        if (form.location_name.trim().length < 2) return "Venue name is too short";
-        return "";
-      case "location_city":
-        if (!form.location_city.trim()) return "Which city is this happening in?";
-        return "";
+      case "location_country": return !form.location_country ? "Select a country" : "";
+      case "location_state": return !form.location_state ? "Select a state" : "";
+      case "location_district": return !form.location_district ? "Select a district" : "";
+      case "location_name": return !form.location_name.trim() ? "Enter the venue name" : "";
       case "date_time":
-        if (!form.date_time) return "Pick a date and time for the party";
-        if (new Date(form.date_time) <= new Date()) return "That date is already in the past — choose a future date";
+        if (!form.date_time) return "Pick a date and time";
+        if (new Date(form.date_time) <= new Date()) return "Date must be in the future";
         return "";
-      default:
-        return "";
+      default: return "";
     }
   }
   function toggleTag(tag: string) {
@@ -304,8 +301,8 @@ export default function CreatePartyPage() {
   }
 
   function applyCover(file: File) {
-    const allowedMimes = ["image/jpeg", "image/png", "image/webp"];
-    if (!allowedMimes.includes(file.type)) { setError("Only JPEG, PNG, and WebP images are allowed"); return; }
+    const allowed = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowed.includes(file.type)) { setError("Only JPEG, PNG, and WebP images are allowed"); return; }
     setCoverFile(file);
     const r = new FileReader();
     r.onload = (e) => setCoverPreview(e.target?.result as string);
@@ -329,27 +326,32 @@ export default function CreatePartyPage() {
     if (fileRef.current) fileRef.current.value = "";
   }
 
-  // --- Step nav ---
+  const getLocation = useCallback(() => {
+    if (!navigator.geolocation) return;
+    setLocationLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setForm((p) => ({ ...p, latitude: pos.coords.latitude, longitude: pos.coords.longitude }));
+        setLocationLoading(false);
+      },
+      () => { setLocationLoading(false); },
+      { timeout: 10000 }
+    );
+  }, []);
+
   function canProceed(): boolean {
     if (step === 1) return form.title.trim().length >= 3;
-    if (step === 2) {
-      return !!form.location_name.trim() &&
-        form.location_name.trim().length >= 2 &&
-        !!form.location_city.trim() &&
-        !!form.date_time &&
-        new Date(form.date_time) > new Date();
-    }
+    if (step === 2) return !!form.location_country && !!form.location_state && !!form.location_district && !!form.location_name.trim();
+    if (step === 3) return !!form.date_time && new Date(form.date_time) > new Date();
     return true;
   }
   function goNext() {
-    if (step === 1) {
-      setTouched((p) => ({ ...p, title: true }));
-    } else if (step === 2) {
-      setTouched((p) => ({ ...p, location_name: true, location_city: true, date_time: true }));
-    }
+    if (step === 1) setTouched((p) => ({ ...p, title: true }));
+    if (step === 2) setTouched((p) => ({ ...p, location_country: true, location_state: true, location_district: true, location_name: true }));
+    if (step === 3) setTouched((p) => ({ ...p, date_time: true }));
     if (!canProceed()) return;
     setDir(1);
-    setStep((s) => Math.min(s + 1, 3));
+    setStep((s) => Math.min(s + 1, STEP_META.length));
     hapticsMedium();
   }
   function goBack() {
@@ -358,7 +360,6 @@ export default function CreatePartyPage() {
     hapticsMedium();
   }
 
-  // --- Submit ---
   async function handleSubmit() {
     setLoading(true);
     setError("");
@@ -367,11 +368,16 @@ export default function CreatePartyPage() {
       fd.append("title", form.title);
       if (form.description) fd.append("description", form.description);
       fd.append("location_name", form.location_name);
-      fd.append("location_city", form.location_city);
+      fd.append("location_city", form.location_district || form.location_city);
+      fd.append("location_country", form.location_country);
+      fd.append("location_state", form.location_state);
+      fd.append("location_district", form.location_district);
+      if (form.latitude !== null) fd.append("latitude", String(form.latitude));
+      if (form.longitude !== null) fd.append("longitude", String(form.longitude));
       fd.append("date_time", new Date(form.date_time).toISOString());
       if (form.end_time) {
         if (new Date(form.end_time) <= new Date(form.date_time)) {
-          setError("The end time needs to be after the start time — please go back and fix it");
+          setError("End time must be after start time");
           setLoading(false);
           return;
         }
@@ -381,11 +387,16 @@ export default function CreatePartyPage() {
       fd.append("ticket_price", String(Math.round(Number(form.ticket_price) * 100)));
       if (form.tags.length > 0) fd.append("tags", JSON.stringify(form.tags));
       if (form.min_rating > 0) fd.append("min_rating", String(form.min_rating));
-      if (coverFile) fd.append("cover_image", await compressAndStripMetadata(coverFile, { maxSizeMB: 1, maxWidthOrHeight: 1920 }));
-
-      const res = await api.post("/parties", fd, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      fd.append("is_private", String(form.is_private));
+      fd.append("allow_photos", String(form.allow_photos));
+      if (form.food_type) fd.append("food_type", form.food_type);
+      fd.append("allows_alcohol", String(form.allows_alcohol));
+      fd.append("allows_smoking", String(form.allows_smoking));
+      fd.append("allows_other_substances", String(form.allows_other_substances));
+      if (coverFile) {
+        fd.append("cover_image", await compressAndStripMetadata(coverFile, { maxSizeMB: 1, maxWidthOrHeight: 1920 }));
+      }
+      const res = await api.post("/parties", fd, { headers: { "Content-Type": "multipart/form-data" } });
       clearDraft(draftKey);
       navigate(`/parties/${res.data.data.party.id}`);
     } catch (err: unknown) {
@@ -397,7 +408,6 @@ export default function CreatePartyPage() {
 
   const isFree = Number(form.ticket_price) === 0;
 
-  // animation
   const slide = {
     enter: (d: number) => ({ x: d > 0 ? 80 : -80, opacity: 0 }),
     center: { x: 0, opacity: 1 },
@@ -408,7 +418,7 @@ export default function CreatePartyPage() {
     <div className="min-h-screen bg-bg pb-32">
       <div className="max-w-lg mx-auto px-4 pt-6 pb-4">
 
-        {/* --- Header --- */}
+        {/* Header */}
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-5">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/8 border border-primary/15 mb-3">
             <Sparkles className="w-3.5 h-3.5 text-primary" />
@@ -418,12 +428,12 @@ export default function CreatePartyPage() {
           <p className="text-text-dim text-sm mt-0.5">{STEP_META[step - 1].sub}</p>
         </motion.div>
 
-        {/* --- Steps --- */}
+        {/* Step indicator */}
         <div className="mb-5">
-          <StepIndicator current={step} total={3} />
+          <StepIndicator current={step} total={STEP_META.length} />
         </div>
 
-        {/* --- Draft Banner --- */}
+        {/* Draft banner */}
         <AnimatePresence>
           {showDraft && (
             <motion.div
@@ -439,13 +449,7 @@ export default function CreatePartyPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    clearDraft(draftKey);
-                    setForm({ ...EMPTY_FORM });
-                    removeCover();
-                    setShowDraft(false);
-                    setStep(1);
-                  }}
+                  onClick={() => { clearDraft(draftKey); setForm({ ...EMPTY_FORM }); removeCover(); setShowDraft(false); setStep(1); }}
                   className="flex items-center gap-1 text-xs font-semibold text-error hover:text-error/80 transition-colors"
                 >
                   <Trash2 className="w-3 h-3" /> Clear
@@ -455,7 +459,7 @@ export default function CreatePartyPage() {
           )}
         </AnimatePresence>
 
-        {/* --- Error --- */}
+        {/* Error */}
         <AnimatePresence>
           {error && (
             <motion.div
@@ -471,25 +475,15 @@ export default function CreatePartyPage() {
           )}
         </AnimatePresence>
 
-        {/* ═══════════════════════════════════════════════
-            Step Content
-        ═══════════════════════════════════════════════ */}
-        <div className="relative overflow-hidden" style={{ minHeight: 420 }}>
+        {/* Step content */}
+        <div className="relative overflow-hidden" style={{ minHeight: 400 }}>
           <AnimatePresence mode="wait" custom={dir}>
 
-            {/* ---- STEP 1: The Vibe ---- */}
+            {/* --- STEP 1: The Vibe --- */}
             {step === 1 && (
-              <motion.div
-                key="s1"
-                custom={dir}
-                variants={slide}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.28, ease: "easeInOut" }}
-                className="space-y-4"
-              >
-                {/* Cover Image */}
+              <motion.div key="s1" custom={dir} variants={slide} initial="enter" animate="center" exit="exit"
+                transition={{ duration: 0.25, ease: "easeInOut" }} className="space-y-4">
+
                 <div className="host-cover-zone rounded-2xl overflow-hidden">
                   {coverPreview ? (
                     <div className="relative">
@@ -505,7 +499,8 @@ export default function CreatePartyPage() {
                       </div>
                     </div>
                   ) : (
-                    <button type="button" onClick={triggerCover} className="w-full h-44 flex flex-col items-center justify-center gap-2.5 host-cover-empty">
+                    <button type="button" onClick={triggerCover}
+                      className="w-full h-44 flex flex-col items-center justify-center gap-2.5 host-cover-empty">
                       <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/15">
                         <Upload className="w-6 h-6 text-primary" />
                       </div>
@@ -515,10 +510,10 @@ export default function CreatePartyPage() {
                       </div>
                     </button>
                   )}
-                  <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleCoverInput} className="hidden" />
+                  <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp"
+                    onChange={handleCoverInput} className="hidden" />
                 </div>
 
-                {/* Title + Desc */}
                 <div className="glass-panel rounded-2xl p-5 space-y-4">
                   <div>
                     <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Party Title *</label>
@@ -532,8 +527,8 @@ export default function CreatePartyPage() {
                       className={`input-luxe w-full rounded-xl px-4 py-3.5 text-base ${getFieldError("title") ? "ring-2 ring-error/50" : ""}`}
                     />
                     <div className="flex items-center justify-between mt-1.5">
-                      {getFieldError("title") && <p className="text-error text-xs font-medium break-words">{getFieldError("title")}</p>}
-                      <p className="text-text-dim text-[10px] ml-auto shrink-0">{form.title.length}/100</p>
+                      {getFieldError("title") && <p className="text-error text-xs font-medium">{getFieldError("title")}</p>}
+                      <p className="text-text-dim text-[10px] ml-auto">{form.title.length}/100</p>
                     </div>
                   </div>
                   <div>
@@ -551,7 +546,6 @@ export default function CreatePartyPage() {
                   </div>
                 </div>
 
-                {/* Tags */}
                 <div className="glass-panel rounded-2xl p-5 space-y-3">
                   <div className="flex items-center justify-between">
                     <label className="text-[11px] font-bold text-text-muted uppercase tracking-[0.12em]">Vibe Tags</label>
@@ -563,11 +557,8 @@ export default function CreatePartyPage() {
                     ))}
                   </div>
                   {form.tags.length > 0 && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      className="pt-2.5 border-t border-border overflow-hidden"
-                    >
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
+                      className="pt-2.5 border-t border-border overflow-hidden">
                       <p className="text-[10px] text-text-dim mb-1.5 font-medium">Selected:</p>
                       <div className="flex flex-wrap gap-1.5">
                         {form.tags.map((tag) => (
@@ -585,53 +576,179 @@ export default function CreatePartyPage() {
               </motion.div>
             )}
 
-            {/* ---- STEP 2: When & Where ---- */}
+            {/* --- STEP 2: Location --- */}
             {step === 2 && (
-              <motion.div
-                key="s2"
-                custom={dir}
-                variants={slide}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.28, ease: "easeInOut" }}
-                className="space-y-4"
-              >
-                {/* Location */}
+              <motion.div key="s2" custom={dir} variants={slide} initial="enter" animate="center" exit="exit"
+                transition={{ duration: 0.25, ease: "easeInOut" }} className="space-y-4">
+
                 <div className="glass-panel rounded-2xl p-5 space-y-4">
                   <h2 className="text-sm font-bold text-text flex items-center gap-2">
                     <div className="w-7 h-7 rounded-lg bg-accent/10 flex items-center justify-center">
-                      <MapPin className="w-4 h-4 text-accent" />
+                      <Globe className="w-4 h-4 text-accent" />
                     </div>
-                    Location
+                    Region
+                  </h2>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Country *</label>
+                    <select
+                      name="location_country"
+                      value={form.location_country}
+                      onChange={(e) => { set(e); setForm((p) => ({ ...p, location_state: "", location_district: "", location_city: "" })); }}
+                      onBlur={blur}
+                      className={`input-luxe w-full rounded-xl px-4 py-3.5 ${getFieldError("location_country") ? "ring-2 ring-error/50" : ""}`}
+                    >
+                      <option value="">Select country</option>
+                      {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                    {getFieldError("location_country") && <p className="text-error text-xs mt-1 font-medium">{getFieldError("location_country")}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">State / UT *</label>
+                    <select
+                      name="location_state"
+                      value={form.location_state}
+                      onChange={(e) => { set(e); setForm((p) => ({ ...p, location_district: "", location_city: "" })); }}
+                      onBlur={blur}
+                      disabled={!form.location_country}
+                      className={`input-luxe w-full rounded-xl px-4 py-3.5 disabled:opacity-50 ${getFieldError("location_state") ? "ring-2 ring-error/50" : ""}`}
+                    >
+                      <option value="">Select state</option>
+                      {states.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                    {getFieldError("location_state") && <p className="text-error text-xs mt-1 font-medium">{getFieldError("location_state")}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">District *</label>
+                    <select
+                      name="location_district"
+                      value={form.location_district}
+                      onChange={(e) => {
+                        setForm((p) => ({ ...p, location_district: e.target.value, location_city: e.target.value }));
+                        setTouched((p) => ({ ...p, location_district: true }));
+                      }}
+                      onBlur={blur}
+                      disabled={!form.location_state}
+                      className={`input-luxe w-full rounded-xl px-4 py-3.5 disabled:opacity-50 ${getFieldError("location_district") ? "ring-2 ring-error/50" : ""}`}
+                    >
+                      <option value="">Select district</option>
+                      {districts.map((d) => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                    {getFieldError("location_district") && <p className="text-error text-xs mt-1 font-medium">{getFieldError("location_district")}</p>}
+                  </div>
+                </div>
+
+                <div className="glass-panel rounded-2xl p-5 space-y-4">
+                  <h2 className="text-sm font-bold text-text flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <MapPin className="w-4 h-4 text-primary" />
+                    </div>
+                    Venue
                   </h2>
                   <div>
-                    <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Venue Name *</label>
+                    <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Venue / Place Name *</label>
                     <input
                       name="location_name"
                       value={form.location_name}
                       onChange={set}
                       onBlur={blur}
-                      placeholder="Skydeck, Indiranagar"
+                      placeholder="e.g., Skydeck Terrace, Indiranagar"
+                      maxLength={300}
                       className={`input-luxe w-full rounded-xl px-4 py-3.5 ${getFieldError("location_name") ? "ring-2 ring-error/50" : ""}`}
                     />
-                    {getFieldError("location_name") && <p className="text-error text-xs mt-1 font-medium break-words">{getFieldError("location_name")}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">City *</label>
-                    <input
-                      name="location_city"
-                      value={form.location_city}
-                      onChange={set}
-                      onBlur={blur}
-                      placeholder="Bangalore"
-                      className={`input-luxe w-full rounded-xl px-4 py-3.5 ${getFieldError("location_city") ? "ring-2 ring-error/50" : ""}`}
-                    />
-                    {getFieldError("location_city") && <p className="text-error text-xs mt-1 font-medium break-words">{getFieldError("location_city")}</p>}
+                    {getFieldError("location_name") && <p className="text-error text-xs mt-1 font-medium">{getFieldError("location_name")}</p>}
                   </div>
                 </div>
 
-                {/* Date & Time */}
+                <div className="glass-panel rounded-2xl p-5 space-y-3">
+                  <h2 className="text-sm font-bold text-text flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-hot/10 flex items-center justify-center">
+                      <Navigation className="w-4 h-4 text-hot" />
+                    </div>
+                    Pin Location on Map
+                    <span className="text-[10px] text-text-dim font-normal ml-1">(optional)</span>
+                  </h2>
+                  <p className="text-[11px] text-text-muted leading-relaxed">
+                    For paid events, the map is only shown to paid attendees.
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={getLocation}
+                    disabled={locationLoading}
+                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-primary/20 bg-primary/5 text-primary text-sm font-semibold hover:bg-primary/10 transition-colors disabled:opacity-50 tap-active"
+                  >
+                    {locationLoading
+                      ? <><Loader2 className="w-4 h-4 animate-spin" />Detecting...</>
+                      : <><Navigation className="w-4 h-4" />Use My Current Location</>}
+                  </button>
+
+                  {form.latitude !== null && form.longitude !== null && (
+                    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
+                      <div className="flex items-center gap-2 text-success text-xs font-semibold">
+                        <Check className="w-3.5 h-3.5" />
+                        Location pinned: {form.latitude.toFixed(5)}, {form.longitude.toFixed(5)}
+                      </div>
+                      <div className="rounded-xl overflow-hidden border border-border h-48">
+                        <iframe
+                          title="Party location map"
+                          width="100%"
+                          height="100%"
+                          loading="lazy"
+                          referrerPolicy="no-referrer-when-downgrade"
+                          src={`https://maps.google.com/maps?q=${form.latitude},${form.longitude}&z=16&output=embed`}
+                          className="border-0"
+                        />
+                      </div>
+                      <button type="button" onClick={() => setForm((p) => ({ ...p, latitude: null, longitude: null }))}
+                        className="text-xs text-text-dim hover:text-error transition-colors">
+                        Remove pin
+                      </button>
+                    </motion.div>
+                  )}
+
+                  <details className="group">
+                    <summary className="text-[11px] text-text-dim cursor-pointer hover:text-text-muted transition-colors list-none flex items-center gap-1">
+                      <span className="group-open:hidden">open</span>
+                      <span className="hidden group-open:inline">close</span>
+                      Enter coordinates manually
+                    </summary>
+                    <div className="mt-3 grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-text-dim uppercase tracking-wider mb-1.5">Latitude</label>
+                        <input
+                          type="number"
+                          step="0.00001"
+                          value={form.latitude ?? ""}
+                          onChange={(e) => setForm((p) => ({ ...p, latitude: e.target.value ? Number(e.target.value) : null }))}
+                          placeholder="12.97194"
+                          className="input-luxe w-full rounded-xl px-3 py-2.5 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-text-dim uppercase tracking-wider mb-1.5">Longitude</label>
+                        <input
+                          type="number"
+                          step="0.00001"
+                          value={form.longitude ?? ""}
+                          onChange={(e) => setForm((p) => ({ ...p, longitude: e.target.value ? Number(e.target.value) : null }))}
+                          placeholder="77.59369"
+                          className="input-luxe w-full rounded-xl px-3 py-2.5 text-sm"
+                        />
+                      </div>
+                    </div>
+                  </details>
+                </div>
+              </motion.div>
+            )}
+
+            {/* --- STEP 3: Date & Time --- */}
+            {step === 3 && (
+              <motion.div key="s3" custom={dir} variants={slide} initial="enter" animate="center" exit="exit"
+                transition={{ duration: 0.25, ease: "easeInOut" }} className="space-y-4">
+
                 <div className="glass-panel rounded-2xl p-5 space-y-4">
                   <h2 className="text-sm font-bold text-text flex items-center gap-2">
                     <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -639,6 +756,7 @@ export default function CreatePartyPage() {
                     </div>
                     Date & Time
                   </h2>
+
                   <div>
                     <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Starts *</label>
                     <input
@@ -648,13 +766,16 @@ export default function CreatePartyPage() {
                       onChange={(e) => { set(e); setTouched((p) => ({ ...p, date_time: true })); }}
                       className={`input-luxe w-full rounded-xl px-4 py-3.5 ${getFieldError("date_time") ? "ring-2 ring-error/50" : ""}`}
                     />
-                    {getFieldError("date_time") && <p className="text-error text-xs mt-1 font-medium break-words">{getFieldError("date_time")}</p>}
+                    {getFieldError("date_time") && <p className="text-error text-xs mt-1 font-medium">{getFieldError("date_time")}</p>}
                     {form.date_time && !getFieldError("date_time") && (
                       <p className="text-accent text-[10px] mt-1.5 font-semibold">{getRelativeDate(form.date_time)}</p>
                     )}
                   </div>
+
                   <div>
-                    <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Ends <span className="text-text-dim font-normal">(optional)</span></label>
+                    <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">
+                      Ends <span className="text-text-dim font-normal">(optional)</span>
+                    </label>
                     <input
                       type="datetime-local"
                       name="end_time"
@@ -664,7 +785,7 @@ export default function CreatePartyPage() {
                       className="input-luxe w-full rounded-xl px-4 py-3.5"
                     />
                     {form.end_time && form.date_time && new Date(form.end_time) <= new Date(form.date_time) && (
-                      <p className="text-error text-xs mt-1 font-medium">End time needs to be after the start time</p>
+                      <p className="text-error text-xs mt-1 font-medium">End time must be after start time</p>
                     )}
                     {form.end_time && form.date_time && new Date(form.end_time) > new Date(form.date_time) && (
                       <p className="text-text-dim text-[10px] mt-1.5 font-medium">
@@ -674,39 +795,53 @@ export default function CreatePartyPage() {
                   </div>
                 </div>
 
-                {/* Quick schedule hint */}
                 {!form.date_time && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-accent/5 border border-accent/10">
+                  <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-accent/5 border border-accent/10">
                     <Info className="w-4 h-4 text-accent shrink-0 mt-0.5" />
                     <p className="text-[11px] text-text-muted leading-relaxed">
                       Tip: Parties scheduled 3-7 days ahead get <span className="text-accent font-semibold">2.5x more join requests</span> on average.
                     </p>
-                  </motion.div>
+                  </div>
                 )}
               </motion.div>
             )}
 
-            {/* ---- STEP 3: Access & Pricing ---- */}
-            {step === 3 && (
-              <motion.div
-                key="s3"
-                custom={dir}
-                variants={slide}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.28, ease: "easeInOut" }}
-                className="space-y-4"
-              >
+            {/* --- STEP 4: Access & Privacy --- */}
+            {step === 4 && (
+              <motion.div key="s4" custom={dir} variants={slide} initial="enter" animate="center" exit="exit"
+                transition={{ duration: 0.25, ease: "easeInOut" }} className="space-y-4">
+
                 {/* Capacity */}
                 <div className="glass-panel rounded-2xl p-5 space-y-3">
                   <h2 className="text-sm font-bold text-text flex items-center gap-2">
                     <div className="w-7 h-7 rounded-lg bg-hot/10 flex items-center justify-center">
                       <Users className="w-4 h-4 text-hot" />
                     </div>
-                    Capacity
+                    Guest Capacity
                   </h2>
-                  <CapacitySelector value={form.max_capacity} onChange={(v) => setForm({ ...form, max_capacity: v })} />
+                  <div className="grid grid-cols-5 gap-2">
+                    {CAPACITY_PRESETS.map((p) => (
+                      <button key={p.value} type="button"
+                        onClick={() => { setForm((prev) => ({ ...prev, max_capacity: p.value })); hapticsMedium(); }}
+                        className={`flex flex-col items-center gap-0.5 p-2.5 rounded-xl transition-all duration-200 tap-active
+                          ${form.max_capacity === p.value ? "host-capacity-active" : "host-capacity-idle"}`}>
+                        <span className="text-base leading-none">{p.emoji}</span>
+                        <span className="text-[9px] font-bold uppercase tracking-wider mt-0.5">{p.label}</span>
+                        <span className="text-[9px] text-text-dim">{p.value}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-text-dim font-medium">Custom →</span>
+                    <input
+                      type="number"
+                      value={form.max_capacity}
+                      onChange={(e) => setForm({ ...form, max_capacity: Math.max(2, Math.min(10000, Number(e.target.value))) })}
+                      min={2}
+                      max={10000}
+                      className="input-luxe w-24 rounded-lg px-3 py-2 text-sm text-center"
+                    />
+                  </div>
                 </div>
 
                 {/* Pricing */}
@@ -721,17 +856,10 @@ export default function CreatePartyPage() {
                     {PRICE_PRESETS.map((p, i) => {
                       const active = priceTier === i;
                       return (
-                        <button
-                          key={p.label}
-                          type="button"
-                          onClick={() => {
-                            setPriceTier(i);
-                            if (p.value >= 0) setForm((prev) => ({ ...prev, ticket_price: p.value }));
-                            hapticsMedium();
-                          }}
+                        <button key={p.label} type="button"
+                          onClick={() => { setPriceTier(i); if (p.value >= 0) setForm((prev) => ({ ...prev, ticket_price: p.value })); hapticsMedium(); }}
                           className={`flex flex-col items-center gap-1 p-3 rounded-xl transition-all duration-200 tap-active
-                            ${active ? "host-price-active" : "host-price-idle"}`}
-                        >
+                            ${active ? "host-price-active" : "host-price-idle"}`}>
                           <p.icon className={`w-5 h-5 ${active ? "text-warning" : "text-text-dim"}`} />
                           <span className="text-xs font-bold">{p.label}</span>
                           <span className="text-[9px] text-text-dim">{p.desc}</span>
@@ -742,7 +870,7 @@ export default function CreatePartyPage() {
                   <AnimatePresence>
                     {priceTier === 3 && (
                       <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-                        <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Price (\u20B9)</label>
+                        <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Price (₹)</label>
                         <input
                           type="number"
                           value={form.ticket_price}
@@ -754,6 +882,12 @@ export default function CreatePartyPage() {
                       </motion.div>
                     )}
                   </AnimatePresence>
+                  {!isFree && (
+                    <div className="flex items-start gap-2 text-[11px] text-text-dim bg-primary/5 rounded-xl px-3 py-2.5 border border-primary/10">
+                      <Info className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                      Map location is only revealed to guests after payment.
+                    </div>
+                  )}
                 </div>
 
                 {/* Trust Gate */}
@@ -769,27 +903,161 @@ export default function CreatePartyPage() {
                       <Info className="w-3 h-3" /> Min rating to join
                     </span>
                   </div>
-                  <TrustGateSelector value={form.min_rating} onChange={(v) => setForm({ ...form, min_rating: v })} />
+                  <div className="grid grid-cols-3 gap-2">
+                    {TRUST_GATES.map((g) => (
+                      <button key={g.rating} type="button"
+                        onClick={() => { setForm({ ...form, min_rating: g.rating }); hapticsMedium(); }}
+                        className={`flex flex-col items-center gap-0.5 p-2.5 rounded-xl transition-all duration-200 tap-active
+                          ${form.min_rating === g.rating ? "host-gate-active" : "host-gate-idle"}`}>
+                        <span className={`text-sm font-bold ${g.color}`}>{g.label}</span>
+                        <span className="text-[9px] text-text-dim">{g.desc}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                {/* Preview Card */}
+                {/* Privacy */}
+                <div className="glass-panel rounded-2xl p-5 space-y-4">
+                  <h2 className="text-sm font-bold text-text flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-warning/10 flex items-center justify-center">
+                      <Lock className="w-4 h-4 text-warning" />
+                    </div>
+                    Privacy
+                  </h2>
+                  <Toggle
+                    checked={form.is_private}
+                    onChange={(v) => setForm((p) => ({ ...p, is_private: v }))}
+                    label="Private Party"
+                    description="Hidden from discovery. Only reachable via a 10-character private code."
+                    icon={form.is_private ? EyeOff : Eye}
+                  />
+                  <AnimatePresence>
+                    {form.is_private && (
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                        <div className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl bg-warning/5 border border-warning/15">
+                          <Lock className="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" />
+                          <p className="text-[11px] text-text-muted leading-relaxed">
+                            A unique 10-character code will be generated once the party is created. Share it only with people you want to invite.
+                          </p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  <div className="pt-2 border-t border-border">
+                    <Toggle
+                      checked={form.allow_photos}
+                      onChange={(v) => setForm((p) => ({ ...p, allow_photos: v }))}
+                      label="Allow Photo Uploads"
+                      description={form.allow_photos ? "Guests can post photos in this event." : "Photo uploads are disabled for this event."}
+                      icon={Image}
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* --- STEP 5: Party Details --- */}
+            {step === 5 && (
+              <motion.div key="s5" custom={dir} variants={slide} initial="enter" animate="center" exit="exit"
+                transition={{ duration: 0.25, ease: "easeInOut" }} className="space-y-4">
+
+                {/* Food Type */}
+                <div className="glass-panel rounded-2xl p-5 space-y-3">
+                  <h2 className="text-sm font-bold text-text flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-success/10 flex items-center justify-center">
+                      <UtensilsCrossed className="w-4 h-4 text-success" />
+                    </div>
+                    Food Type
+                  </h2>
+                  <p className="text-[11px] text-text-muted">Let guests know what food will be served.</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(
+                      [
+                        { value: "veg", label: "Veg", emoji: "🥗", color: "text-success" },
+                        { value: "non_veg", label: "Non-Veg", emoji: "🍖", color: "text-error" },
+                        { value: "vegan", label: "Vegan", emoji: "🌱", color: "text-accent" },
+                      ] as { value: "veg" | "non_veg" | "vegan"; label: string; emoji: string; color: string }[]
+                    ).map((f) => (
+                      <button key={f.value} type="button"
+                        onClick={() => { setForm((p) => ({ ...p, food_type: p.food_type === f.value ? "" : f.value })); hapticsMedium(); }}
+                        className={`flex flex-col items-center gap-1.5 p-3.5 rounded-xl transition-all duration-200 tap-active border
+                          ${form.food_type === f.value ? "bg-surface-light border-primary/30 shadow-sm" : "bg-surface border-border hover:border-border-light"}`}>
+                        <span className="text-2xl">{f.emoji}</span>
+                        <span className={`text-xs font-bold ${form.food_type === f.value ? f.color : "text-text-muted"}`}>{f.label}</span>
+                        {form.food_type === f.value && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
+                      </button>
+                    ))}
+                  </div>
+                  {!form.food_type && <p className="text-[10px] text-text-dim text-center">Leave unselected if no food is served.</p>}
+                </div>
+
+                {/* Substances */}
+                <div className="glass-panel rounded-2xl p-5 space-y-4">
+                  <h2 className="text-sm font-bold text-text flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-warning/10 flex items-center justify-center">
+                      <AlertTriangle className="w-4 h-4 text-warning" />
+                    </div>
+                    Atmosphere & Substances
+                  </h2>
+                  <p className="text-[11px] text-text-muted leading-relaxed">
+                    Transparent disclosure helps guests make informed decisions. These flags are shown as warnings on the event page.
+                  </p>
+                  <div className="space-y-4 divide-y divide-border">
+                    <Toggle
+                      checked={form.allows_alcohol}
+                      onChange={(v) => setForm((p) => ({ ...p, allows_alcohol: v }))}
+                      label="Alcohol Served"
+                      description="Alcoholic beverages will be available."
+                      icon={Wine}
+                    />
+                    <div className="pt-4">
+                      <Toggle
+                        checked={form.allows_smoking}
+                        onChange={(v) => setForm((p) => ({ ...p, allows_smoking: v }))}
+                        label="Smoking Permitted"
+                        description="Smoking is allowed at or near the venue."
+                        icon={Cigarette}
+                      />
+                    </div>
+                    <div className="pt-4">
+                      <Toggle
+                        checked={form.allows_other_substances}
+                        onChange={(v) => setForm((p) => ({ ...p, allows_other_substances: v }))}
+                        label="Other Substances Present"
+                        description="Other substances may be in use at this event. 18+ advisory applies."
+                        icon={AlertTriangle}
+                      />
+                    </div>
+                  </div>
+                  {(form.allows_alcohol || form.allows_smoking || form.allows_other_substances) && (
+                    <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-warning/8 border border-warning/20">
+                      <AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" />
+                      <p className="text-[11px] text-warning/90 leading-relaxed">
+                        Guests will see a disclosure warning before joining. Ensure your event complies with all local laws.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Summary */}
                 <div className="host-preview-card rounded-2xl p-5 space-y-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-text-dim font-bold">Live Preview</p>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-text-dim font-bold">Summary</p>
                     <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
                   </div>
-                  {coverPreview && (
-                    <img src={coverPreview} alt="" className="w-full h-24 object-cover rounded-xl" />
-                  )}
-                  <h3 className="text-lg font-bold text-text break-words line-clamp-3">{form.title || "Untitled Experience"}</h3>
+                  {coverPreview && <img src={coverPreview} alt="" className="w-full h-24 object-cover rounded-xl" />}
+                  <h3 className="text-lg font-bold text-text break-words line-clamp-2">
+                    {form.title || "Untitled Experience"}
+                    {form.is_private && <Lock className="w-4 h-4 text-warning inline ml-2" />}
+                  </h3>
                   <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm">
                     <div className="flex items-center gap-2 text-text-muted">
                       <MapPin className="w-3.5 h-3.5 text-accent shrink-0" />
-                      <span className="truncate">{form.location_city || "\u2014"}</span>
+                      <span className="truncate">{form.location_district || "—"}</span>
                     </div>
                     <div className="flex items-center gap-2 text-text-muted">
                       <Clock className="w-3.5 h-3.5 text-primary shrink-0" />
-                      <span>{form.date_time ? new Date(form.date_time).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "\u2014"}</span>
+                      <span>{form.date_time ? new Date(form.date_time).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "—"}</span>
                     </div>
                     <div className="flex items-center gap-2 text-text-muted">
                       <Users className="w-3.5 h-3.5 text-hot shrink-0" />
@@ -797,25 +1065,37 @@ export default function CreatePartyPage() {
                     </div>
                     <div className="flex items-center gap-2 text-text-muted">
                       <Ticket className="w-3.5 h-3.5 text-warning shrink-0" />
-                      <span>{isFree ? "Free" : `\u20B9${form.ticket_price}`}</span>
+                      <span>{isFree ? "Free" : `₹${form.ticket_price}`}</span>
                     </div>
                   </div>
-                  {form.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 pt-1">
-                      {form.tags.slice(0, 5).map((t) => (
-                        <span key={t} className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{t}</span>
-                      ))}
-                      {form.tags.length > 5 && <span className="text-[10px] text-text-dim ml-1">+{form.tags.length - 5}</span>}
-                    </div>
-                  )}
-                  {form.min_rating > 0 && (
-                    <div className="flex items-center gap-1.5 pt-1">
-                      <Shield className="w-3 h-3 text-primary" />
-                      <span className="text-[10px] font-semibold text-primary">
-                        {TRUST_GATES.find((g) => g.rating === form.min_rating)?.label || `${form.min_rating}+`} required
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {form.is_private && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-full bg-warning/10 text-warning border border-warning/20">
+                        <Lock className="w-2.5 h-2.5" /> Private
                       </span>
-                    </div>
-                  )}
+                    )}
+                    {form.food_type && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-full bg-success/10 text-success border border-success/20">
+                        <Leaf className="w-2.5 h-2.5" />
+                        {form.food_type === "veg" ? "Veg" : form.food_type === "vegan" ? "Vegan" : "Non-Veg"}
+                      </span>
+                    )}
+                    {form.allows_alcohol && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-full bg-warning/10 text-warning border border-warning/20">
+                        <Wine className="w-2.5 h-2.5" /> Alcohol
+                      </span>
+                    )}
+                    {form.allows_other_substances && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-full bg-error/10 text-error border border-error/20">
+                        <AlertTriangle className="w-2.5 h-2.5" /> Advisory
+                      </span>
+                    )}
+                    {!form.allow_photos && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-full bg-surface-light text-text-dim border border-border">
+                        <EyeOff className="w-2.5 h-2.5" /> No Photos
+                      </span>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -823,43 +1103,24 @@ export default function CreatePartyPage() {
           </AnimatePresence>
         </div>
 
-        {/* ═══════════════════════════════════════════════
-            Bottom Navigation
-        ═══════════════════════════════════════════════ */}
-        <div className="mt-6 flex items-center gap-3">
+        {/* Navigation */}
+        <div className="mt-6 flex gap-3">
           {step > 1 && (
-            <motion.button
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              type="button"
-              onClick={goBack}
-              className="btn-secondary-luxe px-5 py-3.5 rounded-xl font-bold flex items-center gap-2 tap-active"
-            >
+            <button type="button" onClick={goBack}
+              className="flex items-center gap-2 px-5 py-3.5 rounded-2xl btn-secondary-luxe font-bold text-sm tap-active">
               <ChevronLeft className="w-4 h-4" /> Back
-            </motion.button>
+            </button>
           )}
-          <div className="flex-1" />
-          {step < 3 ? (
-            <button
-              type="button"
-              onClick={goNext}
-              disabled={!canProceed()}
-              className="btn-primary-luxe px-6 py-3.5 rounded-xl font-bold flex items-center gap-2 disabled:opacity-40 tap-active"
-            >
-              Next <ChevronRight className="w-4 h-4" />
+          {step < STEP_META.length ? (
+            <button type="button" onClick={goNext}
+              className="flex-1 py-3.5 rounded-2xl btn-primary-luxe font-bold text-sm tap-active flex items-center justify-center gap-2">
+              Continue
+              <span className="text-xs opacity-70">{step}/{STEP_META.length}</span>
             </button>
           ) : (
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={loading || !canProceed()}
-              className="btn-primary-luxe flex-1 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 disabled:opacity-40 tap-active"
-            >
-              {loading ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> Publishing...</>
-              ) : (
-                <><Sparkles className="w-4 h-4" /> Publish Party</>
-              )}
+            <button type="button" onClick={handleSubmit} disabled={loading}
+              className="flex-1 py-3.5 rounded-2xl btn-primary-luxe font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2 tap-active">
+              {loading ? <><Loader2 className="w-4 h-4 animate-spin" />Creating...</> : <><PartyPopper className="w-4 h-4" />Launch Party</>}
             </button>
           )}
         </div>

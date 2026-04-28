@@ -8,8 +8,8 @@ import { useAuth } from "../context/auth-hook";
 import PhotoGrid from "../components/photo-grid";
 import type { Party, Photo, Attendee } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
-import { motion } from "framer-motion";
-import { ArrowLeft, Camera, Upload, Loader2, Star, ChevronLeft, ChevronRight } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, Camera, Upload, Loader2, Star, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 
 export default function PartyPhotosPage() {
   const { partyId } = useParams<{ partyId: string }>();
@@ -25,6 +25,7 @@ export default function PartyPhotosPage() {
   const [uploading, setUploading] = useState(false);
   const [caption, setCaption] = useState("");
   const [error, setError] = useState("");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const loadParty = useCallback(async () => {
     try {
@@ -114,7 +115,8 @@ export default function PartyPhotosPage() {
     }
   }
 
-  async function handleDelete(photoId: string) {
+  async function executeDelete(photoId: string) {
+    setDeleteConfirmId(null);
     try {
       await api.delete(`/photos/${photoId}`);
       setPhotos((prev) => prev.filter((p) => p.id !== photoId));
@@ -210,7 +212,44 @@ export default function PartyPhotosPage() {
           </div>
         )}
 
-        <PhotoGrid photos={photos} onLike={handleLike} onDelete={handleDelete} currentUserId={user?.id} />
+        <PhotoGrid photos={photos} onLike={handleLike} onDelete={(id) => setDeleteConfirmId(id)} currentUserId={user?.id} />
+
+        {/* DELETE CONFIRMATION MODAL */}
+        <AnimatePresence>
+          {deleteConfirmId && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4"
+              onClick={() => setDeleteConfirmId(null)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="glass-panel rounded-3xl overflow-hidden max-w-sm w-full shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="p-6 text-center">
+                  <div className="w-14 h-14 rounded-2xl bg-error/10 border border-error/15 mx-auto mb-4 flex items-center justify-center">
+                    <Trash2 className="w-7 h-7 text-error" />
+                  </div>
+                  <h3 className="text-text font-bold text-lg mb-1">Delete Photo?</h3>
+                  <p className="text-text-muted text-sm leading-relaxed">This photo will be permanently removed and cannot be recovered.</p>
+                </div>
+                <div className="flex border-t border-primary/[0.06]">
+                  <button onClick={() => setDeleteConfirmId(null)} className="flex-1 py-3.5 text-sm font-semibold text-text-muted hover:bg-surface-light transition tap-active">
+                    Cancel
+                  </button>
+                  <button onClick={() => executeDelete(deleteConfirmId)} className="flex-1 py-3.5 text-sm font-bold text-error hover:bg-error/10 transition border-l border-primary/[0.06] tap-active">
+                    Delete
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {totalPages > 1 && (
           <div className="flex justify-center items-center gap-3 mt-8">

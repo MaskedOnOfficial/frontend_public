@@ -1,13 +1,15 @@
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState, useRef, type KeyboardEvent } from "react";
 import { useAuth } from "../context/auth-hook";
 import { useNotifications } from "../context/use-notifications-hook";
 import api from "../lib/api";
 import type { Party } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
-import { Search, Bell, LogOut, Compass, Plus, LayoutDashboard, Inbox, Loader2, Settings } from "lucide-react";
+import { Search, Bell, LogOut, Compass, Plus, LayoutDashboard, Inbox, Loader2, Settings, MessageCircle } from "lucide-react";
+import { useTheme } from "../context/use-theme";
 
 type SearchUser = { id: string; username: string; display_name: string; avatar_url: string | null; social_rating: number };
+
 type SearchResults = { users: SearchUser[]; parties: Party[] };
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -21,8 +23,9 @@ function useDebounce<T>(value: T, delay: number): T {
 
 export default function Navbar() {
   const { user, logout } = useAuth();
+  const { theme } = useTheme();
   const navigate = useNavigate();
-  const { unreadCount } = useNotifications();
+  const { unreadCount, messageUnreadCount } = useNotifications();
   const [searchQuery, setSearchQuery] = useState("");
   const [results, setResults] = useState<SearchResults | null>(null);
   const [searching, setSearching] = useState(false);
@@ -30,19 +33,9 @@ export default function Navbar() {
   const searchRef = useRef<HTMLDivElement>(null);
   const debouncedQuery = useDebounce(searchQuery, 300);
 
-  // #13 — Clear search state on route navigation
-  const location = useLocation();
-  useEffect(() => {
-    setShowDropdown(false);
-    setSearchQuery("");
-    setResults(null);
-    setSearching(false);
-  }, [location.pathname]);
-
   // Live search
   useEffect(() => {
     if (debouncedQuery.length < 2) {
-      setSearching(false); // #14 — Reset searching for short queries
       return;
     }
     api
@@ -82,12 +75,12 @@ export default function Navbar() {
   const hasResults = results && (results.users.length > 0 || results.parties.length > 0);
 
   return (
-    <nav className="sticky z-50 border-b border-primary/[0.06] bg-bg/75 backdrop-blur-2xl" style={{ top: 'env(safe-area-inset-top, 0px)' }}>
+    <nav className="sticky z-50 border-b border-primary/[0.06] bg-bg/75 backdrop-blur-2xl top-[env(safe-area-inset-top,0px)]">
       <div className="max-w-6xl mx-auto px-3 md:px-5 h-14 md:h-16 flex items-center gap-3 md:gap-5">
 
         {/* Logo */}
         <Link to="/" className="flex items-center gap-1.5 shrink-0 group">
-          <img src="/name.png" alt="maskedOn" className="h-6 md:h-7 w-auto object-contain" />
+          <img src={theme === "light" ? "/name_lighttheme.png" : "/name.png"} alt="maskedOn" className="h-6 md:h-7 w-auto object-contain" />
         </Link>
 
         {/* Search bar — visible only when logged in */}
@@ -212,6 +205,15 @@ export default function Navbar() {
                 <Inbox className="w-4 h-4" />
                 <span className="hidden xl:inline">Requests</span>
               </Link>
+              <Link to="/messages" aria-label={`Messages${messageUnreadCount > 0 ? `, ${messageUnreadCount} unread` : ''}`} className="relative hidden lg:flex items-center gap-1.5 text-text-muted hover:text-primary transition text-sm font-medium px-3 py-2 rounded-lg hover:bg-primary/[0.06]">
+                <MessageCircle className="w-4 h-4" />
+                <span className="hidden xl:inline">Messages</span>
+                {messageUnreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-gradient-to-r from-accent to-primary text-white text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-lg shadow-accent/30">
+                    {messageUnreadCount > 9 ? "9+" : messageUnreadCount}
+                  </span>
+                )}
+              </Link>
               <Link to="/dashboard" aria-label="Host dashboard" className="hidden lg:flex items-center gap-1.5 text-text-muted hover:text-text transition text-sm font-medium px-3 py-2 rounded-lg hover:bg-white/[0.04]">
                 <LayoutDashboard className="w-4 h-4" />
                 <span className="hidden xl:inline">Dashboard</span>
@@ -226,8 +228,17 @@ export default function Navbar() {
               <Link to="/notifications" aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`} className="relative text-text-muted hover:text-primary transition p-2 rounded-lg hover:bg-primary/[0.06]">
                 <Bell className="w-5 h-5" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 bg-gradient-to-r from-hot to-primary text-white text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-lg shadow-hot/30" style={{ animation: 'badge-pop 0.3s ease-out' }}>
+                  <span className="absolute -top-0.5 -right-0.5 bg-gradient-to-r from-hot to-primary text-white text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-lg shadow-hot/30 animate-[badge-pop_0.3s_ease-out]">
                     {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </Link>
+
+              <Link to="/messages" aria-label={`Messages${messageUnreadCount > 0 ? `, ${messageUnreadCount} unread` : ''}`} className="relative md:hidden text-text-muted hover:text-primary transition p-2 rounded-lg hover:bg-primary/[0.06]">
+                <MessageCircle className="w-5 h-5" />
+                {messageUnreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 bg-gradient-to-r from-accent to-primary text-white text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-lg shadow-accent/30">
+                    {messageUnreadCount > 9 ? "9+" : messageUnreadCount}
                   </span>
                 )}
               </Link>

@@ -1,11 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useNavigate, Link } from "react-router-dom";
-import { useState, useEffect, useRef, useCallback, Component, type ReactNode } from "react";
+import { useState, useEffect, useRef, Component, type ReactNode } from "react";
 import { AnimatePresence } from "framer-motion";
 import SplashScreen from "./components/splash-screen";
 import { AuthProvider } from "./context/auth-context";
 import { ThemeProvider } from "./context/theme-context";
 import { useAuth } from "./context/auth-hook";
 import { initCapacitor } from "./lib/capacitor";
+import { Capacitor } from "@capacitor/core";
 import { initPushNotifications } from "./lib/push-notifications";
 import api from "./lib/api";
 import Navbar from "./components/navbar";
@@ -29,6 +30,8 @@ import RateCrowdPage from "./pages/rate-crowd";
 import PartyPhotosPage from "./pages/party-photos";
 import UserPhotosPage from "./pages/user-photos";
 import NotificationsPage from "./pages/notifications";
+import MessagesPage from "./pages/messages";
+import MessageThreadPage from "./pages/message-thread";
 import PublicProfilePage from "./pages/public-profile";
 import SearchPage from "./pages/search";
 import CreatePostPage from "./pages/create-post";
@@ -47,6 +50,7 @@ import TermsPage from "./pages/terms";
 import FAQPage from "./pages/faq";
 import ContactPage from "./pages/contact";
 import BugReportPage from "./pages/bug-report";
+import ForceUpdateGate from "./components/force-update-gate";
 import BottomTabNav from "./components/bottom-tab-nav.tsx";
 
 // ─── Error Boundary ───────────────────────────────────────────────────────────
@@ -141,6 +145,11 @@ function HomeRoute() {
     );
   }
 
+  // Mobile (Capacitor) users: skip the marketing landing page entirely
+  if (Capacitor.isNativePlatform() && !user) {
+    return <Navigate to="/auth/login" replace />;
+  }
+
   return user ? <FeedPage /> : <LandingPage />;
 }
 
@@ -228,7 +237,13 @@ function AppShell() {
 
   useEffect(() => {
     initCapacitor(
-      (path) => navigate(path as any),
+      (path) => {
+        if (typeof path === "number") {
+          navigate(path);
+          return;
+        }
+        navigate(path);
+      },
       () => locationRef.current,
     );
   }, [navigate]);
@@ -241,18 +256,24 @@ function AppShell() {
   }, [user]);
 
   // Check for pending crowd ratings whenever user changes
-  const checkPendingRatings = useCallback(async () => {
-    if (!user) { setPendingRatings([]); setPendingChecked(true); return; }
-    try {
-      const res = await api.get("/users/me/pending-ratings");
-      setPendingRatings(res.data.data.pending || []);
-    } catch {
-      setPendingRatings([]);
-    }
-    setPendingChecked(true);
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    (async () => {
+      try {
+        const res = await api.get("/users/me/pending-ratings");
+        if (!active) return;
+        setPendingRatings(res.data.data.pending || []);
+      } catch {
+        if (!active) return;
+        setPendingRatings([]);
+      }
+      if (active) {
+        setPendingChecked(true);
+      }
+    })();
+    return () => { active = false; };
   }, [user]);
-
-  useEffect(() => { checkPendingRatings(); }, [checkPendingRatings]);
 
   // Auto-redirect brand-new users (account < 24h, no onboarding flag) to onboarding
   useEffect(() => {
@@ -290,7 +311,7 @@ function AppShell() {
           onAllRated={() => { setPendingRatings([]); }}
         />
       )}
-      <main role="main" className={`relative z-10 ${!isAuthPage && user ? "pb-24 md:pb-0" : ""}`} style={showRatingGate ? { display: "none" } : undefined}>
+      <main role="main" className={`relative z-10 ${!isAuthPage && user ? "pb-24 md:pb-0" : ""} ${showRatingGate ? "hidden" : ""}`}>
         <Routes>
         {/* ── Home: Landing (guest) or Feed (logged in) ── */}
         <Route path="/"                               element={<HomeRoute />} />
@@ -334,6 +355,8 @@ function AppShell() {
           <Route path="/profile/:userId"                element={<PublicProfilePage />} />
           <Route path="/profile/:userId/photos"         element={<UserPhotosPage />} />
           <Route path="/notifications"                  element={<NotificationsPage />} />
+          <Route path="/messages"                       element={<MessagesPage />} />
+          <Route path="/messages/:conversationId"       element={<MessageThreadPage />} />
           <Route path="/search"                         element={<SearchPage />} />
           <Route path="/settings"                       element={<SettingsPage />} />
           <Route path="/create-post"                    element={<CreatePostPage />} />
@@ -363,7 +386,9 @@ function App() {
                 <SplashScreen key="splash" onComplete={() => setSplashDone(true)} />
               )}
             </AnimatePresence>
-            <AppShell />
+            <ForceUpdateGate>
+              <AppShell />
+            </ForceUpdateGate>
           </ErrorBoundary>
         </AuthProvider>
       </ThemeProvider>

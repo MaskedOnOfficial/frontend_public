@@ -2,6 +2,9 @@ import { Capacitor } from "@capacitor/core";
 import { PushNotifications } from "@capacitor/push-notifications";
 import api from "./api";
 
+// Prevent multiple registrations across re-renders / app-resume events.
+let _initialized = false;
+
 /**
  * Initialise push notifications for the currently logged-in user.
  *
@@ -14,6 +17,8 @@ import api from "./api";
  */
 export async function initPushNotifications(): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
+  if (_initialized) return;
+  _initialized = true;
 
   // Request permission (Android 13+ and iOS require explicit permission)
   const permResult = await PushNotifications.requestPermissions();
@@ -36,4 +41,9 @@ export async function initPushNotifications(): Promise<void> {
   PushNotifications.addListener("registrationError", (err) => {
     console.warn("Push notification registration error:", err.error);
   });
+}
+
+/** Call on logout so the next login re-registers. */
+export function resetPushNotifications(): void {
+  _initialized = false;
 }

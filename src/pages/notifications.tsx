@@ -98,6 +98,22 @@ const TYPE_CONFIG: Record<string, NotifConfig> = {
     barClass: "from-hot/50 to-hot/10",
     label: "Payment",
   },
+  message: {
+    icon: MessageCircle,
+    iconClass: "text-primary",
+    ringClass: "ring-primary/25",
+    bgClass: "bg-primary/10",
+    barClass: "from-primary/60 to-primary/15",
+    label: "Message",
+  },
+  announcement: {
+    icon: PartyPopper,
+    iconClass: "text-accent",
+    ringClass: "ring-accent/25",
+    bgClass: "bg-accent/10",
+    barClass: "from-accent/60 to-accent/15",
+    label: "Announcement",
+  },
 };
 
 const DEFAULT_CONFIG: NotifConfig = {
@@ -151,6 +167,8 @@ function getNotifLink(n: Notification): string | null {
   if (type === "friend_accepted" && reference_id) return `/profile/${reference_id}`;
   if (type === "new_rating") return "/profile/me";
   if (type === "photo_liked" || type === "photo_commented") return "/profile/me";
+  if (type === "message" && reference_id) return `/messages/${reference_id}`;
+  if (type === "announcement" && reference_id) return `/parties/${reference_id}`;
   if (reference_type === "party" && reference_id) {
     if (type === "join_request") return `/dashboard/${reference_id}/requests`;
     return `/parties/${reference_id}`;

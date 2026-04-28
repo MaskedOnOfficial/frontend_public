@@ -1,9 +1,12 @@
 import { useState, useEffect, type ReactNode } from "react";
 import axios from "axios";
+import { Capacitor } from "@capacitor/core";
+import { App as CapApp } from "@capacitor/app";
 import api, { clearStoredAuthTokens, ensureBackendAwake, persistAuthTokens } from "../lib/api";
 import { getApiErrorMessage } from "../lib/errors";
 import { AuthContext } from "./auth-context-base";
 import type { AuthTokens, User } from "../types";
+import { resetPushNotifications } from "../lib/push-notifications";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -48,6 +51,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // On native (Capacitor): re-validate auth every time the app comes back to foreground.
+  // The API interceptor handles token refresh automatically on 401, so a stale access
+  // token is transparently renewed here without the user noticing.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    let handle: Awaited<ReturnType<typeof CapApp.addListener>> | null = null;
+
+    CapApp.addListener("appStateChange", async ({ isActive }) => {
+      if (!isActive) return;
+      try {
+        const res = await api.get("/users/me");
+        setUser(res.data.data.user);
+      } catch {
+        // Interceptor already attempted refresh; if this still fails the session
+        // has genuinely expired (e.g. user signed in elsewhere) — leave state as-is
+        // so the next user action will surface the proper 401 redirect.
+      }
+    }).then((h) => {
+      handle = h;
+    });
+
+    return () => {
+      handle?.remove();
+    };
+  }, []);
+
   async function login(email: string, password: string) {
     const res = await api.post("/auth/login", { email, password });
     const { user: userData } = res.data.data;
@@ -75,6 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("Logout request failed:", getApiErrorMessage(error, "Unknown logout error"));
     }
     clearStoredAuthTokens();
+    resetPushNotifications();
     setUser(null);
   }
 

@@ -27,6 +27,7 @@ interface Comment {
 
 export default function PhotoGrid({ photos, onLike, onDelete, currentUserId, commentCounts }: PhotoGridProps) {
   const [lightbox, setLightbox] = useState<Photo | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
   const [newComment, setNewComment] = useState("");
@@ -194,7 +195,7 @@ export default function PhotoGrid({ photos, onLike, onDelete, currentUserId, com
                       )}
                       {onDelete && currentUserId === lightbox.user_id && (
                         <button
-                          onClick={() => { onDelete(lightbox.id); handleCloseLightbox(); }}
+                          onClick={() => setConfirmDeleteId(lightbox.id)}
                           aria-label="Delete photo"
                           className="text-error hover:text-error/80 transition text-sm flex items-center gap-1"
                         >
@@ -287,6 +288,50 @@ export default function PhotoGrid({ photos, onLike, onDelete, currentUserId, com
             >
               <X className="w-5 h-5" />
             </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* DELETE CONFIRMATION MODAL */}
+      <AnimatePresence>
+        {confirmDeleteId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90] flex items-center justify-center p-4"
+            onClick={() => setConfirmDeleteId(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="glass-panel rounded-3xl overflow-hidden max-w-sm w-full shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-error/10 border border-error/15 mx-auto mb-4 flex items-center justify-center">
+                  <Trash2 className="w-7 h-7 text-error" />
+                </div>
+                <h3 className="text-text font-bold text-lg mb-1">Delete Photo?</h3>
+                <p className="text-text-muted text-sm leading-relaxed">This photo will be permanently removed and cannot be recovered.</p>
+              </div>
+              <div className="flex border-t border-primary/[0.06]">
+                <button onClick={() => setConfirmDeleteId(null)} className="flex-1 py-3.5 text-sm font-semibold text-text-muted hover:bg-surface-light transition tap-active">
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (onDelete) onDelete(confirmDeleteId);
+                    setConfirmDeleteId(null);
+                    handleCloseLightbox();
+                  }}
+                  className="flex-1 py-3.5 text-sm font-bold text-error hover:bg-error/10 transition border-l border-primary/[0.06] tap-active"
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

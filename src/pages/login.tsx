@@ -6,9 +6,11 @@ import { getApiErrorMessage } from "../lib/errors";
 import { ensureBackendAwake } from "../lib/api";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react";
+import { useTheme } from "../context/use-theme";
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const { theme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState("");
@@ -107,7 +109,7 @@ export default function LoginPage() {
             transition={{ delay: 0.2 }}
             className="flex justify-center"
           >
-            <img src="/name.png" alt="maskedOn" className="h-10 w-auto object-contain" />
+            <img src={theme === "light" ? "/name_lighttheme.png" : "/name.png"} alt="maskedOn" className="h-10 w-auto object-contain" />
           </motion.div>
           <motion.p
             initial={{ opacity: 0 }}

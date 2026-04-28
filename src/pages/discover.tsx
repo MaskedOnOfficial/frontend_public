@@ -1,5 +1,5 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+﻿import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import api from "../lib/api";
 import type { Party } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
@@ -77,10 +77,15 @@ type SortMode = "date_asc" | "trending" | "price_asc" | "price_desc";
 
 export default function DiscoverPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [allParties, setAllParties] = useState<Party[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
+  const [privateOpen, setPrivateOpen] = useState(false);
+  const [privateCode, setPrivateCode] = useState("");
+  const [privateError, setPrivateError] = useState("");
+  const [privateLoading, setPrivateLoading] = useState(false);
   const [selectedCity, setSelectedCity] = useState("");
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
   const [sortMode, setSortMode] = useState<SortMode>("date_asc");
@@ -129,6 +134,31 @@ export default function DiscoverPage() {
   useEffect(() => {
     if (searchOpen && searchRef.current) searchRef.current.focus();
   }, [searchOpen]);
+
+  const handlePrivateLookup = async (event?: FormEvent<HTMLFormElement>) => {
+    event?.preventDefault();
+    const code = privateCode.trim().toUpperCase();
+    if (code.length !== 10) {
+      setPrivateError("Enter the 10-character code.");
+      return;
+    }
+
+    setPrivateLoading(true);
+    setPrivateError("");
+    try {
+      const res = await api.get(`/parties/private/${code}`);
+      const partyId = res.data.data.party?.id as string | undefined;
+      if (!partyId) {
+        setPrivateError("No private party found with that code.");
+        return;
+      }
+      navigate(`/parties/${partyId}`);
+    } catch (error) {
+      setPrivateError(getApiErrorMessage(error, "No private party found with that code."));
+    } finally {
+      setPrivateLoading(false);
+    }
+  };
 
   /* --- derived data --- */
 
@@ -202,12 +232,23 @@ export default function DiscoverPage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setSearchOpen(!searchOpen)}
+                aria-label={searchOpen ? "Close search" : "Open search"}
                 className="w-9 h-9 rounded-xl bg-surface/60 backdrop-blur-sm border border-border flex items-center justify-center tap-active"
               >
                 {searchOpen ? <X className="w-4 h-4 text-text-muted" /> : <Search className="w-4 h-4 text-text-muted" />}
               </button>
               <button
+                onClick={() => setPrivateOpen((v) => !v)}
+                aria-label={privateOpen ? "Close private code" : "Open private code"}
+                className={`w-9 h-9 rounded-xl backdrop-blur-sm border flex items-center justify-center tap-active transition-all ${
+                  privateOpen ? "bg-warning/15 border-warning/25" : "bg-surface/60 border-border"
+                }`}
+              >
+                <Shield className={`w-4 h-4 ${privateOpen ? "text-warning" : "text-text-muted"}`} />
+              </button>
+              <button
                 onClick={() => setShowFilters(!showFilters)}
+                aria-label={showFilters ? "Close filters" : "Open filters"}
                 className={`w-9 h-9 rounded-xl backdrop-blur-sm border flex items-center justify-center tap-active transition-all ${
                   showFilters ? "bg-primary/15 border-primary/30" : "bg-surface/60 border-border"
                 }`}
@@ -238,10 +279,70 @@ export default function DiscoverPage() {
                     className="input-luxe w-full rounded-xl pl-10 pr-10 py-3 text-sm"
                   />
                   {search && (
-                    <button onClick={() => setSearch("")} className="absolute right-3.5 top-1/2 -translate-y-1/2">
+                    <button
+                      onClick={() => setSearch("")}
+                      aria-label="Clear search"
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2"
+                    >
                       <X className="w-4 h-4 text-text-dim" />
                     </button>
                   )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Private party code (compact) */}
+          <AnimatePresence>
+            {privateOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden mb-4"
+              >
+                <div className="rounded-2xl border border-warning/20 bg-gradient-to-r from-warning/10 via-warning/5 to-transparent p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Shield className="w-3.5 h-3.5 text-warning" />
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-text-dim">Private party code</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPrivateOpen(false)}
+                      aria-label="Close private code"
+                      className="text-text-dim hover:text-text transition"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <form onSubmit={handlePrivateLookup} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      inputMode="text"
+                      autoCapitalize="characters"
+                      spellCheck={false}
+                      placeholder="Enter 10-character code"
+                      value={privateCode}
+                      onChange={(e) => {
+                        const cleaned = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+                        setPrivateCode(cleaned);
+                        if (privateError) setPrivateError("");
+                      }}
+                      maxLength={10}
+                      aria-label="Private party code"
+                      className="input-luxe flex-1 rounded-xl px-3 py-2.5 text-xs font-mono tracking-[0.2em] uppercase"
+                    />
+                    <button
+                      type="submit"
+                      disabled={privateLoading || privateCode.length !== 10}
+                      className="btn-secondary-luxe px-4 py-2.5 rounded-xl text-xs font-bold disabled:opacity-50"
+                    >
+                      {privateLoading ? "Searching..." : "Find"}
+                    </button>
+                  </form>
+                  {privateError && <p className="text-error text-[11px] mt-2">{privateError}</p>}
                 </div>
               </motion.div>
             )}

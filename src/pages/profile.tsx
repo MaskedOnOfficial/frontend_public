@@ -47,6 +47,7 @@ interface PhotoComment {
 export default function ProfilePage() {
   const { user, refreshUser } = useAuth();
   const avatarInputRef = useRef<HTMLInputElement>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
   const feedContainerRef = useRef<HTMLDivElement>(null);
   const feedPhotoRefs = useRef<(HTMLDivElement | null)[]>([]);
   const storyOverlayRef = useRef<HTMLDivElement>(null);
@@ -59,6 +60,7 @@ export default function ProfilePage() {
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<"success" | "error">("success");
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [bannerUploading, setBannerUploading] = useState(false);
 
   // Photos
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -361,6 +363,23 @@ export default function ProfilePage() {
     if (isNative()) { handleNativeAvatarUpload(); } else { avatarInputRef.current?.click(); }
   }
 
+  async function handleBannerUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { showToast('Only JPEG, PNG, WebP allowed', 'error'); return; }
+    setBannerUploading(true);
+    try {
+      const fd = new FormData(); fd.append('banner', file);
+      await api.put('/users/me/banner', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      await refreshUser();
+      showToast('Banner updated!');
+    } catch (error) { showToast(getApiErrorMessage(error, 'Upload failed'), 'error'); }
+    finally { setBannerUploading(false); if (bannerInputRef.current) bannerInputRef.current.value = ''; }
+  }
+
+  function triggerBannerUpload() {
+    bannerInputRef.current?.click();
+  }
+
   async function handleDeletePhoto(photoId: string) {
     try { await api.delete(`/photos/${photoId}`); setPhotos((p) => p.filter((x) => x.id !== photoId)); setPhotosTotal((t) => t - 1); if (activeCommentPhotoId === photoId) { setActiveCommentPhotoId(null); setComments([]); } showToast("Photo deleted"); }
     catch (error) { showToast(getApiErrorMessage(error, "Delete failed"), "error"); }
@@ -653,15 +672,7 @@ export default function ProfilePage() {
         )}
       </AnimatePresence>
 
-      {/* ── HERO BANNER ── */}
-      <div className="profile-hero h-52 sm:h-60 md:h-72 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-bg/30 to-bg" />
-        {/* Ambient glow orbs */}
-        <div className="absolute top-6 right-8 w-44 h-44 rounded-full blur-3xl opacity-40" style={{ backgroundColor: trustLevel.color }} />
-        <div className="absolute bottom-12 left-6 w-32 h-32 rounded-full bg-accent/15 blur-2xl" />
-      </div>
-
-      <div className="max-w-2xl mx-auto px-4 -mt-28 sm:-mt-32 relative z-10">
+      <div className="max-w-2xl mx-auto px-4 pt-4 relative z-10">
 
         {/* ── PROFILE CARD ── */}
         <motion.div
@@ -669,22 +680,53 @@ export default function ProfilePage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
           className="glass-panel rounded-3xl overflow-hidden shadow-2xl border border-primary/[0.08]"
+          style={{ boxShadow: `0 8px 48px ${trustLevel.color}18, 0 2px 16px rgba(0,0,0,0.3)` }}
         >
           <canvas ref={avatarCanvasRef} className="hidden" />
 
-          <div className="px-5 pt-6 pb-5 sm:px-7 sm:pt-7 sm:pb-6">
-            {/* Avatar + Info */}
-            <div className="flex items-start gap-5">
-              {/* Avatar with trust-colored gradient ring */}
-              <div className="relative group shrink-0">
+          {/* ── Card-internal gradient strip ── */}
+          <div className="relative h-28 overflow-hidden">
+            {/* Banner image or gradient fallback */}
+            {user.banner_url ? (
+              <img src={user.banner_url} alt="Profile banner" className="absolute inset-0 w-full h-full object-cover" />
+            ) : (
+              <div
+                className="absolute inset-0"
+                style={{ background: `linear-gradient(135deg, ${trustLevel.color}30 0%, var(--color-primary)/20 50%, var(--color-accent)/10 100%)` }}
+              />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-bg/80" />
+            {!user.banner_url && (
+              <>
+                <div className="absolute -top-4 right-6 w-32 h-32 rounded-full blur-3xl opacity-50" style={{ backgroundColor: trustLevel.color }} />
+                <div className="absolute top-2 left-1/3 w-20 h-20 rounded-full blur-2xl opacity-30 bg-accent" />
+              </>
+            )}
+            {/* Banner upload button */}
+            <button
+              onClick={triggerBannerUpload}
+              disabled={bannerUploading}
+              aria-label="Change banner photo"
+              className="absolute bottom-2 right-3 flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-bg/50 backdrop-blur-sm border border-white/15 text-white/80 hover:text-white hover:bg-bg/70 transition tap-active text-[10px] font-semibold"
+            >
+              {bannerUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Camera className="w-3 h-3" />}
+              {bannerUploading ? 'Uploading…' : 'Edit Banner'}
+            </button>
+            <input ref={bannerInputRef} type="file" aria-label="Upload banner" accept="image/jpeg,image/png,image/webp" onChange={handleBannerUpload} className="hidden" />
+          </div>
+
+          <div className="px-5 pb-5 sm:px-7 sm:pb-6">
+            {/* Avatar — overlaps gradient strip */}
+            <div className="relative -mt-12 mb-4">
+              <div className="relative group inline-block">
                 <div
-                  className="w-24 h-24 sm:w-28 sm:h-28 rounded-full p-[3px] shadow-xl"
+                  className="w-24 h-24 rounded-2xl p-[3.5px] shadow-2xl"
                   style={{
                     background: `linear-gradient(135deg, ${trustLevel.color}, var(--color-primary), var(--color-accent))`,
-                    boxShadow: `0 4px 30px ${trustLevel.color}25`,
+                    boxShadow: `0 8px 40px ${trustLevel.color}50, 0 2px 12px rgba(0,0,0,0.4)`,
                   }}
                 >
-                  <div className="w-full h-full rounded-full bg-bg overflow-hidden border-[3px] border-bg">
+                  <div className="w-full h-full rounded-[13px] bg-bg overflow-hidden border-[3px] border-bg">
                     {avatarUploading ? (
                       <div className="w-full h-full flex items-center justify-center bg-surface">
                         <Loader2 className="w-6 h-6 text-primary animate-spin" />
@@ -703,21 +745,22 @@ export default function ProfilePage() {
                     onClick={triggerAvatarUpload}
                     disabled={avatarUploading}
                     aria-label="Change photo"
-                    className="absolute bottom-0 right-0 w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30 hover:bg-primary-hover transition tap-active border-[3px] border-bg"
+                    className="absolute -bottom-1 -right-1 w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30 hover:bg-primary-hover transition tap-active border-[3px] border-bg"
                   >
                     <Camera className="w-4 h-4" />
                   </button>
                 )}
                 <input ref={avatarInputRef} type="file" aria-label="Upload avatar" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarUpload} className="hidden" />
               </div>
+            </div>
 
-              {/* Name + meta */}
-              <div className="flex-1 min-w-0 pt-1.5">
+            {/* Name + meta */}
+            <div className="flex items-start gap-2">
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <h1 className="text-xl sm:text-2xl font-extrabold text-text tracking-tight truncate leading-tight">
+                  <h1 className="text-xl font-extrabold text-text tracking-tight leading-tight">
                     {user.display_name}
                   </h1>
-                  {/* Verification badge for high trust */}
                   {["Spark", "Luminary", "Inferno"].includes(trustLevel.name) && (
                     <div
                       className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
@@ -728,22 +771,22 @@ export default function ProfilePage() {
                     </div>
                   )}
                 </div>
-                <p className="text-text-muted text-sm mt-0.5">@{user.username}</p>
+                <p className="text-text-muted text-xs mt-0.5">@{user.username}</p>
 
                 {user.bio && (
                   <p className="text-text-muted/80 text-sm mt-2.5 leading-relaxed line-clamp-2">{user.bio}</p>
                 )}
 
-                <div className="flex items-center flex-wrap gap-2 mt-3">
+                <div className="flex items-center flex-wrap gap-2 mt-2">
                   <span
-                    className="text-xs font-bold px-2.5 py-1 rounded-full inline-flex items-center gap-1"
-                    style={{ color: trustLevel.color, backgroundColor: `${trustLevel.color}15` }}
+                    className="text-[11px] font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1"
+                    style={{ color: trustLevel.color, backgroundColor: `${trustLevel.color}18` }}
                   >
-                    <Shield className="w-3 h-3" />
+                    <Shield className="w-2.5 h-2.5" />
                     {trustLevel.name}
                   </span>
                   <span className="text-text-dim text-[11px] flex items-center gap-1">
-                    <Sparkles className="w-3 h-3" /> Since {memberSince}
+                    <Sparkles className="w-2.5 h-2.5" /> Since {memberSince}
                   </span>
                 </div>
               </div>

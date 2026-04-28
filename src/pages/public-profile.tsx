@@ -466,26 +466,19 @@ export default function PublicProfilePage() {
   }
 
   function renderFriendButton() {
-    if (isOwnProfile) {
-      return (
-        <Link to="/profile/me" className="btn-secondary-luxe text-[10px] sm:text-xs font-bold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl transition flex items-center gap-1 shrink-0 tap-active">
-          <Edit3 className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> <span className="hidden sm:inline">Edit</span>
-        </Link>
-      );
-    }
     if (!me) return null;
 
     // If I blocked this user, show unblock button
     if (blockedByMe) {
       return (
         <button onClick={handleUnblock} disabled={blockLoading}
-          className="bg-error/15 hover:bg-error/25 text-error border border-error/20 text-[10px] sm:text-xs font-bold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl transition flex items-center gap-1 disabled:opacity-50 shrink-0 tap-active">
-          {blockLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldOff className="w-3 h-3 sm:w-3.5 sm:h-3.5" />} Unblock
+          className="bg-error/15 hover:bg-error/25 text-error border border-error/20 text-sm font-bold px-5 py-2.5 rounded-xl transition flex items-center gap-2 disabled:opacity-50 tap-active">
+          {blockLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldOff className="w-4 h-4" />} Unblock
         </button>
       );
     }
 
-    // If they blocked me, show nothing / disabled state
+    // If they blocked me, show nothing
     if (blockedByThem) {
       return null;
     }
@@ -494,11 +487,11 @@ export default function PublicProfilePage() {
       return (
         <div className="relative" ref={unfriendRef}>
           <button onClick={() => setShowUnfriendMenu((v) => !v)} disabled={friendLoading}
-            className="bg-success/15 hover:bg-success/25 text-success border border-success/20 text-[10px] sm:text-xs font-bold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl transition flex items-center gap-1 disabled:opacity-50 shrink-0 tap-active">
-            <UserCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Friends <span className="text-success/60 text-[8px]">▾</span>
+            className="bg-success/15 hover:bg-success/25 text-success border border-success/20 text-sm font-bold px-5 py-2.5 rounded-xl transition flex items-center gap-2 disabled:opacity-50 tap-active">
+            <UserCheck className="w-4 h-4" /> Friends <span className="text-success/60 text-xs">▾</span>
           </button>
           {showUnfriendMenu && (
-            <div className="absolute top-full right-0 mt-1 glass-panel rounded-xl shadow-2xl overflow-hidden z-10 w-40">
+            <div className="absolute top-full left-0 mt-1 glass-panel rounded-xl shadow-2xl overflow-hidden z-10 w-44">
               <button onClick={handleUnfriend} className="w-full text-left px-4 py-2.5 text-xs text-error hover:bg-error/10 transition flex items-center gap-2">
                 <UserX className="w-3.5 h-3.5" /> Unfriend
               </button>
@@ -514,22 +507,22 @@ export default function PublicProfilePage() {
     if (friendStatus === "pending" && friendDir === "outgoing") {
       return (
         <button onClick={handleCancelRequest} disabled={friendLoading}
-          className="bg-surface-light hover:bg-error/10 text-text-muted hover:text-error border border-primary/[0.08] hover:border-error/20 text-[10px] sm:text-xs font-bold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl transition disabled:opacity-50 flex items-center gap-1 shrink-0 tap-active">
-          <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> {friendLoading ? "..." : "Pending"}
+          className="bg-surface-light hover:bg-error/10 text-text-muted hover:text-error border border-primary/[0.08] hover:border-error/20 text-sm font-bold px-5 py-2.5 rounded-xl transition disabled:opacity-50 flex items-center gap-2 tap-active">
+          <Clock className="w-4 h-4" /> {friendLoading ? "..." : "Request Sent"}
         </button>
       );
     }
 
     if (friendStatus === "pending" && friendDir === "incoming") {
       return (
-        <div className="flex gap-1.5">
+        <div className="flex gap-2">
           <button onClick={handleAcceptFriend} disabled={friendLoading}
-            className="bg-success/15 hover:bg-success/25 text-success border border-success/20 text-[10px] sm:text-xs font-bold px-2.5 py-1.5 rounded-xl transition disabled:opacity-50 flex items-center gap-1 tap-active">
-            <UserCheck className="w-3 h-3" /> Accept
+            className="flex-1 bg-success/15 hover:bg-success/25 text-success border border-success/20 text-sm font-bold px-5 py-2.5 rounded-xl transition disabled:opacity-50 flex items-center justify-center gap-2 tap-active">
+            <UserCheck className="w-4 h-4" /> Accept
           </button>
           <button onClick={handleDeclineFriend} disabled={friendLoading}
-            className="bg-error/10 hover:bg-error/20 text-error border border-error/15 text-[10px] sm:text-xs font-bold px-2.5 py-1.5 rounded-xl transition disabled:opacity-50 flex items-center gap-1 tap-active">
-            <UserX className="w-3 h-3" /> Decline
+            className="flex-1 bg-error/10 hover:bg-error/20 text-error border border-error/15 text-sm font-bold px-5 py-2.5 rounded-xl transition disabled:opacity-50 flex items-center justify-center gap-2 tap-active">
+            <UserX className="w-4 h-4" /> Decline
           </button>
         </div>
       );
@@ -537,8 +530,8 @@ export default function PublicProfilePage() {
 
     return (
       <button onClick={handleAddFriend} disabled={friendLoading}
-        className="btn-primary-luxe text-[10px] sm:text-xs font-bold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl transition disabled:opacity-50 flex items-center gap-1 shrink-0 tap-active">
-        <UserPlus className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> {friendLoading ? "..." : "Add Friend"}
+        className="btn-primary-luxe text-sm font-bold px-5 py-2.5 rounded-xl transition disabled:opacity-50 flex items-center gap-2 tap-active">
+        <UserPlus className="w-4 h-4" /> {friendLoading ? "..." : "Add Friend"}
       </button>
     );
   }
@@ -546,12 +539,7 @@ export default function PublicProfilePage() {
   return (
     <div className="min-h-screen bg-bg pb-28 md:pb-12">
 
-      {/* HERO BANNER */}
-      <div className="profile-hero h-48 sm:h-56 md:h-64">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-bg" />
-      </div>
-
-      <div className="max-w-2xl mx-auto px-4 -mt-24 sm:-mt-28 relative z-10">
+      <div className="max-w-2xl mx-auto px-4 pt-4 relative z-10">
 
         {/* PROFILE HEADER CARD */}
         <motion.div
@@ -559,82 +547,120 @@ export default function PublicProfilePage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           className="glass-panel rounded-3xl overflow-hidden shadow-2xl"
+          style={{ boxShadow: `0 8px 48px ${trustLevel.color}18, 0 2px 16px rgba(0,0,0,0.3)` }}
         >
-          <div className="px-5 pt-5 pb-6 sm:px-7 sm:pt-6 sm:pb-7">
-            {/* Top section: Avatar + Info */}
-            <div className="flex items-start gap-4 sm:gap-5">
-              {/* Avatar */}
-              <div className="relative shrink-0">
-                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-br from-primary via-accent to-hot p-[2.5px] shadow-xl shadow-primary/25 rotate-3 hover:rotate-0 transition-transform duration-500">
-                  <div className="w-full h-full rounded-[14px] sm:rounded-[18px] bg-bg overflow-hidden -rotate-3 hover:rotate-0 transition-transform duration-500">
-                    {profile.avatar_url ? (
-                      <img src={profile.avatar_url} alt={profile.display_name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-2xl sm:text-3xl text-text font-bold bg-gradient-to-br from-surface to-surface-light">
-                        {profile.display_name.charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                  </div>
+          {/* ── Card-internal gradient strip (replaces the wasted hero space) ── */}
+          <div className="relative h-28 overflow-hidden">
+            {/* Banner image or gradient fallback */}
+            {profile.banner_url ? (
+              <img src={profile.banner_url} alt="Profile banner" className="absolute inset-0 w-full h-full object-cover" />
+            ) : (
+              <div
+                className="absolute inset-0"
+                style={{ background: `linear-gradient(135deg, ${trustLevel.color}30 0%, var(--color-primary)/20 50%, var(--color-accent)/10 100%)` }}
+              />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-bg/80" />
+            {/* Ambient glow orbs — only when no banner image */}
+            {!profile.banner_url && (
+              <>
+                <div className="absolute -top-4 right-6 w-32 h-32 rounded-full blur-3xl opacity-50" style={{ backgroundColor: trustLevel.color }} />
+                <div className="absolute top-2 left-1/3 w-20 h-20 rounded-full blur-2xl opacity-30 bg-accent" />
+              </>
+            )}
+            {/* More / Edit button pinned to top-right */}
+            <div className="absolute top-3 right-3">
+              {isOwnProfile && (
+                <Link to="/profile/me" className="btn-secondary-luxe text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1 tap-active backdrop-blur-sm">
+                  <Edit3 className="w-3 h-3" /> Edit
+                </Link>
+              )}
+              {!isOwnProfile && me && !blockedByMe && !blockedByThem && (
+                <div className="relative" ref={moreMenuRef}>
+                  <button
+                    onClick={() => setShowMoreMenu((v) => !v)}
+                    className="w-8 h-8 rounded-xl bg-bg/40 backdrop-blur-sm border border-white/10 flex items-center justify-center text-white/70 hover:text-white transition tap-active"
+                    aria-label="More options"
+                  >
+                    <MoreVertical className="w-4 h-4" />
+                  </button>
+                  {showMoreMenu && (
+                    <div className="absolute top-full right-0 mt-1 glass-panel rounded-xl shadow-2xl overflow-hidden z-20 w-44">
+                      <button
+                        onClick={() => { setShowMoreMenu(false); setShowReportModal(true); }}
+                        className="w-full text-left px-4 py-2.5 text-xs text-warning hover:bg-warning/10 transition flex items-center gap-2"
+                      >
+                        <Flag className="w-3.5 h-3.5" /> Report User
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
+            </div>
+          </div>
 
-              {/* Name + meta */}
-              <div className="flex-1 min-w-0 pt-1">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <h1 className="text-lg sm:text-xl font-extrabold text-text tracking-tight truncate leading-tight">{profile.display_name}</h1>
-                    <p className="text-text-muted text-xs sm:text-sm mt-0.5">@{profile.username}</p>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {renderFriendButton()}
-                    {!isOwnProfile && me && !blockedByMe && !blockedByThem && (
-                      <div className="relative" ref={moreMenuRef}>
-                        <button
-                          onClick={() => setShowMoreMenu((v) => !v)}
-                          className="w-8 h-8 rounded-xl bg-surface-light hover:bg-surface border border-primary/[0.08] flex items-center justify-center text-text-muted hover:text-text transition tap-active"
-                          aria-label="More options"
-                        >
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
-                        {showMoreMenu && (
-                          <div className="absolute top-full right-0 mt-1 glass-panel rounded-xl shadow-2xl overflow-hidden z-20 w-44">
-                            <button
-                              onClick={() => { setShowMoreMenu(false); setShowReportModal(true); }}
-                              className="w-full text-left px-4 py-2.5 text-xs text-warning hover:bg-warning/10 transition flex items-center gap-2"
-                            >
-                              <Flag className="w-3.5 h-3.5" /> Report User
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {profile.bio && (
-                  <p className="text-text-muted/80 text-xs sm:text-sm mt-2 line-clamp-2 leading-relaxed">{profile.bio}</p>
-                )}
-
-                <div className="flex items-center gap-3 mt-2 flex-wrap">
-                  <p className="text-text-dim text-[10px] sm:text-xs flex items-center gap-1">
-                    <Sparkles className="w-3 h-3" /> Member since {memberSince}
-                  </p>
-
-                  {!isOwnProfile && mutualFriends.length > 0 && (
-                    <div className="flex items-center gap-1.5">
-                      <div className="flex -space-x-1.5">
-                        {mutualFriends.slice(0, 3).map((f) => (
-                          <div key={f.id} className="w-5 h-5 rounded-full border-[1.5px] border-surface bg-gradient-to-br from-primary to-accent overflow-hidden shrink-0 flex items-center justify-center text-[8px] text-white font-bold">
-                            {f.avatar_url ? <img src={f.avatar_url} alt={f.display_name} className="w-full h-full object-cover" /> : f.display_name.charAt(0).toUpperCase()}
-                          </div>
-                        ))}
-                      </div>
-                      <span className="text-text-dim text-[10px] font-medium">{mutualFriends.length} mutual {mutualFriends.length === 1 ? "friend" : "friends"}</span>
+          <div className="px-5 pb-6 sm:px-6 sm:pb-7">
+            {/* Avatar — overlaps the gradient strip */}
+            <div className="relative -mt-12 mb-4">
+              <div
+                className="w-24 h-24 rounded-2xl p-[3.5px] shadow-2xl"
+                style={{
+                  background: `linear-gradient(135deg, ${trustLevel.color}, var(--color-primary), var(--color-accent))`,
+                  boxShadow: `0 8px 40px ${trustLevel.color}50, 0 2px 12px rgba(0,0,0,0.4)`,
+                }}
+              >
+                <div className="w-full h-full rounded-[13px] bg-bg overflow-hidden border-[3px] border-bg">
+                  {profile.avatar_url ? (
+                    <img src={profile.avatar_url} alt={profile.display_name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-3xl text-text font-bold bg-gradient-to-br from-surface to-surface-light">
+                      {profile.display_name.charAt(0).toUpperCase()}
                     </div>
                   )}
                 </div>
               </div>
             </div>
+
+            {/* Name + username */}
+            <h1 className="text-xl font-extrabold text-text tracking-tight leading-tight">{profile.display_name}</h1>
+            <p className="text-text-muted text-xs mt-0.5">@{profile.username}</p>
+
+            {/* Trust badge + member since on one line */}
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              <span
+                className="text-[11px] font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1"
+                style={{ color: trustLevel.color, backgroundColor: `${trustLevel.color}18` }}
+              >
+                <Shield className="w-2.5 h-2.5" /> {trustLevel.name}
+              </span>
+              <span className="text-text-dim text-[11px] flex items-center gap-1">
+                <Sparkles className="w-2.5 h-2.5" /> Since {memberSince}
+              </span>
+              {!isOwnProfile && mutualFriends.length > 0 && (
+                <div className="flex items-center gap-1">
+                  <div className="flex -space-x-1">
+                    {mutualFriends.slice(0, 3).map((f) => (
+                      <div key={f.id} className="w-4 h-4 rounded-full border border-surface bg-gradient-to-br from-primary to-accent overflow-hidden shrink-0 flex items-center justify-center text-[7px] text-white font-bold">
+                        {f.avatar_url ? <img src={f.avatar_url} alt={f.display_name} className="w-full h-full object-cover" /> : f.display_name.charAt(0).toUpperCase()}
+                      </div>
+                    ))}
+                  </div>
+                  <span className="text-text-dim text-[10px] font-medium">{mutualFriends.length} mutual</span>
+                </div>
+              )}
+            </div>
+
+            {/* Bio */}
+            {profile.bio && (
+              <p className="text-text-muted/80 text-sm mt-3 leading-relaxed">{profile.bio}</p>
+            )}
+
+            {/* Friend action button */}
+            {!isOwnProfile && me && (
+              <div className="mt-4">
+                {renderFriendButton()}
+              </div>
+            )}
 
             {/* STATS ROW */}
             <div className="grid grid-cols-5 gap-1 mt-5 pt-5 border-t border-primary/[0.06]">

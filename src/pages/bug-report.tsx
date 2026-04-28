@@ -1,8 +1,10 @@
-import { useState, type FormEvent } from "react";
+import { useState, useRef, type FormEvent, type ChangeEvent } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { ArrowLeft, Bug, Send, CheckCircle2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Bug, Send, CheckCircle2, AlertCircle, ImagePlus, X, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../context/auth-hook";
+import api from "../lib/api";
+import { getApiErrorMessage } from "../lib/errors";
 
 const CATEGORIES = [
   "UI / visual glitch",
@@ -16,10 +18,13 @@ const CATEGORIES = [
 ] as const;
 
 const SEVERITY = [
-  { value: "low", label: "Low — minor annoyance", color: "text-success" },
-  { value: "medium", label: "Medium — feature broken", color: "text-warning" },
-  { value: "high", label: "High — can't use the app", color: "text-error" },
+  { value: "low",      label: "Low — minor annoyance",       color: "text-success" },
+  { value: "medium",   label: "Medium — feature broken",     color: "text-warning" },
+  { value: "high",     label: "High — can't use the app",    color: "text-error"   },
+  { value: "critical", label: "Critical — data loss / crash",color: "text-error"   },
 ] as const;
+
+const MAX_SCREENSHOTS = 3;
 
 export default function BugReportPage() {
   const { user } = useAuth();
@@ -27,33 +32,66 @@ export default function BugReportPage() {
   const from = (location.state as { from?: string } | null)?.from ?? (user ? "/settings" : "/");
 
   const [category, setCategory] = useState<string>(CATEGORIES[0]);
-  const [severity, setSeverity] = useState<"low" | "medium" | "high">("medium");
+  const [severity, setSeverity] = useState<"low" | "medium" | "high" | "critical">("medium");
   const [feature, setFeature] = useState("");
   const [steps, setSteps] = useState("");
   const [expected, setExpected] = useState("");
   const [actual, setActual] = useState("");
+  const [screenshots, setScreenshots] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
   const [sent, setSent] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  function handleSubmit(e: FormEvent) {
+  function handleScreenshotChange(e: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    const remaining = MAX_SCREENSHOTS - screenshots.length;
+    const toAdd = files.slice(0, remaining);
+    setScreenshots((prev) => [...prev, ...toAdd]);
+    toAdd.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        if (ev.target?.result) {
+          setPreviews((prev) => [...prev, ev.target!.result as string]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    // Reset input so same file can be re-added if removed
+    e.target.value = "";
+  }
+
+  function removeScreenshot(index: number) {
+    setScreenshots((prev) => prev.filter((_, i) => i !== index));
+    setPreviews((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    const body = [
-      `Reporter: ${user ? `${user.display_name} (@${user.username}, ${user.email})` : "Anonymous"}`,
-      `Category: ${category}`,
-      `Severity: ${severity}`,
-      `Affected feature / page: ${feature || "Not specified"}`,
-      ``,
-      `Steps to reproduce:`,
-      steps,
-      ``,
-      `Expected behaviour:`,
-      expected,
-      ``,
-      `Actual behaviour:`,
-      actual,
-    ].join("\n");
+    setSubmitError("");
+    setSubmitting(true);
 
-    window.location.href = `mailto:bugs@maskedon.app?subject=${encodeURIComponent(`[Bug] [${severity.toUpperCase()}] ${category}`)}&body=${encodeURIComponent(body)}`;
-    setSent(true);
+    try {
+      const formData = new FormData();
+      formData.append("category", category);
+      formData.append("severity", severity);
+      if (feature) formData.append("affected_feature", feature);
+      formData.append("steps_to_reproduce", steps);
+      formData.append("expected_behavior", expected);
+      formData.append("actual_behavior", actual);
+      screenshots.forEach((file) => formData.append("screenshots", file));
+
+      await api.post("/bug-reports", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      setSent(true);
+    } catch (err) {
+      setSubmitError(getApiErrorMessage(err, "Failed to submit report. Please try again."));
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -87,12 +125,25 @@ export default function BugReportPage() {
               <div className="w-16 h-16 rounded-2xl bg-success/10 flex items-center justify-center mx-auto mb-5">
                 <CheckCircle2 className="w-8 h-8 text-success" />
               </div>
-              <h2 className="text-text font-bold text-lg mb-2">Report sent!</h2>
+              <h2 className="text-text font-bold text-lg mb-2">Report submitted!</h2>
               <p className="text-text-muted text-sm mb-6 max-w-xs mx-auto">
-                Your email client was opened with the report pre-filled. Thank you for helping make maskedOn better!
+                We've received your bug report. Thank you for helping make maskedOn better!
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <button onClick={() => setSent(false)} className="btn-secondary-luxe font-bold px-6 py-2.5 rounded-xl text-sm">
+                <button
+                  onClick={() => {
+                    setSent(false);
+                    setCategory(CATEGORIES[0]);
+                    setSeverity("medium");
+                    setFeature("");
+                    setSteps("");
+                    setExpected("");
+                    setActual("");
+                    setScreenshots([]);
+                    setPreviews([]);
+                  }}
+                  className="btn-secondary-luxe font-bold px-6 py-2.5 rounded-xl text-sm"
+                >
                   Report another
                 </button>
                 <Link to={from} className="btn-primary-luxe font-bold px-6 py-2.5 rounded-xl text-sm">
@@ -107,7 +158,7 @@ export default function BugReportPage() {
               <div className="flex items-start gap-3 bg-primary/5 border border-primary/10 rounded-2xl p-4 mb-5">
                 <AlertCircle className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                 <p className="text-text-muted text-xs leading-relaxed">
-                  Include the exact steps you took so we can reproduce the bug. Screenshots help — attach them in your email client after this form opens it.
+                  Include the exact steps you took so we can reproduce the bug. You can attach up to {MAX_SCREENSHOTS} screenshots directly — they'll be saved with your report.
                 </p>
               </div>
 
@@ -135,23 +186,23 @@ export default function BugReportPage() {
                     <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">
                       Severity
                     </label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       {SEVERITY.map((s) => (
                         <button
                           key={s.value}
                           type="button"
                           onClick={() => setSeverity(s.value)}
-                          className={`py-2.5 px-3 rounded-xl text-xs font-bold border transition text-center ${
+                          className={`py-2.5 px-3 rounded-xl text-xs font-bold border transition text-center capitalize ${
                             severity === s.value
-                              ? s.value === "high"
-                                ? "bg-error/15 border-error/40 text-error"
+                              ? s.value === "low"
+                                ? "bg-success/15 border-success/40 text-success"
                                 : s.value === "medium"
                                 ? "bg-warning/15 border-warning/40 text-warning"
-                                : "bg-success/15 border-success/40 text-success"
+                                : "bg-error/15 border-error/40 text-error"
                               : "bg-surface-light border-primary/[0.08] text-text-muted hover:border-primary/15"
                           }`}
                         >
-                          {s.value === "low" ? "Low" : s.value === "medium" ? "Medium" : "High"}
+                          {s.value}
                         </button>
                       ))}
                     </div>
@@ -185,7 +236,7 @@ export default function BugReportPage() {
                       onChange={(e) => setSteps(e.target.value)}
                       required
                       rows={4}
-                      maxLength={2000}
+                      maxLength={5000}
                       placeholder={"1. Open the party detail page\n2. Tap 'Request Entry'\n3. …"}
                       className="input-luxe w-full rounded-xl px-4 py-3 resize-none text-sm font-mono"
                     />
@@ -201,7 +252,7 @@ export default function BugReportPage() {
                       onChange={(e) => setExpected(e.target.value)}
                       required
                       rows={2}
-                      maxLength={500}
+                      maxLength={2000}
                       placeholder="What should have happened?"
                       className="input-luxe w-full rounded-xl px-4 py-3 resize-none text-sm"
                     />
@@ -217,24 +268,76 @@ export default function BugReportPage() {
                       onChange={(e) => setActual(e.target.value)}
                       required
                       rows={2}
-                      maxLength={500}
+                      maxLength={2000}
                       placeholder="What actually happened? Any error messages?"
                       className="input-luxe w-full rounded-xl px-4 py-3 resize-none text-sm"
                     />
                   </div>
 
+                  {/* Screenshots */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">
+                      Screenshots <span className="text-text-dim font-normal normal-case tracking-normal">(optional, up to {MAX_SCREENSHOTS})</span>
+                    </label>
+
+                    {/* Preview grid */}
+                    {previews.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {previews.map((src, i) => (
+                          <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-primary/10">
+                            <img src={src} alt={`Screenshot ${i + 1}`} className="w-full h-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => removeScreenshot(i)}
+                              className="absolute top-1 right-1 w-5 h-5 rounded-full bg-bg/80 backdrop-blur flex items-center justify-center text-text-muted hover:text-error transition"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {screenshots.length < MAX_SCREENSHOTS && (
+                      <>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          multiple
+                          className="hidden"
+                          onChange={handleScreenshotChange}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-primary/20 text-text-muted text-xs hover:border-primary/40 hover:text-text transition"
+                        >
+                          <ImagePlus className="w-4 h-4" />
+                          Add screenshot{screenshots.length > 0 ? ` (${MAX_SCREENSHOTS - screenshots.length} more)` : ""}
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  {submitError && (
+                    <div className="flex items-center gap-2 bg-error/10 border border-error/20 rounded-xl px-4 py-3">
+                      <AlertCircle className="w-4 h-4 text-error shrink-0" />
+                      <p className="text-error text-xs">{submitError}</p>
+                    </div>
+                  )}
+
                   <button
                     type="submit"
-                    disabled={!steps || !expected || !actual}
+                    disabled={!steps || !expected || !actual || submitting}
                     className="btn-primary-luxe w-full font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2 disabled:opacity-50"
                   >
-                    <Send className="w-4 h-4" />
-                    Submit Bug Report
+                    {submitting ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> Submitting…</>
+                    ) : (
+                      <><Send className="w-4 h-4" /> Submit Bug Report</>
+                    )}
                   </button>
-
-                  <p className="text-text-dim text-xs text-center">
-                    This will open your email client with the report pre-filled. You can attach screenshots before sending.
-                  </p>
                 </form>
               </div>
             </motion.div>

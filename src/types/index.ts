@@ -5,6 +5,7 @@ export interface User {
   display_name: string;
   bio: string | null;
   avatar_url: string | null;
+  banner_url: string | null;
   social_rating: number;
   total_ratings: number;
   parties_hosted: number;
@@ -38,6 +39,19 @@ export interface Party {
   status: "upcoming" | "ongoing" | "completed" | "cancelled" | "archived";
   tags: string | null;
   min_rating: number;
+  // Privacy & access
+  is_private: boolean;
+  private_code?: string | null;  // only returned to host
+  allow_photos: boolean;
+  // Party attributes
+  food_type: "veg" | "non_veg" | "vegan" | null;
+  allows_alcohol: boolean;
+  allows_smoking: boolean;
+  allows_other_substances: boolean;
+  // Structured location
+  location_country: string | null;
+  location_state: string | null;
+  location_district: string | null;
   created_at: string;
   updated_at: string;
   // Joined host fields
@@ -143,6 +157,40 @@ export interface Notification {
   reference_id: string | null;
   reference_type: string | null;
   is_read: number;
+  created_at: string;
+}
+
+export interface ConversationSummary {
+  id: string;
+  party_id: string;
+  guest_id: string;
+  host_id: string;
+  created_at: string;
+  party_title: string;
+  party_cover_image_url: string | null;
+  other_user_id: string;
+  other_username: string;
+  other_display_name: string;
+  other_avatar_url: string | null;
+  last_message_body: string | null;
+  last_message_at: string | null;
+  unread_count: number;
+}
+
+export interface ConversationMessage {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  body: string;
+  created_at: string;
+  read_at: string | null;
+}
+
+export interface PartyAnnouncement {
+  id: string;
+  party_id: string;
+  host_id: string;
+  body: string;
   created_at: string;
 }
 

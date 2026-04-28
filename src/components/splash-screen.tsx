@@ -2,6 +2,8 @@ import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import symbolImg from "../assets/symbol.png";
 import nameImg from "../assets/name.png";
+import nameLightImg from "../assets/name_lighttheme.png";
+import { useTheme } from "../context/use-theme";
 
 // ─── Timing constants (ms) ───────────────────────────────────────────────────
 const T_HOLD   = 950;   // logo finishes entering → glow / tagline appear
@@ -34,6 +36,38 @@ interface Props {
 // ─── Component ───────────────────────────────────────────────────────────────
 export default function SplashScreen({ onComplete }: Props) {
   const [phase, setPhase] = useState<Phase>("enter");
+  const { theme } = useTheme();
+  const isLight = theme === "light";
+
+  const palette = isLight
+    ? {
+        bg: "#F8FAFC",
+        radial: "radial-gradient(ellipse 70% 55% at 50% 50%, rgba(99,102,241,0.12) 0%, rgba(14,165,233,0.08) 45%, transparent 72%)",
+        leftOrb: "radial-gradient(circle, rgba(99,102,241,0.18), transparent 70%)",
+        rightOrb: "radial-gradient(circle, rgba(14,165,233,0.2), transparent 70%)",
+        particleA: "rgba(99,102,241,0.45)",
+        particleB: "rgba(14,165,233,0.45)",
+        halo: "rgba(99,102,241,0.35)",
+        symbolShadow: "drop-shadow(0 0 10px rgba(99,102,241,0.28))",
+        nameShadow: "drop-shadow(0 0 8px rgba(14,165,233,0.18))",
+        tagline: "rgba(71,85,105,0.8)",
+        progressTrack: "rgba(15,23,42,0.08)",
+        topLine: "linear-gradient(90deg, transparent 0%, rgba(99,102,241,0.55) 30%, rgba(14,165,233,0.5) 70%, transparent 100%)",
+      }
+    : {
+        bg: "#030712",
+        radial: "radial-gradient(ellipse 70% 55% at 50% 50%, rgba(139,92,246,0.13) 0%, rgba(6,182,212,0.09) 45%, transparent 72%)",
+        leftOrb: "radial-gradient(circle, rgba(139,92,246,0.22), transparent 70%)",
+        rightOrb: "radial-gradient(circle, rgba(6,182,212,0.25), transparent 70%)",
+        particleA: "rgba(139,92,246,0.55)",
+        particleB: "rgba(6,182,212,0.55)",
+        halo: "rgba(139,92,246,0.45)",
+        symbolShadow: "drop-shadow(0 0 12px rgba(139,92,246,0.4))",
+        nameShadow: "drop-shadow(0 0 8px rgba(6,182,212,0.25))",
+        tagline: "rgba(148,163,184,0.7)",
+        progressTrack: "rgba(255,255,255,0.06)",
+        topLine: "linear-gradient(90deg, transparent 0%, rgba(139,92,246,0.6) 30%, rgba(6,182,212,0.6) 70%, transparent 100%)",
+      };
 
   useEffect(() => {
     const t1 = setTimeout(() => setPhase("hold"), T_HOLD);
@@ -58,7 +92,7 @@ export default function SplashScreen({ onComplete }: Props) {
   return (
     <motion.div
       className="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden"
-      style={{ backgroundColor: "#030712" }}
+      style={{ backgroundColor: palette.bg }}
       animate={{ opacity: isExit ? 0 : 1 }}
       transition={{ duration: 0.65, delay: isExit ? 0.5 : 0, ease: "easeIn" }}
     >
@@ -69,8 +103,7 @@ export default function SplashScreen({ onComplete }: Props) {
         animate={{ opacity: isHold ? 1 : 0 }}
         transition={{ duration: 1.4 }}
         style={{
-          background:
-            "radial-gradient(ellipse 70% 55% at 50% 50%, rgba(139,92,246,0.13) 0%, rgba(6,182,212,0.09) 45%, transparent 72%)",
+          background: palette.radial,
         }}
       />
 
@@ -80,7 +113,7 @@ export default function SplashScreen({ onComplete }: Props) {
         style={{
           width: 220, height: 220,
           top: "18%", left: "8%",
-          background: "radial-gradient(circle, rgba(139,92,246,0.22), transparent 70%)",
+          background: palette.leftOrb,
           filter: "blur(32px)",
         }}
         initial={{ opacity: 0, x: -30 }}
@@ -98,7 +131,7 @@ export default function SplashScreen({ onComplete }: Props) {
         style={{
           width: 180, height: 180,
           bottom: "20%", right: "8%",
-          background: "radial-gradient(circle, rgba(6,182,212,0.25), transparent 70%)",
+          background: palette.rightOrb,
           filter: "blur(28px)",
         }}
         initial={{ opacity: 0, x: 30 }}
@@ -118,7 +151,7 @@ export default function SplashScreen({ onComplete }: Props) {
           style={{
             width: p.size, height: p.size,
             left: `${p.x}%`, bottom: "0%",
-            background: i % 2 === 0 ? "rgba(139,92,246,0.55)" : "rgba(6,182,212,0.55)",
+            background: i % 2 === 0 ? palette.particleA : palette.particleB,
           }}
           initial={{ y: 0, opacity: 0 }}
           animate={{ y: -900, opacity: [0, 0.8, 0] }}
@@ -145,7 +178,7 @@ export default function SplashScreen({ onComplete }: Props) {
             className="absolute rounded-full pointer-events-none"
             style={{
               width: 96, height: 96,
-              background: "rgba(139,92,246,0.45)",
+              background: palette.halo,
               filter: "blur(22px)",
             }}
             initial={{ opacity: 0, scale: 0.7 }}
@@ -159,16 +192,16 @@ export default function SplashScreen({ onComplete }: Props) {
             src={symbolImg}
             alt=""
             className="w-[72px] h-[72px] object-contain relative z-10"
-            style={{ filter: "drop-shadow(0 0 12px rgba(139,92,246,0.4))" }}
+            style={{ filter: palette.symbolShadow }}
           />
         </div>
 
         {/* Brand name */}
         <motion.img
-          src={nameImg}
+          src={theme === "light" ? nameLightImg : nameImg}
           alt="maskedOn"
           className="object-contain"
-          style={{ width: 200, filter: "drop-shadow(0 0 8px rgba(6,182,212,0.25))" }}
+          style={{ width: 200, filter: palette.nameShadow }}
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.55, ease: "easeOut" }}
@@ -177,19 +210,19 @@ export default function SplashScreen({ onComplete }: Props) {
         {/* Tagline */}
         <motion.p
           className="text-[11px] tracking-[0.32em] uppercase font-medium"
-          style={{ color: "rgba(148,163,184,0.7)" }}
+          style={{ color: palette.tagline }}
           initial={{ opacity: 0 }}
           animate={{ opacity: isHold ? 1 : 0 }}
           transition={{ duration: 0.9, delay: 0.1 }}
         >
-          Unmask the night
+          Host the night. Curate the crowd.
         </motion.p>
       </motion.div>
 
       {/* ── Bottom progress bar ───────────────────────────────────────────── */}
       <motion.div
         className="absolute bottom-12 left-1/2 -translate-x-1/2 rounded-full overflow-hidden"
-        style={{ width: 88, height: 2, background: "rgba(255,255,255,0.06)" }}
+        style={{ width: 88, height: 2, background: palette.progressTrack }}
         initial={{ opacity: 0 }}
         animate={{ opacity: isHold ? 1 : 0 }}
         transition={{ duration: 0.5 }}
@@ -213,7 +246,7 @@ export default function SplashScreen({ onComplete }: Props) {
       <motion.div
         className="absolute top-0 left-0 right-0 h-px"
         style={{
-          background: "linear-gradient(90deg, transparent 0%, rgba(139,92,246,0.6) 30%, rgba(6,182,212,0.6) 70%, transparent 100%)",
+          background: palette.topLine,
         }}
         initial={{ opacity: 0, scaleX: 0 }}
         animate={{ opacity: isHold ? 0.7 : 0, scaleX: isHold ? 1 : 0 }}
