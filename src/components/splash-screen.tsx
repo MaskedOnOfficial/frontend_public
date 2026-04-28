@@ -215,7 +215,7 @@ export default function SplashScreen({ onComplete }: Props) {
           animate={{ opacity: isHold ? 1 : 0 }}
           transition={{ duration: 0.9, delay: 0.1 }}
         >
-          Host the night. Curate the crowd.
+          Get Your Social Life Approved
         </motion.p>
       </motion.div>
 
