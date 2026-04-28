@@ -50,6 +50,7 @@ export default function CreatePostPage() {
   // Caption state
   const [caption, setCaption] = useState("");
   const [globalVisibility, setGlobalVisibility] = useState(false);
+  const [friendsOnly, setFriendsOnly] = useState(false);
 
   const adjustCSS = `brightness(${brightness / 100}) contrast(${contrast / 100}) saturate(${saturation / 100})`;
   const filterCSS = FILTERS[selectedFilter].css;
@@ -148,6 +149,7 @@ export default function CreatePostPage() {
       fd.append("image", compressed);
       if (caption.trim()) fd.append("caption", caption.trim());
       fd.append("global_visibility", String(globalVisibility));
+      fd.append("friends_only", String(friendsOnly));
 
       await api.post("/photos", fd, { headers: { "Content-Type": "multipart/form-data" } });
       navigate("/profile/me", { replace: true });
@@ -169,6 +171,7 @@ export default function CreatePostPage() {
     setRotation(0);
     setCaption("");
     setGlobalVisibility(false);
+    setFriendsOnly(false);
     setError("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
@@ -428,6 +431,77 @@ export default function CreatePostPage() {
             </div>
           </div>
 
+          {/* Visibility toggles — placed right after caption so they're noticed */}
+          <div className="mt-5 space-y-3">
+            {/* Toggle 1: Show Globally */}
+            <div className="glass-panel rounded-2xl px-4 py-3.5 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+                  globalVisibility && !friendsOnly ? "bg-primary/15" : "bg-surface-light"
+                }`}>
+                  <Globe className={`w-[18px] h-[18px] transition-colors ${
+                    globalVisibility && !friendsOnly ? "text-primary" : "text-text-muted"
+                  }`} />
+                </div>
+                <div>
+                  <p className="text-text text-sm font-bold">Show Globally</p>
+                  <p className="text-text-dim text-xs mt-0.5">Appear in other people's recommendations</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                title={globalVisibility && !friendsOnly ? "Show globally (tap to disable)" : "Show globally (tap to enable)"}
+                aria-checked={globalVisibility && !friendsOnly ? "true" : "false"}
+                onClick={() => {
+                  setGlobalVisibility((v) => !v);
+                  if (!globalVisibility) setFriendsOnly(false); // can't be both
+                }}
+                className={`relative w-12 h-6 rounded-full transition-colors tap-active flex-shrink-0 ${
+                  globalVisibility && !friendsOnly ? "bg-primary" : "bg-surface-light border border-primary/20"
+                }`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-md transition-transform ${
+                  globalVisibility && !friendsOnly ? "translate-x-6" : "translate-x-0"
+                }`} />
+              </button>
+            </div>
+
+            {/* Toggle 2: Friends Only */}
+            <div className="glass-panel rounded-2xl px-4 py-3.5 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+                  friendsOnly ? "bg-accent/15" : "bg-surface-light"
+                }`}>
+                  <Lock className={`w-[18px] h-[18px] transition-colors ${
+                    friendsOnly ? "text-accent" : "text-text-muted"
+                  }`} />
+                </div>
+                <div>
+                  <p className="text-text text-sm font-bold">Friends Only</p>
+                  <p className="text-text-dim text-xs mt-0.5">Only your friends can see this post</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                title={friendsOnly ? "Friends only (tap to disable)" : "Friends only (tap to enable)"}
+                aria-checked={friendsOnly ? "true" : "false"}
+                onClick={() => {
+                  setFriendsOnly((v) => !v);
+                  if (!friendsOnly) setGlobalVisibility(false); // mutually exclusive
+                }}
+                className={`relative w-12 h-6 rounded-full transition-colors tap-active flex-shrink-0 ${
+                  friendsOnly ? "bg-accent" : "bg-surface-light border border-accent/20"
+                }`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-md transition-transform ${
+                  friendsOnly ? "translate-x-6" : "translate-x-0"
+                }`} />
+              </button>
+            </div>
+          </div>
+
           {/* Post preview card */}
           <div className="mt-6 glass-panel rounded-2xl overflow-hidden">
             <div className="px-4 py-3 flex items-center gap-3 border-b border-primary/[0.06]">
@@ -457,49 +531,6 @@ export default function CreatePostPage() {
                 </p>
               </div>
             )}
-          </div>
-
-          {/* Global visibility toggle */}
-          <div className="mt-5 glass-panel rounded-2xl px-4 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
-                  globalVisibility ? "bg-primary/15" : "bg-surface-light"
-                }`}>
-                  {globalVisibility
-                    ? <Globe className="w-4.5 h-4.5 text-primary" />
-                    : <Lock className="w-4.5 h-4.5 text-text-muted" />}
-                </div>
-                <div>
-                  <p className="text-text text-sm font-bold">
-                    {globalVisibility ? "Show to everyone" : "Friends only"}
-                  </p>
-                  <p className="text-text-dim text-xs mt-0.5">
-                    {globalVisibility
-                      ? "This post may appear in discovery feeds"
-                      : "Only your friends will see this"}
-                  </p>
-                </div>
-              </div>
-
-              {/* Toggle switch */}
-              <button
-                type="button"
-                role="switch"
-                aria-checked={globalVisibility ? "true" : "false"}
-                title={globalVisibility ? "Show to everyone (tap to change)" : "Friends only (tap to change)"}
-                onClick={() => setGlobalVisibility((v) => !v)}
-                className={`relative w-12 h-6 rounded-full transition-colors tap-active flex-shrink-0 ${
-                  globalVisibility ? "bg-primary" : "bg-surface-light border border-primary/20"
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-md transition-transform ${
-                    globalVisibility ? "translate-x-6" : "translate-x-0"
-                  }`}
-                />
-              </button>
-            </div>
           </div>
 
           {/* Discard button */}

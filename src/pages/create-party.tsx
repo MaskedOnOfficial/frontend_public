@@ -352,11 +352,13 @@ export default function CreatePartyPage() {
     if (!canProceed()) return;
     setDir(1);
     setStep((s) => Math.min(s + 1, STEP_META.length));
+    window.scrollTo({ top: 0, behavior: "instant" });
     hapticsMedium();
   }
   function goBack() {
     setDir(-1);
     setStep((s) => Math.max(s - 1, 1));
+    window.scrollTo({ top: 0, behavior: "instant" });
     hapticsMedium();
   }
 
