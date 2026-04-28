@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect, useCallback } from "react";
+﻿import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/auth-hook";
 import { compressAndStripMetadata } from "../lib/image-utils";
@@ -9,6 +9,7 @@ import { takePhoto } from "../lib/native-camera";
 import { hapticsMedium } from "../lib/haptics";
 import { COUNTRIES, getStatesForCountry, getDistrictsForState } from "../lib/location-data";
 import { motion, AnimatePresence } from "framer-motion";
+import MapPicker from "../components/MapPicker";
 import {
   MapPin, Clock, Users, Ticket, Shield, Loader2, Sparkles, X,
   ChevronLeft, Camera, Upload, Calendar, Zap, Crown, PartyPopper,
@@ -241,7 +242,6 @@ export default function CreatePartyPage() {
   const [dir, setDir] = useState(1);
   const [showDraft, setShowDraft] = useState(false);
   const [priceTier, setPriceTier] = useState(0);
-  const [locationLoading, setLocationLoading] = useState(false);
 
   const [form, setForm] = useState<FormState>({ ...EMPTY_FORM });
   const [coverFile, setCoverFile] = useState<File | null>(null);
@@ -325,19 +325,6 @@ export default function CreatePartyPage() {
     setCoverPreview("");
     if (fileRef.current) fileRef.current.value = "";
   }
-
-  const getLocation = useCallback(() => {
-    if (!navigator.geolocation) return;
-    setLocationLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setForm((p) => ({ ...p, latitude: pos.coords.latitude, longitude: pos.coords.longitude }));
-        setLocationLoading(false);
-      },
-      () => { setLocationLoading(false); },
-      { timeout: 10000 }
-    );
-  }, []);
 
   function canProceed(): boolean {
     if (step === 1) return form.title.trim().length >= 3;
@@ -673,75 +660,24 @@ export default function CreatePartyPage() {
                     <span className="text-[10px] text-text-dim font-normal ml-1">(optional)</span>
                   </h2>
                   <p className="text-[11px] text-text-muted leading-relaxed">
-                    For paid events, the map is only shown to paid attendees.
+                    Search for a place, click the map, or drag the pin. For paid events the map is shown only to paid attendees.
                   </p>
-
-                  <button
-                    type="button"
-                    onClick={getLocation}
-                    disabled={locationLoading}
-                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-primary/20 bg-primary/5 text-primary text-sm font-semibold hover:bg-primary/10 transition-colors disabled:opacity-50 tap-active"
-                  >
-                    {locationLoading
-                      ? <><Loader2 className="w-4 h-4 animate-spin" />Detecting...</>
-                      : <><Navigation className="w-4 h-4" />Use My Current Location</>}
-                  </button>
-
-                  {form.latitude !== null && form.longitude !== null && (
-                    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
-                      <div className="flex items-center gap-2 text-success text-xs font-semibold">
-                        <Check className="w-3.5 h-3.5" />
-                        Location pinned: {form.latitude.toFixed(5)}, {form.longitude.toFixed(5)}
-                      </div>
-                      <div className="rounded-xl overflow-hidden border border-border h-48">
-                        <iframe
-                          title="Party location map"
-                          width="100%"
-                          height="100%"
-                          loading="lazy"
-                          referrerPolicy="no-referrer-when-downgrade"
-                          src={`https://maps.google.com/maps?q=${form.latitude},${form.longitude}&z=16&output=embed`}
-                          className="border-0"
-                        />
-                      </div>
-                      <button type="button" onClick={() => setForm((p) => ({ ...p, latitude: null, longitude: null }))}
-                        className="text-xs text-text-dim hover:text-error transition-colors">
-                        Remove pin
-                      </button>
-                    </motion.div>
-                  )}
-
-                  <details className="group">
-                    <summary className="text-[11px] text-text-dim cursor-pointer hover:text-text-muted transition-colors list-none flex items-center gap-1">
-                      <span className="group-open:hidden">open</span>
-                      <span className="hidden group-open:inline">close</span>
-                      Enter coordinates manually
-                    </summary>
-                    <div className="mt-3 grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[10px] font-bold text-text-dim uppercase tracking-wider mb-1.5">Latitude</label>
-                        <input
-                          type="number"
-                          step="0.00001"
-                          value={form.latitude ?? ""}
-                          onChange={(e) => setForm((p) => ({ ...p, latitude: e.target.value ? Number(e.target.value) : null }))}
-                          placeholder="12.97194"
-                          className="input-luxe w-full rounded-xl px-3 py-2.5 text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-text-dim uppercase tracking-wider mb-1.5">Longitude</label>
-                        <input
-                          type="number"
-                          step="0.00001"
-                          value={form.longitude ?? ""}
-                          onChange={(e) => setForm((p) => ({ ...p, longitude: e.target.value ? Number(e.target.value) : null }))}
-                          placeholder="77.59369"
-                          className="input-luxe w-full rounded-xl px-3 py-2.5 text-sm"
-                        />
-                      </div>
-                    </div>
-                  </details>
+                  <MapPicker
+                    initialLat={form.latitude}
+                    initialLng={form.longitude}
+                    mapClassName="h-64"
+                    onChange={(val) => {
+                      setForm((p) => ({
+                        ...p,
+                        latitude:  val.lat !== 0 ? val.lat  : null,
+                        longitude: val.lng !== 0 ? val.lng  : null,
+                        // Auto-fill venue name from map search if field is still empty
+                        location_name: !p.location_name.trim() && val.displayName
+                          ? val.displayName.split(",")[0].trim()
+                          : p.location_name,
+                      }));
+                    }}
+                  />
                 </div>
               </motion.div>
             )}

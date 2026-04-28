@@ -494,26 +494,52 @@ export default function PartyDetailPage() {
             </div>
           )}
 
-          {/* Map */}
+          {/* Map — host always sees it; attendees see it on free events or after payment */}
           {party.latitude != null && party.longitude != null ? (
-            <div className="mb-8">
-              <h3 className="text-[11px] font-bold text-text-dim uppercase tracking-[0.15em] mb-3 flex items-center gap-2">
-                <MapPin className="w-3.5 h-3.5" />
-                Location Map
-              </h3>
-              <div className="rounded-2xl overflow-hidden border border-border h-52">
-                <iframe
-                  title="Party location"
-                  width="100%"
-                  height="100%"
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  src={`https://maps.google.com/maps?q=${party.latitude},${party.longitude}&z=16&output=embed`}
-                  className="border-0"
-                />
-              </div>
-            </div>
-          ) : party.ticket_price > 0 && !alreadyAttending && requestStatus !== "paid" ? (
+            (() => {
+              const canSeeMap = isHost || party.ticket_price === 0 || requestStatus === "paid" || requestStatus === "approved";
+              if (!canSeeMap) {
+                return (
+                  <div className="mb-8">
+                    <div className="relative rounded-2xl overflow-hidden border border-border h-36 bg-surface-light flex items-center justify-center">
+                      <div className="absolute inset-0 backdrop-blur-sm" />
+                      <div className="relative text-center space-y-2">
+                        <Lock className="w-6 h-6 text-text-dim mx-auto" />
+                        <p className="text-xs font-semibold text-text-muted">Exact location revealed after ticket purchase</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+              return (
+                <div className="mb-8">
+                  <h3 className="text-[11px] font-bold text-text-dim uppercase tracking-[0.15em] mb-3 flex items-center gap-2">
+                    <MapPin className="w-3.5 h-3.5" />
+                    Location Map
+                  </h3>
+                  <div className="rounded-2xl overflow-hidden border border-border h-52">
+                    <iframe
+                      title="Party location"
+                      width="100%"
+                      height="100%"
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      src={`https://www.openstreetmap.org/export/embed.html?bbox=${party.longitude - 0.005},${party.latitude - 0.005},${party.longitude + 0.005},${party.latitude + 0.005}&layer=mapnik&marker=${party.latitude},${party.longitude}`}
+                      className="border-0"
+                    />
+                  </div>
+                  <a
+                    href={`https://www.openstreetmap.org/?mlat=${party.latitude}&mlon=${party.longitude}&zoom=16`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 mt-2 text-[11px] text-text-dim hover:text-primary transition"
+                  >
+                    <MapPin className="w-3 h-3" /> Open in OpenStreetMap
+                  </a>
+                </div>
+              );
+            })()
+          ) : party.ticket_price > 0 && !alreadyAttending && requestStatus !== "paid" && !isHost ? (
             <div className="mb-8">
               <div className="relative rounded-2xl overflow-hidden border border-border h-36 bg-surface-light flex items-center justify-center">
                 <div className="absolute inset-0 backdrop-blur-sm" />
