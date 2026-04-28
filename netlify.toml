@@ -2,6 +2,16 @@
   command = "npm run build"
   publish = "dist"
 
+# Serve assetlinks.json with the correct MIME type and no caching so
+# Android App Links verification always gets a fresh, parseable response.
+[[headers]]
+  for = "/.well-known/assetlinks.json"
+  [headers.values]
+    Content-Type = "application/json"
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Access-Control-Allow-Origin = "*"
+
+# SPA fallback — must be LAST so static files (incl. .well-known/) take priority
 [[redirects]]
   from = "/*"
   to = "/index.html"

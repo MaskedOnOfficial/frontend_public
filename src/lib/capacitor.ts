@@ -85,6 +85,7 @@ export async function initCapacitor(
     '/parties/', '/profile/', '/feed', '/auth/',
     '/dashboard', '/settings', '/notifications',
     '/search', '/create-party',
+    '/reset-password', '/verify-email',  // email-linked auth pages
   ];
 
   App.addListener('appUrlOpen', ({ url }) => {

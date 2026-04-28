@@ -52,6 +52,7 @@ import ContactPage from "./pages/contact";
 import BugReportPage from "./pages/bug-report";
 import ForceUpdateGate from "./components/force-update-gate";
 import BottomTabNav from "./components/bottom-tab-nav.tsx";
+import InAppBrowserGate from "./components/InAppBrowserGate";
 
 // ─── Error Boundary ───────────────────────────────────────────────────────────
 
@@ -389,6 +390,7 @@ function App() {
             <ForceUpdateGate>
               <AppShell />
             </ForceUpdateGate>
+            <InAppBrowserGate />
           </ErrorBoundary>
         </AuthProvider>
       </ThemeProvider>
