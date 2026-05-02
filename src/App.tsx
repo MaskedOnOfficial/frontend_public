@@ -5,6 +5,7 @@ import SplashScreen from "./components/splash-screen";
 import { AuthProvider } from "./context/auth-context";
 import { ThemeProvider } from "./context/theme-context";
 import { useAuth } from "./context/auth-hook";
+import { NotificationsProvider } from "./context/use-notifications-hook";
 import { initCapacitor } from "./lib/capacitor";
 import { Capacitor } from "@capacitor/core";
 import { initPushNotifications } from "./lib/push-notifications";
@@ -53,6 +54,8 @@ import BugReportPage from "./pages/bug-report";
 import ForceUpdateGate from "./components/force-update-gate";
 import BottomTabNav from "./components/bottom-tab-nav.tsx";
 import InAppBrowserGate from "./components/InAppBrowserGate";
+import { UploadQueueProvider } from "./context/upload-queue";
+import UploadProgressToast from "./components/upload-progress-toast";
 
 // ─── Error Boundary ───────────────────────────────────────────────────────────
 
@@ -370,6 +373,7 @@ function AppShell() {
         </Routes>
       </main>
       {user && !isAuthPage && !showRatingGate && <BottomTabNav />}
+      <UploadProgressToast />
     </div>
   );
 }
@@ -381,18 +385,20 @@ function App() {
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
-          <ErrorBoundary>
+          <NotificationsProvider>
+            <ErrorBoundary>
             <AnimatePresence>
               {!splashDone && (
                 <SplashScreen key="splash" onComplete={() => setSplashDone(true)} />
               )}
             </AnimatePresence>
             <ForceUpdateGate>
-              <AppShell />
+              <UploadQueueProvider>
+                <AppShell />
+              </UploadQueueProvider>
             </ForceUpdateGate>
             <InAppBrowserGate />
-          </ErrorBoundary>
-        </AuthProvider>
+          </ErrorBoundary>          </NotificationsProvider>        </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>
   );

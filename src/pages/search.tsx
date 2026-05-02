@@ -52,6 +52,10 @@ export default function SearchPage() {
   const [tab, setTab] = useState<Tab>("all");
   const [searchError, setSearchError] = useState("");
   const abortControllerRef = useRef<AbortController | null>(null);
+  // Track whether the initial URL-query fetch has been fired to prevent double-fetch.
+  // Both effects run after the first render; without this guard, Effect 1 starts a
+  // request that Effect 2 immediately aborts and restarts — wasting a round-trip.
+  const initialFetchFiredRef = useRef(false);
 
   const debouncedQuery = useDebounce(inputValue, 350);
 
@@ -60,6 +64,7 @@ export default function SearchPage() {
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
+    setLoading(true);
     setSearchError("");
     api
       .get("/search", { params: { q: query, limit: 20 }, signal: controller.signal })
@@ -75,28 +80,36 @@ export default function SearchPage() {
       });
   }, []);
 
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       abortControllerRef.current?.abort();
     };
   }, []);
 
+  // Effect 1: fire the initial fetch when the page is opened with ?q= in the URL.
+  // Sets the guard so Effect 2 doesn't duplicate it.
   useEffect(() => {
-    if (initialQuery.length >= 2) {
+    if (initialQuery.length >= 2 && !initialFetchFiredRef.current) {
+      initialFetchFiredRef.current = true;
       fetchSearch(initialQuery);
     }
   }, [fetchSearch, initialQuery]);
 
+  // Effect 2: react to debounced typing. Skip if query matches what was already
+  // fetched by Effect 1 (guard prevents the abort + duplicate-request race).
   useEffect(() => {
-    if (debouncedQuery === initialQuery && results) return;
+    if (debouncedQuery === initialQuery && initialFetchFiredRef.current) return;
     if (debouncedQuery.length < 2) {
       if (debouncedQuery.length === 0) setSearchParams({}, { replace: true });
+      setResults(null);
+      setLoading(false);
       return;
     }
     setTab("all");
     setSearchParams({ q: debouncedQuery }, { replace: true });
     fetchSearch(debouncedQuery);
-  }, [debouncedQuery, fetchSearch, initialQuery, results, setSearchParams]);
+  }, [debouncedQuery, fetchSearch, initialQuery, setSearchParams]);
 
   const users = results?.users ?? [];
   const parties = results?.parties ?? [];
@@ -170,6 +183,21 @@ export default function SearchPage() {
               <Search className="w-8 h-8 text-text-dim/30" />
             </div>
             <p className="text-text-muted text-sm">Type at least 2 characters to search</p>
+          </div>
+        )}
+
+        {/* Loading skeleton */}
+        {loading && !results && (
+          <div className="space-y-3 animate-pulse">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="glass-panel rounded-2xl p-4 flex items-center gap-4">
+                <div className="w-11 h-11 rounded-full bg-surface-lighter shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3.5 bg-surface-lighter rounded-full w-2/5" />
+                  <div className="h-2.5 bg-surface-lighter rounded-full w-1/4" />
+                </div>
+              </div>
+            ))}
           </div>
         )}
 

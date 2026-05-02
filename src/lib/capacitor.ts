@@ -20,7 +20,7 @@ export async function initCapacitor(
   // ── Status Bar ──
   try {
     await StatusBar.setStyle({ style: Style.Dark });
-    await StatusBar.setBackgroundColor({ color: '#030712' });
+    await StatusBar.setBackgroundColor({ color: '#080c15' });
   } catch {
     // Ignore — plugin may not be available on all platforms
   }
@@ -111,7 +111,7 @@ export async function setNativeTheme(theme: 'dark' | 'light') {
   if (!Capacitor.isNativePlatform()) return;
   try {
     await StatusBar.setStyle({ style: theme === 'dark' ? Style.Dark : Style.Light });
-    await StatusBar.setBackgroundColor({ color: theme === 'dark' ? '#030712' : '#F8FAFC' });
+    await StatusBar.setBackgroundColor({ color: theme === 'dark' ? '#080c15' : '#edf0fa' });
   } catch {
     // no-op
   }

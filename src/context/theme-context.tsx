@@ -16,7 +16,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setNativeTheme(theme);
     // Update the meta theme-color tag for mobile browsers
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute("content", theme === "dark" ? "#030712" : "#F8FAFC");
+    if (meta) meta.setAttribute("content", theme === "dark" ? "#080c15" : "#edf0fa");
   }, [theme]);
 
   const toggleTheme = (newTheme: Theme) => {

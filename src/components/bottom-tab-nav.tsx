@@ -40,7 +40,7 @@ export default function BottomTabNav() {
                     const isActive = isProfileTab ? isProfileActive() : navIsActive;
                     return `flex flex-col items-center justify-center py-1.5 text-[10px] font-semibold transition-colors tap-active ${
                       'special' in tab && tab.special
-                        ? "text-white"
+                        ? "text-primary"
                         : isActive
                           ? "text-primary"
                           : "text-text-dim"
@@ -89,7 +89,7 @@ export default function BottomTabNav() {
                           <Icon className={`relative z-10 w-[22px] h-[22px] transition-colors ${isActive ? "text-primary" : ""}`} strokeWidth={isActive ? 2.2 : 1.7} />
                         </div>
                       )}
-                      <span className={`leading-none tracking-wide ${'special' in tab && tab.special ? "mt-1.5" : "mt-0.5"}`}>
+                      <span className={`leading-none tracking-wide ${'special' in tab && tab.special ? "mt-1.5 font-semibold" : "mt-0.5"}`}>
                         {tab.label}
                       </span>
                     </>

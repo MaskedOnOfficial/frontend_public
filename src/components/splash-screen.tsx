@@ -41,32 +41,32 @@ export default function SplashScreen({ onComplete }: Props) {
 
   const palette = isLight
     ? {
-        bg: "#F8FAFC",
-        radial: "radial-gradient(ellipse 70% 55% at 50% 50%, rgba(99,102,241,0.12) 0%, rgba(14,165,233,0.08) 45%, transparent 72%)",
-        leftOrb: "radial-gradient(circle, rgba(99,102,241,0.18), transparent 70%)",
-        rightOrb: "radial-gradient(circle, rgba(14,165,233,0.2), transparent 70%)",
-        particleA: "rgba(99,102,241,0.45)",
-        particleB: "rgba(14,165,233,0.45)",
-        halo: "rgba(99,102,241,0.35)",
-        symbolShadow: "drop-shadow(0 0 10px rgba(99,102,241,0.28))",
-        nameShadow: "drop-shadow(0 0 8px rgba(14,165,233,0.18))",
-        tagline: "rgba(71,85,105,0.8)",
-        progressTrack: "rgba(15,23,42,0.08)",
-        topLine: "linear-gradient(90deg, transparent 0%, rgba(99,102,241,0.55) 30%, rgba(14,165,233,0.5) 70%, transparent 100%)",
+        bg: "#edf0fa",
+        radial: "radial-gradient(ellipse 70% 55% at 50% 50%, rgba(21,88,194,0.12) 0%, rgba(13,71,161,0.08) 45%, transparent 72%)",
+        leftOrb: "radial-gradient(circle, rgba(21,88,194,0.18), transparent 70%)",
+        rightOrb: "radial-gradient(circle, rgba(13,71,161,0.2), transparent 70%)",
+        particleA: "rgba(21,88,194,0.45)",
+        particleB: "rgba(13,71,161,0.45)",
+        halo: "rgba(21,88,194,0.35)",
+        symbolShadow: "drop-shadow(0 0 10px rgba(21,88,194,0.28))",
+        nameShadow: "drop-shadow(0 0 8px rgba(13,71,161,0.18))",
+        tagline: "rgba(12,25,41,0.7)",
+        progressTrack: "rgba(12,25,41,0.08)",
+        topLine: "linear-gradient(90deg, transparent 0%, rgba(21,88,194,0.55) 30%, rgba(13,71,161,0.5) 70%, transparent 100%)",
       }
     : {
-        bg: "#030712",
-        radial: "radial-gradient(ellipse 70% 55% at 50% 50%, rgba(139,92,246,0.13) 0%, rgba(6,182,212,0.09) 45%, transparent 72%)",
-        leftOrb: "radial-gradient(circle, rgba(139,92,246,0.22), transparent 70%)",
-        rightOrb: "radial-gradient(circle, rgba(6,182,212,0.25), transparent 70%)",
-        particleA: "rgba(139,92,246,0.55)",
-        particleB: "rgba(6,182,212,0.55)",
-        halo: "rgba(139,92,246,0.45)",
-        symbolShadow: "drop-shadow(0 0 12px rgba(139,92,246,0.4))",
-        nameShadow: "drop-shadow(0 0 8px rgba(6,182,212,0.25))",
-        tagline: "rgba(148,163,184,0.7)",
+        bg: "#080c15",
+        radial: "radial-gradient(ellipse 70% 55% at 50% 50%, rgba(78,216,255,0.13) 0%, rgba(74,171,255,0.09) 45%, transparent 72%)",
+        leftOrb: "radial-gradient(circle, rgba(74,171,255,0.22), transparent 70%)",
+        rightOrb: "radial-gradient(circle, rgba(78,216,255,0.25), transparent 70%)",
+        particleA: "rgba(74,171,255,0.55)",
+        particleB: "rgba(78,216,255,0.55)",
+        halo: "rgba(78,216,255,0.45)",
+        symbolShadow: "drop-shadow(0 0 12px rgba(78,216,255,0.4))",
+        nameShadow: "drop-shadow(0 0 8px rgba(74,171,255,0.25))",
+        tagline: "rgba(138,172,202,0.7)",
         progressTrack: "rgba(255,255,255,0.06)",
-        topLine: "linear-gradient(90deg, transparent 0%, rgba(139,92,246,0.6) 30%, rgba(6,182,212,0.6) 70%, transparent 100%)",
+        topLine: "linear-gradient(90deg, transparent 0%, rgba(78,216,255,0.6) 30%, rgba(74,171,255,0.6) 70%, transparent 100%)",
       };
 
   useEffect(() => {
@@ -230,7 +230,7 @@ export default function SplashScreen({ onComplete }: Props) {
         <motion.div
           className="h-full rounded-full"
           style={{
-            background: "linear-gradient(90deg, #8B5CF6, #06B6D4)",
+            background: "linear-gradient(90deg, #D4A853, #9B6DFF)",
             transformOrigin: "left",
           }}
           initial={{ scaleX: 0 }}

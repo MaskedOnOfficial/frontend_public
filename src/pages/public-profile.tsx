@@ -12,7 +12,7 @@ import {
   Camera, Grid3x3, Users, Heart, UserPlus, UserCheck, UserX, Clock,
   X, Loader2, ChevronLeft, ChevronRight, Edit3, Sparkles, Award,
   MessageCircle, ArrowLeft, ShieldBan, ShieldOff, Eye, MoreVertical, Flag, CalendarDays,
-  PartyPopper, Flame, Crown, Trophy, Star, Shield, Check, BarChart3
+  PartyPopper, Flame, Crown, Trophy, Star, Shield, Check, BarChart3, Pin, ChevronDown
 } from "lucide-react";
 import ReportModal from "../components/ReportModal";
 
@@ -29,6 +29,15 @@ function timeAgo(dateStr: string) {
   return months === 1 ? "1 month ago" : `${months} months ago`;
 }
 
+function parseMentions(text: string) {
+  const parts = text.split(/(@[\w.]+)/g);
+  return parts.map((part, i) =>
+    /^@[\w.]+$/.test(part)
+      ? <span key={i} className="text-primary font-semibold">{part}</span>
+      : part
+  );
+}
+
 interface PhotoComment {
   id: string;
   user_id: string;
@@ -38,6 +47,9 @@ interface PhotoComment {
   display_name?: string;
   username?: string;
   avatar_url?: string | null;
+  parent_comment_id: string | null;
+  is_pinned: boolean;
+  replies: PhotoComment[];
 }
 
 export default function PublicProfilePage() {
@@ -65,6 +77,8 @@ export default function PublicProfilePage() {
   const [newComment, setNewComment] = useState("");
   const [postingComment, setPostingComment] = useState(false);
   const [commentError, setCommentError] = useState("");
+  const [replyingTo, setReplyingTo] = useState<{ id: string; display_name: string; username?: string } | null>(null);
+  const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
   const [partyTitles, setPartyTitles] = useState<Record<string, string>>({});
   const viewedPhotoIds = useRef<Set<string>>(new Set());
   const [storyPartyId, setStoryPartyId] = useState<string | null>(null);
@@ -156,8 +170,8 @@ export default function PublicProfilePage() {
 
   // Android back button: close overlays in reverse z-index order
   useBackButton(!!storyPartyId, useCallback(() => { setStoryPartyId(null); setStoryIndex(0); }, []));
-  useBackButton(!storyPartyId && activeCommentPhotoId !== null, useCallback(() => { setActiveCommentPhotoId(null); setComments([]); setNewComment(""); setCommentError(""); }, []));
-  useBackButton(!storyPartyId && activeCommentPhotoId === null && feedStartIndex !== null, useCallback(() => { setFeedStartIndex(null); setActiveCommentPhotoId(null); setComments([]); setNewComment(""); setCommentError(""); }, []));
+  useBackButton(!storyPartyId && activeCommentPhotoId !== null, useCallback(() => { setActiveCommentPhotoId(null); setComments([]); setReplyingTo(null); setExpandedReplies(new Set()); setNewComment(""); setCommentError(""); }, []));
+  useBackButton(!storyPartyId && activeCommentPhotoId === null && feedStartIndex !== null, useCallback(() => { setFeedStartIndex(null); setActiveCommentPhotoId(null); setComments([]); setReplyingTo(null); setExpandedReplies(new Set()); setNewComment(""); setCommentError(""); }, []));
   useBackButton(showBlockConfirm, useCallback(() => setShowBlockConfirm(false), []));
   useBackButton(showReportModal, useCallback(() => setShowReportModal(false), []));
 
@@ -316,23 +330,65 @@ export default function PublicProfilePage() {
     finally { setLoadingComments(false); }
   }
 
+  function updatePhotoCommentCount(photoId: string, delta: number) {
+    setPhotos((prev) => prev.map((photo) => (
+      photo.id === photoId
+        ? { ...photo, comment_count: Math.max(0, (photo.comment_count || 0) + delta) }
+        : photo
+    )));
+  }
+
   async function handleAddComment() {
     if (!activeCommentPhotoId || !newComment.trim()) return;
     setPostingComment(true); setCommentError("");
-    try { const res = await api.post(`/photos/${activeCommentPhotoId}/comments`, { comment_text: newComment.trim() }); setComments([res.data.data.comment, ...comments]); setNewComment(""); }
+    try {
+      const body: { comment_text: string; parent_comment_id?: string } = { comment_text: newComment.trim() };
+      if (replyingTo) body.parent_comment_id = replyingTo.id;
+      const res = await api.post(`/photos/${activeCommentPhotoId}/comments`, body);
+      const newC: PhotoComment = res.data.data.comment;
+      if (replyingTo) {
+        setComments((prev) => prev.map((c) =>
+          c.id === replyingTo.id ? { ...c, replies: [...(c.replies || []), newC] } : c
+        ));
+        setExpandedReplies((prev) => new Set(prev).add(replyingTo.id));
+        setReplyingTo(null);
+      } else {
+        setComments((prev) => [{ ...newC, replies: [] }, ...prev]);
+      }
+      updatePhotoCommentCount(activeCommentPhotoId, 1);
+      setNewComment("");
+    }
     catch (error) { setCommentError(getApiErrorMessage(error, "Failed to post comment")); }
     finally { setPostingComment(false); }
   }
 
   async function handleDeleteComment(commentId: string) {
-    try { await api.delete(`/photos/comments/${commentId}`); setComments(comments.filter((c) => c.id !== commentId)); }
+    try {
+      await api.delete(`/photos/comments/${commentId}`);
+      setComments((prev) => {
+        const topLevel = prev.filter((c) => c.id !== commentId);
+        return topLevel.map((c) => ({ ...c, replies: (c.replies || []).filter((r) => r.id !== commentId) }));
+      });
+      if (activeCommentPhotoId) updatePhotoCommentCount(activeCommentPhotoId, -1);
+    }
     catch (error) { setCommentError(getApiErrorMessage(error, "Failed to delete comment")); }
+  }
+
+  function toggleExpandedReply(commentId: string) {
+    setExpandedReplies((prev) => {
+      const next = new Set(prev);
+      if (next.has(commentId)) next.delete(commentId);
+      else next.add(commentId);
+      return next;
+    });
   }
 
   function closeFeed() {
     setFeedStartIndex(null);
     setActiveCommentPhotoId(null);
     setComments([]);
+    setReplyingTo(null);
+    setExpandedReplies(new Set());
     setNewComment("");
     setCommentError("");
   }
@@ -341,11 +397,15 @@ export default function PublicProfilePage() {
     if (activeCommentPhotoId === photoId) {
       setActiveCommentPhotoId(null);
       setComments([]);
+      setReplyingTo(null);
+      setExpandedReplies(new Set());
       setNewComment("");
       setCommentError("");
     } else {
       setActiveCommentPhotoId(photoId);
       setComments([]);
+      setReplyingTo(null);
+      setExpandedReplies(new Set());
       setNewComment("");
       setCommentError("");
       loadComments(photoId);
@@ -419,25 +479,25 @@ export default function PublicProfilePage() {
     { id: "weekend-warrior", icon: Flame, name: "Weekend Warrior", desc: "Attend 5+ parties", earned: profile.parties_attended >= 5, color: "#F97316" },
     { id: "party-animal", icon: Flame, name: "Party Animal", desc: "Attend 10+ parties", earned: profile.parties_attended >= 10, color: "#EF4444" },
     { id: "nightlife-legend", icon: Sparkles, name: "Nightlife Legend", desc: "Attend 25+ parties", earned: profile.parties_attended >= 25, color: "#D946EF" },
-    { id: "host-debut", icon: Crown, name: "Host Debut", desc: "Host your first event", earned: profile.parties_hosted >= 1, color: "#8B5CF6" },
+    { id: "host-debut", icon: Crown, name: "Host Debut", desc: "Host your first event", earned: profile.parties_hosted >= 1, color: "#D4A853" },
     { id: "super-host", icon: Trophy, name: "Super Host", desc: "Host 5+ events", earned: profile.parties_hosted >= 5, color: "#EC4899" },
-    { id: "festival-host", icon: Award, name: "Festival Host", desc: "Host 15+ events", earned: profile.parties_hosted >= 15, color: "#6366F1" },
-    { id: "social-spark", icon: Users, name: "Social Spark", desc: "Make 5+ friends", earned: friendCount >= 5, color: "#06B6D4" },
-    { id: "social-butterfly", icon: Users, name: "Social Butterfly", desc: "Make 10+ friends", earned: friendCount >= 10, color: "#0EA5E9" },
+    { id: "festival-host", icon: Award, name: "Festival Host", desc: "Host 15+ events", earned: profile.parties_hosted >= 15, color: "#9B6DFF" },
+    { id: "social-spark", icon: Users, name: "Social Spark", desc: "Make 5+ friends", earned: friendCount >= 5, color: "#9B6DFF" },
+    { id: "social-butterfly", icon: Users, name: "Social Butterfly", desc: "Make 10+ friends", earned: friendCount >= 10, color: "#7B4FD4" },
     { id: "connector", icon: Heart, name: "Connector", desc: "Make 25+ friends", earned: friendCount >= 25, color: "#14B8A6" },
     { id: "shutterbug", icon: Camera, name: "Shutterbug", desc: "Post 5+ profile photos", earned: profilePhotos.length >= 5, color: "#10B981" },
     { id: "gallery-master", icon: Grid3x3, name: "Gallery Master", desc: "Post 20+ profile photos", earned: profilePhotos.length >= 20, color: "#22C55E" },
     { id: "crowd-favorite", icon: Star, name: "Crowd Favorite", desc: "Keep average rating above 4.5", earned: hasEnoughRatings && ratingVal >= 4.5, color: "#EAB308" },
     { id: "critic-choice", icon: Star, name: "Critic's Choice", desc: "Keep average rating above 4.8", earned: hasEnoughRatings && ratingVal >= 4.8, color: "#F59E0B" },
-    { id: "trusted", icon: Shield, name: "Trusted", desc: "Reach Spark trust level", earned: ["Spark", "Luminary", "Inferno"].includes(trustLevel.name), color: "#8B5CF6" },
-    { id: "legendary-trust", icon: Shield, name: "Legendary Trust", desc: "Reach Luminary or Inferno", earned: ["Luminary", "Inferno"].includes(trustLevel.name), color: "#A855F7" },
+    { id: "trusted", icon: Shield, name: "Trusted", desc: "Reach Spark trust level", earned: ["Spark", "Luminary", "Inferno"].includes(trustLevel.name), color: "#D4A853" },
+    { id: "legendary-trust", icon: Shield, name: "Legendary Trust", desc: "Reach Luminary or Inferno", earned: ["Luminary", "Inferno"].includes(trustLevel.name), color: "#E8BC67" },
     {
       id: "all-rounder",
       icon: BarChart3,
       name: "All-Rounder",
       desc: "Host 5+, attend 10+, make 10+ friends, post 5+ photos",
       earned: profile.parties_hosted >= 5 && profile.parties_attended >= 10 && friendCount >= 10 && profilePhotos.length >= 5,
-      color: "#0EA5E9",
+      color: "#9B6DFF",
     },
   ];
   const earnedAchievements = achievements.filter((a) => a.earned);
@@ -1174,7 +1234,7 @@ export default function PublicProfilePage() {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[60]"
           >
-            <div className="absolute inset-0 bg-black/50" onClick={() => { setActiveCommentPhotoId(null); setComments([]); setNewComment(""); setCommentError(""); }} />
+            <div className="absolute inset-0 bg-black/50" onClick={() => { setActiveCommentPhotoId(null); setComments([]); setReplyingTo(null); setExpandedReplies(new Set()); setNewComment(""); setCommentError(""); }} />
             <motion.div
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
@@ -1187,7 +1247,7 @@ export default function PublicProfilePage() {
               </div>
               <div className="px-4 pb-3 border-b border-primary/[0.06] flex items-center justify-between">
                 <h3 className="font-bold text-text text-base">Comments</h3>
-                <button onClick={() => { setActiveCommentPhotoId(null); setComments([]); setNewComment(""); setCommentError(""); }} className="w-8 h-8 rounded-full bg-surface-light flex items-center justify-center text-text-dim hover:text-text transition tap-active" aria-label="Close comments">
+                <button onClick={() => { setActiveCommentPhotoId(null); setComments([]); setReplyingTo(null); setExpandedReplies(new Set()); setNewComment(""); setCommentError(""); }} className="w-8 h-8 rounded-full bg-surface-light flex items-center justify-center text-text-dim hover:text-text transition tap-active" aria-label="Close comments">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -1203,26 +1263,62 @@ export default function PublicProfilePage() {
                 ) : (
                   <div className="space-y-4">
                     {comments.map((comment) => (
-                      <div key={comment.id} className="flex gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent p-[1px] shrink-0">
-                          <div className="w-full h-full rounded-full bg-bg overflow-hidden flex items-center justify-center text-[10px] font-bold text-text">
-                            {comment.avatar_url ? <img src={comment.avatar_url} alt="" className="w-full h-full object-cover" /> : (comment.display_name || "?").charAt(0).toUpperCase()}
+                      <div key={comment.id}>
+                        <div className="flex gap-3">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent p-[1px] shrink-0">
+                            <div className="w-full h-full rounded-full bg-bg overflow-hidden flex items-center justify-center text-[10px] font-bold text-text">
+                              {comment.avatar_url ? <img src={comment.avatar_url} alt="" className="w-full h-full object-cover" /> : (comment.display_name || "?").charAt(0).toUpperCase()}
+                            </div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            {comment.is_pinned && (
+                              <div className="flex items-center gap-1 text-[10px] text-primary font-semibold mb-0.5">
+                                <Pin className="w-2.5 h-2.5" /> Pinned
+                              </div>
+                            )}
+                            <p className="text-sm leading-snug">
+                              <span className="text-text font-bold mr-1.5">{comment.display_name || comment.username || "User"}</span>
+                              <span className="text-text-muted">{parseMentions(comment.comment_text)}</span>
+                            </p>
+                            <div className="flex items-center gap-4 mt-1.5 text-xs text-text-dim">
+                              <span>{timeAgo(comment.created_at)}</span>
+                              <button type="button" onClick={() => setReplyingTo({ id: comment.id, display_name: comment.display_name || comment.username || "User", username: comment.username })} className="font-semibold hover:text-text transition">Reply</button>
+                              {me && me.id === comment.user_id && <button onClick={() => handleDeleteComment(comment.id)} className="text-error hover:text-error/80 transition font-medium">Delete</button>}
+                            </div>
                           </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm leading-snug">
-                            <span className="text-text font-bold mr-1.5">{comment.display_name || comment.username || "User"}</span>
-                            <span className="text-text-muted">{comment.comment_text}</span>
-                          </p>
-                          <div className="flex items-center gap-4 mt-1.5 text-xs text-text-dim">
-                            <span>{timeAgo(comment.created_at)}</span>
-                            {comment.like_count > 0 && <span>{comment.like_count} {comment.like_count === 1 ? "like" : "likes"}</span>}
-                            {me && me.id === comment.user_id && <button onClick={() => handleDeleteComment(comment.id)} className="text-error hover:text-error/80 transition font-medium">Delete</button>}
+                        {(comment.replies || []).length > 0 && (
+                          <div className="ml-11 mt-2">
+                            <button type="button" onClick={() => toggleExpandedReply(comment.id)} className="flex items-center gap-1 text-xs text-accent font-semibold mb-2">
+                              <ChevronDown className={`w-3 h-3 transition-transform ${expandedReplies.has(comment.id) ? "rotate-180" : ""}`} />
+                              {expandedReplies.has(comment.id) ? "Hide" : `View ${comment.replies.length} ${comment.replies.length === 1 ? "reply" : "replies"}`}
+                            </button>
+                            {expandedReplies.has(comment.id) && (
+                              <div className="space-y-3">
+                                {comment.replies.map((reply) => (
+                                  <div key={reply.id} className="flex gap-2">
+                                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-accent p-[1px] shrink-0">
+                                      <div className="w-full h-full rounded-full bg-bg overflow-hidden flex items-center justify-center text-[9px] font-bold text-text">
+                                        {reply.avatar_url ? <img src={reply.avatar_url} alt="" className="w-full h-full object-cover" /> : (reply.display_name || "?").charAt(0).toUpperCase()}
+                                      </div>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs leading-snug">
+                                        <span className="text-text font-bold mr-1.5">{reply.display_name || reply.username || "User"}</span>
+                                        <span className="text-text-muted">{parseMentions(reply.comment_text)}</span>
+                                      </p>
+                                      <div className="flex items-center gap-3 mt-1 text-[11px] text-text-dim">
+                                        <span>{timeAgo(reply.created_at)}</span>
+                                        <button type="button" onClick={() => setReplyingTo({ id: comment.id, display_name: comment.display_name || comment.username || "User", username: comment.username })} className="font-semibold hover:text-text transition">Reply</button>
+                                        {me && me.id === reply.user_id && <button onClick={() => handleDeleteComment(reply.id)} className="text-error hover:text-error/80 transition font-medium">Delete</button>}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                        </div>
-                        <div className="shrink-0 pt-1">
-                          <Heart className="w-3 h-3 text-text-dim/40" />
-                        </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1230,13 +1326,19 @@ export default function PublicProfilePage() {
               </div>
               {me && (
                 <div className="p-3 border-t border-primary/[0.06] shrink-0 bg-bg rounded-b-3xl">
+                  {replyingTo && (
+                    <div className="flex items-center justify-between mb-2 px-1">
+                      <span className="text-xs text-text-dim">Replying to <span className="text-primary font-semibold">@{replyingTo.username || replyingTo.display_name}</span></span>
+                      <button type="button" onClick={() => setReplyingTo(null)} className="text-text-dim hover:text-text transition"><X className="w-3.5 h-3.5" /></button>
+                    </div>
+                  )}
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent p-[1px] shrink-0">
                       <div className="w-full h-full rounded-full bg-bg overflow-hidden flex items-center justify-center text-[10px] font-bold text-text">
                         {me.avatar_url ? <img src={me.avatar_url} alt="" className="w-full h-full object-cover" /> : me.display_name.charAt(0).toUpperCase()}
                       </div>
                     </div>
-                    <input type="text" aria-label="Add a comment" placeholder="Add a comment…" value={newComment} onChange={(e) => setNewComment(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && newComment.trim()) handleAddComment(); }} disabled={postingComment} className="flex-1 bg-transparent text-text text-sm placeholder:text-text-dim outline-none min-w-0 py-2" />
+                    <input type="text" aria-label="Add a comment" placeholder={replyingTo ? `Reply to ${replyingTo.display_name}…` : "Add a comment…"} value={newComment} onChange={(e) => setNewComment(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && newComment.trim()) handleAddComment(); }} disabled={postingComment} className="flex-1 bg-transparent text-text text-sm placeholder:text-text-dim outline-none min-w-0 py-2" />
                     <button onClick={handleAddComment} disabled={postingComment || !newComment.trim()} className="text-primary font-bold text-sm disabled:opacity-40 transition tap-active shrink-0" aria-label="Post comment">
                       {postingComment ? <Loader2 className="w-4 h-4 animate-spin" /> : "Post"}
                     </button>

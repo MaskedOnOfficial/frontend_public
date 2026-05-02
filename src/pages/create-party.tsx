@@ -3,10 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/auth-hook";
 import { compressAndStripMetadata } from "../lib/image-utils";
 import api from "../lib/api";
-import { getApiErrorMessage } from "../lib/errors";
 import { isNative } from "../lib/capacitor";
 import { takePhoto } from "../lib/native-camera";
 import { hapticsMedium } from "../lib/haptics";
+import { useUploadQueue } from "../context/upload-queue";
 import { COUNTRIES, getStatesForCountry, getDistrictsForState } from "../lib/location-data";
 import { motion, AnimatePresence } from "framer-motion";
 import MapPicker from "../components/MapPicker";
@@ -15,6 +15,7 @@ import {
   ChevronLeft, Camera, Upload, Calendar, Zap, Crown, PartyPopper,
   Check, Save, Trash2, Info, Lock, Eye, EyeOff, UtensilsCrossed,
   Leaf, Wine, Cigarette, AlertTriangle, Globe, Image, Navigation,
+  Search, Plus,
 } from "lucide-react";
 
 // -----------------------------------------------------------------------------
@@ -23,23 +24,14 @@ import {
 
 const DRAFT_KEY = "maskedon_party_draft_v2";
 
-const SUGGESTED_TAGS = [
-  "rooftop", "underground", "house-music", "afro-house", "techno", "hip-hop",
-  "lounge", "pool-party", "brunch", "sunset", "warehouse", "intimate",
-  "luxury", "themed", "costume", "halloween", "new-year", "desi-night",
-  "bollywood", "indie", "live-music", "acoustic", "open-mic", "karaoke",
-  "networking", "art-show", "garden", "beach", "yacht", "after-party",
-];
-
 const PRICE_PRESETS = [
   { label: "Free", value: 0, icon: PartyPopper, desc: "Open to all" },
-  { label: "₹100–500", value: 300, icon: Ticket, desc: "Budget friendly" },
-  { label: "₹500–2K", value: 1000, icon: Crown, desc: "Premium vibes" },
+  { label: "₹500", value: 300, icon: Ticket, desc: "Budget friendly" },
+  { label: "₹1000", value: 1000, icon: Crown, desc: "Premium vibes" },
   { label: "Custom", value: -1, icon: Zap, desc: "Set your own" },
 ];
 
 const CAPACITY_PRESETS = [
-  { label: "Intimate", value: 10, emoji: "🕯️" },
   { label: "Small", value: 30, emoji: "🍸" },
   { label: "Medium", value: 75, emoji: "🎉" },
   { label: "Large", value: 200, emoji: "🏟️" },
@@ -95,6 +87,11 @@ interface FormState {
   allows_alcohol: boolean;
   allows_smoking: boolean;
   allows_other_substances: boolean;
+}
+
+interface TagSuggestion {
+  tag: string;
+  uses: number;
 }
 
 const EMPTY_FORM: FormState = {
@@ -157,6 +154,16 @@ function getDuration(start: string, end: string): string {
   return `${h}h ${m}m`;
 }
 
+function normalizeTag(rawTag: string): string {
+  return rawTag
+    .trim()
+    .toLowerCase()
+    .replace(/^#+/, "")
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9_-]/g, "")
+    .slice(0, 50);
+}
+
 // -----------------------------------------------------------------------------
 // Sub-Components
 // -----------------------------------------------------------------------------
@@ -183,19 +190,6 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
         );
       })}
     </div>
-  );
-}
-
-function TagChip({ tag, selected, onToggle }: { tag: string; selected: boolean; onToggle: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={() => { onToggle(); hapticsMedium(); }}
-      className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 tap-active
-        ${selected ? "host-tag-selected" : "host-tag-idle"}`}
-    >
-      {tag}
-    </button>
   );
 }
 
@@ -233,6 +227,7 @@ function Toggle({ checked, onChange, label, description, icon: Icon }: {
 export default function CreatePartyPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { enqueue } = useUploadQueue();
   const fileRef = useRef<HTMLInputElement>(null);
   const draftKey = user ? `${DRAFT_KEY}_${user.id}` : DRAFT_KEY;
 
@@ -247,6 +242,9 @@ export default function CreatePartyPage() {
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState("");
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [tagQuery, setTagQuery] = useState("");
+  const [tagSuggestions, setTagSuggestions] = useState<TagSuggestion[]>([]);
+  const [tagLoading, setTagLoading] = useState(false);
 
   const states = getStatesForCountry(form.location_country);
   const districts = getDistrictsForState(form.location_country, form.location_state);
@@ -266,6 +264,35 @@ export default function CreatePartyPage() {
     const t = setTimeout(() => saveDraft(draftKey, form), 1200);
     return () => clearTimeout(t);
   }, [draftKey, form]);
+
+  const loadTagSuggestions = useRef(0);
+
+  useEffect(() => {
+    const requestId = ++loadTagSuggestions.current;
+    const timer = setTimeout(async () => {
+      try {
+        setTagLoading(true);
+        const res = await api.get("/parties/tags/suggestions", {
+          params: {
+            q: tagQuery.trim() || undefined,
+            limit: 10,
+          },
+        });
+        if (requestId !== loadTagSuggestions.current) return;
+        const tags = (res.data?.data?.tags || []) as TagSuggestion[];
+        setTagSuggestions(tags);
+      } catch {
+        if (requestId !== loadTagSuggestions.current) return;
+        setTagSuggestions([]);
+      } finally {
+        if (requestId === loadTagSuggestions.current) {
+          setTagLoading(false);
+        }
+      }
+    }, tagQuery ? 250 : 0);
+
+    return () => clearTimeout(timer);
+  }, [tagQuery]);
 
   function set(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     const { name, value } = e.target;
@@ -289,15 +316,29 @@ export default function CreatePartyPage() {
         if (!form.date_time) return "Pick a date and time";
         if (new Date(form.date_time) <= new Date()) return "Date must be in the future";
         return "";
+      case "end_time":
+        if (!form.end_time) return "Pick an end time";
+        if (!form.date_time) return "Pick a start time first";
+        if (new Date(form.end_time) <= new Date(form.date_time)) return "End time must be after start time";
+        return "";
       default: return "";
     }
   }
-  function toggleTag(tag: string) {
+  function toggleTag(rawTag: string) {
+    const tag = normalizeTag(rawTag);
+    if (!tag) return;
     setForm((p) => {
       if (p.tags.includes(tag)) return { ...p, tags: p.tags.filter((t) => t !== tag) };
       if (p.tags.length >= 10) return p;
       return { ...p, tags: [...p.tags, tag] };
     });
+  }
+
+  function addTagFromInput() {
+    const normalized = normalizeTag(tagQuery);
+    if (!normalized) return;
+    toggleTag(normalized);
+    setTagQuery("");
   }
 
   function applyCover(file: File) {
@@ -329,13 +370,18 @@ export default function CreatePartyPage() {
   function canProceed(): boolean {
     if (step === 1) return form.title.trim().length >= 3;
     if (step === 2) return !!form.location_country && !!form.location_state && !!form.location_district && !!form.location_name.trim();
-    if (step === 3) return !!form.date_time && new Date(form.date_time) > new Date();
+    if (step === 3) {
+      return !!form.date_time
+        && !!form.end_time
+        && new Date(form.date_time) > new Date()
+        && new Date(form.end_time) > new Date(form.date_time);
+    }
     return true;
   }
   function goNext() {
     if (step === 1) setTouched((p) => ({ ...p, title: true }));
     if (step === 2) setTouched((p) => ({ ...p, location_country: true, location_state: true, location_district: true, location_name: true }));
-    if (step === 3) setTouched((p) => ({ ...p, date_time: true }));
+    if (step === 3) setTouched((p) => ({ ...p, date_time: true, end_time: true }));
     if (!canProceed()) return;
     setDir(1);
     setStep((s) => Math.min(s + 1, STEP_META.length));
@@ -352,47 +398,83 @@ export default function CreatePartyPage() {
   async function handleSubmit() {
     setLoading(true);
     setError("");
-    try {
-      const fd = new FormData();
-      fd.append("title", form.title);
-      if (form.description) fd.append("description", form.description);
-      fd.append("location_name", form.location_name);
-      fd.append("location_city", form.location_district || form.location_city);
-      fd.append("location_country", form.location_country);
-      fd.append("location_state", form.location_state);
-      fd.append("location_district", form.location_district);
-      if (form.latitude !== null) fd.append("latitude", String(form.latitude));
-      if (form.longitude !== null) fd.append("longitude", String(form.longitude));
-      fd.append("date_time", new Date(form.date_time).toISOString());
-      if (form.end_time) {
-        if (new Date(form.end_time) <= new Date(form.date_time)) {
-          setError("End time must be after start time");
-          setLoading(false);
-          return;
-        }
-        fd.append("end_time", new Date(form.end_time).toISOString());
-      }
-      fd.append("max_capacity", String(form.max_capacity));
-      fd.append("ticket_price", String(Math.round(Number(form.ticket_price) * 100)));
-      if (form.tags.length > 0) fd.append("tags", JSON.stringify(form.tags));
-      if (form.min_rating > 0) fd.append("min_rating", String(form.min_rating));
-      fd.append("is_private", String(form.is_private));
-      fd.append("allow_photos", String(form.allow_photos));
-      if (form.food_type) fd.append("food_type", form.food_type);
-      fd.append("allows_alcohol", String(form.allows_alcohol));
-      fd.append("allows_smoking", String(form.allows_smoking));
-      fd.append("allows_other_substances", String(form.allows_other_substances));
-      if (coverFile) {
-        fd.append("cover_image", await compressAndStripMetadata(coverFile, { maxSizeMB: 1, maxWidthOrHeight: 1920 }));
-      }
-      const res = await api.post("/parties", fd, { headers: { "Content-Type": "multipart/form-data" } });
-      clearDraft(draftKey);
-      navigate(`/parties/${res.data.data.party.id}`);
-    } catch (err: unknown) {
-      setError(getApiErrorMessage(err, "Failed to create party"));
-    } finally {
+
+    // Validate end_time before enqueuing (UI must be visible for this)
+    if (!form.end_time) {
+      setError("End time is required");
       setLoading(false);
+      return;
     }
+
+    if (new Date(form.end_time) <= new Date(form.date_time)) {
+      setError("End time must be after start time");
+      setLoading(false);
+      return;
+    }
+
+    // Snapshot all form values + the cover file reference so the background
+    // job closure doesn't hold stale React state after this component unmounts.
+    const formSnap = { ...form };
+    const coverFileSnap = coverFile ?? null;
+    const draftKeySnap = draftKey;
+
+    enqueue({
+      type: "party",
+      label: "Event",
+      run: async (setProgress) => {
+        setProgress(5);
+
+        const fd = new FormData();
+        fd.append("title", formSnap.title);
+        if (formSnap.description) fd.append("description", formSnap.description);
+        fd.append("location_name", formSnap.location_name);
+        fd.append("location_city", formSnap.location_district || formSnap.location_city);
+        fd.append("location_country", formSnap.location_country);
+        fd.append("location_state", formSnap.location_state);
+        fd.append("location_district", formSnap.location_district);
+        if (formSnap.latitude !== null) fd.append("latitude", String(formSnap.latitude));
+        if (formSnap.longitude !== null) fd.append("longitude", String(formSnap.longitude));
+        fd.append("date_time", new Date(formSnap.date_time).toISOString());
+        fd.append("end_time", new Date(formSnap.end_time).toISOString());
+        fd.append("max_capacity", String(formSnap.max_capacity));
+        fd.append("ticket_price", String(Math.round(Number(formSnap.ticket_price) * 100)));
+        if (formSnap.tags.length > 0) fd.append("tags", JSON.stringify(formSnap.tags));
+        if (formSnap.min_rating > 0) fd.append("min_rating", String(formSnap.min_rating));
+        fd.append("is_private", String(formSnap.is_private));
+        fd.append("allow_photos", String(formSnap.allow_photos));
+        if (formSnap.food_type) fd.append("food_type", formSnap.food_type);
+        fd.append("allows_alcohol", String(formSnap.allows_alcohol));
+        fd.append("allows_smoking", String(formSnap.allows_smoking));
+        fd.append("allows_other_substances", String(formSnap.allows_other_substances));
+
+        if (coverFileSnap) {
+          setProgress(10);
+          const compressed = await compressAndStripMetadata(coverFileSnap, {
+            maxSizeMB: 1,
+            maxWidthOrHeight: 1920,
+          });
+          fd.append("cover_image", compressed);
+        }
+
+        setProgress(20);
+
+        const res = await api.post("/parties", fd, {
+          headers: { "Content-Type": "multipart/form-data" },
+          onUploadProgress: (e) => {
+            if (e.total) {
+              const pct = Math.round((e.loaded / e.total) * 75) + 20;
+              setProgress(Math.min(pct, 95));
+            }
+          },
+        });
+
+        clearDraft(draftKeySnap);
+        return `/parties/${res.data.data.party.id}`;
+      },
+    });
+
+    // Navigate immediately — the progress toast handles the rest.
+    navigate("/", { replace: true });
   }
 
   const isFree = Number(form.ticket_price) === 0;
@@ -540,11 +622,72 @@ export default function CreatePartyPage() {
                     <label className="text-[11px] font-bold text-text-muted uppercase tracking-[0.12em]">Vibe Tags</label>
                     <span className="text-[10px] text-text-dim font-medium">{form.tags.length}/10</span>
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {SUGGESTED_TAGS.map((tag) => (
-                      <TagChip key={tag} tag={tag} selected={form.tags.includes(tag)} onToggle={() => toggleTag(tag)} />
-                    ))}
+
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Search className="w-3.5 h-3.5 text-text-dim absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={tagQuery}
+                        onChange={(e) => setTagQuery(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addTagFromInput();
+                          }
+                        }}
+                        placeholder="Search or create tag"
+                        className="input-luxe w-full rounded-xl pl-9 pr-3 py-2.5 text-sm"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={addTagFromInput}
+                      disabled={!normalizeTag(tagQuery) || form.tags.length >= 10}
+                      className="px-3 py-2.5 rounded-xl border border-primary/25 text-primary text-xs font-semibold hover:bg-primary/10 transition disabled:opacity-50"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
                   </div>
+
+                  {tagLoading ? (
+                    <p className="text-[11px] text-text-dim">Loading tags...</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {tagSuggestions.map((entry) => (
+                        <button
+                          key={entry.tag}
+                          type="button"
+                          onClick={() => toggleTag(entry.tag)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 tap-active border ${
+                            form.tags.includes(entry.tag)
+                              ? "host-tag-selected border-primary/30"
+                              : "host-tag-idle border-border"
+                          }`}
+                        >
+                          #{entry.tag}
+                          <span className="ml-1 text-[10px] text-text-dim">{entry.uses}</span>
+                        </button>
+                      ))}
+                      {tagSuggestions.length === 0 && (
+                        <p className="text-[11px] text-text-dim">No matching tags yet. Create a new one from search.</p>
+                      )}
+                    </div>
+                  )}
+
+                  {normalizeTag(tagQuery) && !tagLoading && !tagSuggestions.some((entry) => entry.tag === normalizeTag(tagQuery)) && (
+                    <button
+                      type="button"
+                      onClick={addTagFromInput}
+                      disabled={form.tags.length >= 10}
+                      className="text-left text-xs text-primary hover:text-primary-hover transition"
+                    >
+                      Use #{normalizeTag(tagQuery)} <span className="text-text-dim">(0 uses)</span>
+                    </button>
+                  )}
+
+                  <div className="text-[10px] text-text-dim">{tagQuery ? "Matching tags by usage" : "Top 10 most-used tags"}</div>
+
                   {form.tags.length > 0 && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
                       className="pt-2.5 border-t border-border overflow-hidden">
@@ -712,20 +855,19 @@ export default function CreatePartyPage() {
 
                   <div>
                     <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">
-                      Ends <span className="text-text-dim font-normal">(optional)</span>
+                      Ends *
                     </label>
                     <input
                       type="datetime-local"
                       name="end_time"
                       value={form.end_time}
-                      onChange={set}
+                      onChange={(e) => { set(e); setTouched((p) => ({ ...p, end_time: true })); }}
+                      onBlur={blur}
                       min={form.date_time || undefined}
-                      className="input-luxe w-full rounded-xl px-4 py-3.5"
+                      className={`input-luxe w-full rounded-xl px-4 py-3.5 ${getFieldError("end_time") ? "ring-2 ring-error/50" : ""}`}
                     />
-                    {form.end_time && form.date_time && new Date(form.end_time) <= new Date(form.date_time) && (
-                      <p className="text-error text-xs mt-1 font-medium">End time must be after start time</p>
-                    )}
-                    {form.end_time && form.date_time && new Date(form.end_time) > new Date(form.date_time) && (
+                    {getFieldError("end_time") && <p className="text-error text-xs mt-1 font-medium">{getFieldError("end_time")}</p>}
+                    {form.end_time && form.date_time && !getFieldError("end_time") && (
                       <p className="text-text-dim text-[10px] mt-1.5 font-medium">
                         <Clock className="w-3 h-3 inline mr-1" />Duration: {getDuration(form.date_time, form.end_time)}
                       </p>
@@ -757,7 +899,7 @@ export default function CreatePartyPage() {
                     </div>
                     Guest Capacity
                   </h2>
-                  <div className="grid grid-cols-5 gap-2">
+                  <div className="grid grid-cols-4 gap-2">
                     {CAPACITY_PRESETS.map((p) => (
                       <button key={p.value} type="button"
                         onClick={() => { setForm((prev) => ({ ...prev, max_capacity: p.value })); hapticsMedium(); }}

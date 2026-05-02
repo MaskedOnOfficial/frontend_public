@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
 import { useAuth } from "./auth-hook";
 import io from "socket.io-client";
 import api from "../lib/api";
@@ -23,11 +23,24 @@ interface FrontendMessage {
   read_at: string | null;
 }
 
+interface NotificationsContextValue {
+  unreadCount: number;
+  messageUnreadCount: number;
+  notification: FrontendNotification | null;
+  latestMessage: FrontendMessage | null;
+  isConnected: boolean;
+  socketError: string | null;
+  updateUnreadCount: (count: number) => void;
+  setMessageUnreadCount: (count: number) => void;
+}
+
+const NotificationsContext = createContext<NotificationsContextValue | null>(null);
+
 /**
- * Hook for real-time notifications via WebSocket
- * Automatically connects when user is logged in and disconnects on logout
+ * Singleton provider — mount once at the app root (inside AuthProvider).
+ * All consumers share the single WebSocket connection.
  */
-export function useNotifications() {
+export function NotificationsProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
   const [messageUnreadCount, setMessageUnreadCount] = useState(0);
@@ -36,8 +49,7 @@ export function useNotifications() {
   const [isConnected, setIsConnected] = useState(false);
   const [socketError, setSocketError] = useState<string | null>(null);
 
-  // Fetch initial unread count via REST so the bell badge is correct
-  // immediately on load — before the WebSocket handshake completes.
+  // Fetch initial unread counts via REST immediately on login
   useEffect(() => {
     if (!user) {
       setUnreadCount(0);
@@ -48,38 +60,30 @@ export function useNotifications() {
     }
     api.get("/notifications/unread-count")
       .then((res) => setUnreadCount(res.data.data.count ?? 0))
-      .catch(() => { /* non-critical — WS will update it */ });
+      .catch(() => {});
 
     api.get("/messages/unread-count")
       .then((res) => setMessageUnreadCount(res.data.data.count ?? 0))
-      .catch(() => { /* non-critical — WS will update it */ });
+      .catch(() => {});
   }, [user]);
 
-  // Initialize WebSocket connection
+  // Single shared WebSocket connection per login session
   useEffect(() => {
     if (!user) {
       setIsConnected(false);
-      setUnreadCount(0);
-      setMessageUnreadCount(0);
-      setNotification(null);
-      setLatestMessage(null);
       return;
     }
 
-    // Get token from localStorage (set during auth)
     const token = localStorage.getItem("access_token") || localStorage.getItem("auth_token");
-    if (!token) {
-      return;
-    }
+    if (!token) return;
 
-    // Prefer explicit env var in production; fallback keeps local development simple.
     const wsUrl =
       WS_URL ||
       (window.location.hostname === "localhost"
         ? "ws://localhost:5000"
         : `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}`);
 
-    const newSocket = io(wsUrl, {
+    const socket = io(wsUrl, {
       auth: { token },
       reconnection: true,
       reconnectionDelay: 1000,
@@ -87,62 +91,71 @@ export function useNotifications() {
       reconnectionAttempts: 5,
     });
 
-    // Connection event
-    newSocket.on("connect", () => {
+    socket.on("connect", () => {
       setIsConnected(true);
       setSocketError(null);
     });
 
-    // Disconnect event
-    newSocket.on("disconnect", () => {
+    socket.on("disconnect", () => {
       setIsConnected(false);
     });
 
-    // New notification event
-    newSocket.on("notification:new", (notif: FrontendNotification) => {
+    socket.on("notification:new", (notif: FrontendNotification) => {
       setNotification(notif);
-      // Increment unread count
       setUnreadCount((prev) => prev + 1);
     });
 
-    // Unread count update
-    newSocket.on("notification:unread-count", (data: { count: number }) => {
+    socket.on("notification:unread-count", (data: { count: number }) => {
       setUnreadCount(data.count);
     });
 
-    newSocket.on("message:new", (message: FrontendMessage) => {
+    socket.on("message:new", (message: FrontendMessage) => {
       setLatestMessage(message);
       if (message.sender_id !== user.id) {
         setMessageUnreadCount((prev) => prev + 1);
       }
     });
 
-    newSocket.on("message:unread-count", (data: { count: number }) => {
+    socket.on("message:unread-count", (data: { count: number }) => {
       setMessageUnreadCount(data.count);
     });
 
-    // Error event
-    newSocket.on("error", (err: string) => {
+    socket.on("error", (err: string) => {
       setSocketError(err);
     });
 
     return () => {
-      newSocket.disconnect();
+      socket.disconnect();
     };
   }, [user]);
 
-  // Function to manually update unread count (for when user marks notifications as read)
-  const updateUnreadCount = useCallback((count: number) => {
-    setUnreadCount(count);
-  }, []);
+  const updateUnreadCount = useCallback((count: number) => setUnreadCount(count), []);
+  const handleSetMessageUnreadCount = useCallback((count: number) => setMessageUnreadCount(count), []);
 
-  return {
-    unreadCount,
-    messageUnreadCount,
-    notification,
-    latestMessage,
-    isConnected,
-    socketError,
-    updateUnreadCount,
-  };
+  return (
+    <NotificationsContext.Provider
+      value={{
+        unreadCount,
+        messageUnreadCount,
+        notification,
+        latestMessage,
+        isConnected,
+        socketError,
+        updateUnreadCount,
+        setMessageUnreadCount: handleSetMessageUnreadCount,
+      }}
+    >
+      {children}
+    </NotificationsContext.Provider>
+  );
+}
+
+/**
+ * Hook for consuming the shared notifications context.
+ * Must be used inside NotificationsProvider.
+ */
+export function useNotifications(): NotificationsContextValue {
+  const ctx = useContext(NotificationsContext);
+  if (!ctx) throw new Error("useNotifications must be used inside NotificationsProvider");
+  return ctx;
 }

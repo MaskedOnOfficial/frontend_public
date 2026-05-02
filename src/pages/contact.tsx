@@ -30,7 +30,7 @@ export default function ContactPage() {
     const body = encodeURIComponent(
       `Name: ${name}\nEmail: ${email}\n\nSubject: ${subject}\n\n${message}`,
     );
-    window.location.href = `mailto:support@maskedon.app?subject=${encodeURIComponent(`[maskedOn] ${subject}`)}&body=${body}`;
+    window.location.href = `mailto:wemaskon@gmail.com?subject=${encodeURIComponent(`[maskedOn] ${subject}`)}&body=${body}`;
     setSent(true);
   }
 
@@ -90,10 +90,10 @@ export default function ContactPage() {
                   <div>
                     <p className="text-text font-semibold text-sm">Email us directly</p>
                     <a
-                      href="mailto:support@maskedon.app"
+                      href="mailto:wemaskon@gmail.com"
                       className="text-primary text-sm hover:underline"
                     >
-                      support@maskedon.app
+                      wemaskon@gmail.com
                     </a>
                   </div>
                 </div>
@@ -135,10 +135,11 @@ export default function ContactPage() {
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">
+                    <label htmlFor="contact-subject" className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">
                       Subject
                     </label>
                     <select
+                      id="contact-subject"
                       value={subject}
                       onChange={(e) => setSubject(e.target.value)}
                       className="input-luxe w-full rounded-xl px-4 py-3 text-sm"

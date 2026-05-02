@@ -17,6 +17,8 @@ export default function RegisterPage() {
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [wakingUp, setWakingUp] = useState(false);
@@ -61,6 +63,8 @@ export default function RegisterPage() {
       return "Password must include uppercase, lowercase, and a number";
     }
     if (password !== confirmPassword) return "Passwords do not match";
+    if (!acceptedTerms) return "You must accept the Terms & Conditions";
+    if (!acceptedPrivacy) return "You must accept the Privacy Policy";
     return null;
   }
 
@@ -77,7 +81,14 @@ export default function RegisterPage() {
     setSubmitting(true);
     try {
       const trimmedEmail = email.trim();
-      await register(trimmedEmail, username.trim(), password, displayName.trim());
+      await register(
+        trimmedEmail,
+        username.trim(),
+        password,
+        displayName.trim(),
+        acceptedTerms,
+        acceptedPrivacy
+      );
       navigate("/auth/verify-email", {
         replace: true,
         state: {
@@ -91,7 +102,14 @@ export default function RegisterPage() {
         try {
           await ensureBackendReady();
           const trimmedEmail = email.trim();
-          await register(trimmedEmail, username.trim(), password, displayName.trim());
+          await register(
+            trimmedEmail,
+            username.trim(),
+            password,
+            displayName.trim(),
+            acceptedTerms,
+            acceptedPrivacy
+          );
           navigate("/auth/verify-email", {
             replace: true,
             state: {
@@ -218,6 +236,43 @@ export default function RegisterPage() {
                   placeholder="Re-enter your password"
                 />
               </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: -16 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.46 }}
+              className="space-y-3"
+            >
+              <label className="flex items-start gap-2.5 text-xs text-text-muted">
+                <input
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                />
+                <span>
+                  I agree to the {" "}
+                  <Link to="/terms" target="_blank" rel="noreferrer" className="text-primary hover:underline font-semibold">
+                    Terms & Conditions
+                  </Link>
+                </span>
+              </label>
+
+              <label className="flex items-start gap-2.5 text-xs text-text-muted">
+                <input
+                  type="checkbox"
+                  checked={acceptedPrivacy}
+                  onChange={(e) => setAcceptedPrivacy(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                />
+                <span>
+                  I agree to the {" "}
+                  <Link to="/privacy" target="_blank" rel="noreferrer" className="text-primary hover:underline font-semibold">
+                    Privacy Policy
+                  </Link>
+                </span>
+              </label>
             </motion.div>
 
             <motion.button

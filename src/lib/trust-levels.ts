@@ -13,8 +13,8 @@ export const TRUST_LEVELS: TrustLevel[] = [
   { name: "Wallflower", color: "#EF4444", bgClass: "bg-red-500",    textClass: "text-red-500",    borderClass: "border-red-500" },
   { name: "Drifter",    color: "#F97316", bgClass: "bg-orange-500", textClass: "text-orange-500", borderClass: "border-orange-500" },
   { name: "Socialite",  color: "#EAB308", bgClass: "bg-yellow-500", textClass: "text-yellow-500", borderClass: "border-yellow-500" },
-  { name: "Spark",      color: "#06B6D4", bgClass: "bg-cyan-500",   textClass: "text-cyan-500",   borderClass: "border-cyan-500" },
-  { name: "Luminary",   color: "#8B5CF6", bgClass: "bg-violet-500", textClass: "text-violet-500", borderClass: "border-violet-500" },
+  { name: "Spark",      color: "#9B6DFF", bgClass: "bg-violet-400",   textClass: "text-violet-400",   borderClass: "border-violet-400" },
+  { name: "Luminary",   color: "#D4A853", bgClass: "bg-yellow-600", textClass: "text-yellow-600", borderClass: "border-yellow-600" },
   { name: "Inferno",    color: "#EC4899", bgClass: "bg-pink-500",   textClass: "text-pink-500",   borderClass: "border-pink-500" },
 ];
 

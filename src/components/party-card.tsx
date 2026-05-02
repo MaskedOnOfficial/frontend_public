@@ -95,7 +95,7 @@ export default function PartyCard({ party }: { party: Party }) {
 
       {/* Content */}
       <div className="p-4 space-y-3">
-        <h3 className="text-text font-bold text-base group-hover:text-primary transition-colors line-clamp-1 tracking-tight">
+        <h3 className="text-text font-bold text-base group-hover:text-primary transition-colors line-clamp-1 tracking-tight break-all [overflow-wrap:anywhere]">
           {party.title}
         </h3>
 

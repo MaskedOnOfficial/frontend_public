@@ -3,11 +3,6 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabaseAuth } from "../lib/supabase-auth";
 import { getApiErrorMessage } from "../lib/errors";
 
-function parseHashParams(): URLSearchParams {
-  const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : window.location.hash;
-  return new URLSearchParams(hash);
-}
-
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -19,38 +14,45 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    async function bootstrapRecoverySession() {
-      setError("");
-      const hashParams = parseHashParams();
-      const accessToken = hashParams.get("access_token");
-      const refreshToken = hashParams.get("refresh_token");
-      const tokenHash = searchParams.get("token_hash");
-      const type = searchParams.get("type");
+    let settled = false;
 
-      try {
-        if (accessToken && refreshToken) {
-          const { error: sessionError } = await supabaseAuth.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-          if (sessionError) throw sessionError;
-        } else if (tokenHash && type === "recovery") {
-          const { error: otpError } = await supabaseAuth.auth.verifyOtp({
-            token_hash: tokenHash,
-            type: "recovery",
-          });
-          if (otpError) throw otpError;
-        } else {
-          throw new Error("Invalid or expired password reset link.");
-        }
-      } catch (err: unknown) {
-        setError(getApiErrorMessage(err, "Could not validate password reset link."));
-      } finally {
-        setLoadingSession(false);
-      }
+    // PKCE flow: token_hash in query params — must be verified manually
+    const tokenHash = searchParams.get("token_hash");
+    const type = searchParams.get("type");
+    if (tokenHash && type === "recovery") {
+      supabaseAuth.auth
+        .verifyOtp({ token_hash: tokenHash, type: "recovery" })
+        .then(({ error: otpError }) => {
+          settled = true;
+          if (otpError) setError(otpError.message || "Invalid or expired reset link.");
+          setLoadingSession(false);
+        });
+      return;
     }
 
-    void bootstrapRecoverySession();
+    // Implicit flow: #access_token in URL hash.
+    // The Supabase SDK auto-processes the hash and fires PASSWORD_RECOVERY.
+    // We just listen for that event instead of calling setSession() manually.
+    const { data: { subscription } } = supabaseAuth.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY" && !settled) {
+        settled = true;
+        setLoadingSession(false);
+      }
+    });
+
+    // Timeout fallback — fires if the link is expired or already used
+    const timer = window.setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        setError("Invalid or expired password reset link. Please request a new one.");
+        setLoadingSession(false);
+      }
+    }, 8000);
+
+    return () => {
+      subscription.unsubscribe();
+      window.clearTimeout(timer);
+    };
   }, [searchParams]);
 
   async function handleSubmit(event: FormEvent) {

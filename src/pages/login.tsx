@@ -24,7 +24,6 @@ export default function LoginPage() {
   );
   const [submitting, setSubmitting] = useState(false);
   const [wakingUp, setWakingUp] = useState(false);
-  const mountedRef = useRef(true);
   const backendReadyRef = useRef(false);
   const wakePromiseRef = useRef<Promise<void> | null>(null);
 
@@ -44,7 +43,6 @@ export default function LoginPage() {
 
   useEffect(() => {
     void ensureBackendReady().catch(() => {});
-    return () => { mountedRef.current = false; };
   }, []);
 
   async function handleSubmit(e: FormEvent) {
@@ -81,7 +79,7 @@ export default function LoginPage() {
         }
       }
     } finally {
-      if (mountedRef.current) setSubmitting(false);
+      setSubmitting(false);
     }
   }
 

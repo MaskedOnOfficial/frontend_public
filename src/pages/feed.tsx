@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import CommentSheet from "../components/CommentSheet";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/auth-hook";
 import api from "../lib/api";
@@ -8,7 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Heart, MessageCircle, Sparkles, Users, PartyPopper,
   Loader2, Send, MapPin, Calendar, TrendingUp,
-  Flame, Eye, ChevronRight, Zap, Trophy, Globe,
+  Flame, Eye, ChevronRight, Zap, Trophy, Globe, Pin, ChevronDown,
 } from "lucide-react";
 
 // --- Types ---
@@ -39,6 +40,10 @@ interface FeedComment {
   created_at: string;
   display_name?: string;
   username?: string;
+  avatar_url?: string | null;
+  parent_comment_id: string | null;
+  is_pinned: boolean;
+  replies: FeedComment[];
 }
 
 interface StoryUser {
@@ -102,6 +107,15 @@ function timeAgo(dateStr: string): string {
 
 function getInitials(name: string): string {
   return name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+}
+
+function parseMentions(text: string) {
+  const parts = text.split(/(@[\w.]+)/g);
+  return parts.map((part, i) =>
+    /^@[\w.]+$/.test(part)
+      ? <span key={i} className="text-primary font-semibold">{part}</span>
+      : part
+  );
 }
 
 function formatPrice(price: number): string {
@@ -336,45 +350,6 @@ function UpcomingPartiesStrip({ parties }: { parties: UpcomingParty[] }) {
   );
 }
 
-function AchievementUpdatesStrip({ updates }: { updates: AchievementUpdate[] }) {
-  if (updates.length === 0) return null;
-
-  return (
-    <div className="mb-4">
-      <div className="flex items-center gap-1.5 px-5 mb-2.5 text-primary">
-        <Trophy className="w-4 h-4" />
-        <span className="text-xs font-bold uppercase tracking-widest">Friend achievements</span>
-      </div>
-      <div className="space-y-2 px-2">
-        {updates.map((update) => (
-          <Link
-            key={update.id}
-            to={`/profile/${update.friend_id}`}
-            className="block feed-card p-3.5 hover:border-primary/20 transition"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-primary/20 bg-surface-light flex items-center justify-center">
-                {update.friend_avatar_url ? (
-                  <img src={update.friend_avatar_url} alt={update.friend_display_name} className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-xs font-bold text-text">{getInitials(update.friend_display_name)}</span>
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm text-text leading-snug">
-                  <span className="font-bold">{update.friend_display_name}</span> just unlocked a new achievement. Tap to view it.
-                </p>
-                <p className="text-xs text-primary/80 font-semibold mt-0.5">{update.achievement_name}</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-text-dim shrink-0" />
-            </div>
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // --- Post Card ---
 
 interface PostCardProps {
@@ -383,13 +358,10 @@ interface PostCardProps {
 }
 
 function PostCard({ post, onLikeToggle }: PostCardProps) {
+  const { user } = useAuth();
   const [imgLoaded, setImgLoaded] = useState(false);
-  const [showComments, setShowComments] = useState(false);
-  const [comments, setComments] = useState<FeedComment[]>([]);
-  const [loadingComments, setLoadingComments] = useState(false);
-  const [commentText, setCommentText] = useState("");
-  const [postingComment, setPostingComment] = useState(false);
-  const [commentError, setCommentError] = useState("");
+  const [showCommentSheet, setShowCommentSheet] = useState(false);
+  const [commentCount, setCommentCount] = useState(post.comment_count ?? 0);
   const [showHeart, setShowHeart] = useState(false);
   const viewTracked = useRef(false);
 
@@ -429,39 +401,8 @@ function PostCard({ post, onLikeToggle }: PostCardProps) {
     return () => clearTimeout(heartTimerRef.current);
   }, []);
 
-  async function loadComments() {
-    setLoadingComments(true);
-    setCommentError("");
-    try {
-      const res = await api.get(`/photos/${post.id}/comments`);
-      setComments(res.data.data.comments || []);
-    } catch (error) {
-      setCommentError(getApiErrorMessage(error, "Failed to load comments"));
-      setComments([]);
-    } finally {
-      setLoadingComments(false);
-    }
-  }
-
-  async function handleAddComment() {
-    if (!commentText.trim()) return;
-    setPostingComment(true);
-    setCommentError("");
-    try {
-      const res = await api.post(`/photos/${post.id}/comments`, { comment_text: commentText.trim() });
-      setComments((prev) => [res.data.data.comment, ...prev]);
-      setCommentText("");
-    } catch (error) {
-      setCommentError(getApiErrorMessage(error, "Failed to post comment"));
-    } finally {
-      setPostingComment(false);
-    }
-  }
-
-  function toggleComments() {
-    const next = !showComments;
-    setShowComments(next);
-    if (next && comments.length === 0) loadComments();
+  function openComments() {
+    setShowCommentSheet(true);
   }
 
   const engagementLevel = useMemo(() => {
@@ -566,7 +507,7 @@ function PostCard({ post, onLikeToggle }: PostCardProps) {
               <Heart className={`w-[24px] h-[24px] ${post.liked_by_me ? "fill-current animate-heart-like" : ""}`} />
             </button>
             <button
-              onClick={toggleComments}
+              onClick={openComments}
               aria-label="View comments"
               title="View comments"
               className="text-text-muted hover:text-text transition-all duration-200 active:scale-90"
@@ -590,9 +531,9 @@ function PostCard({ post, onLikeToggle }: PostCardProps) {
               {post.like_count.toLocaleString()} {post.like_count === 1 ? "like" : "likes"}
             </p>
           )}
-          {(post.comment_count ?? 0) > 0 && (
-            <button onClick={toggleComments} className="text-text-dim text-[12px] hover:text-text-muted transition">
-              {post.comment_count} {post.comment_count === 1 ? "comment" : "comments"}
+          {commentCount > 0 && (
+            <button onClick={openComments} className="text-text-dim text-[12px] hover:text-text-muted transition">
+              {commentCount} {commentCount === 1 ? "comment" : "comments"}
             </button>
           )}
         </div>
@@ -608,80 +549,23 @@ function PostCard({ post, onLikeToggle }: PostCardProps) {
         )}
 
         {/* View comments toggle */}
-        {!showComments && (post.comment_count ?? 0) > 0 && (
+        {commentCount > 0 && (
           <button
-            onClick={toggleComments}
+            onClick={openComments}
             className="text-text-dim text-xs mt-0.5 hover:text-text-muted transition"
           >
-            View all {post.comment_count} comments
+            View all {commentCount} comments
           </button>
         )}
-
-        {/* Comments section */}
-        <AnimatePresence>
-          {showComments && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="overflow-hidden"
-            >
-              <div className="mt-3 space-y-3 border-t border-border/50 pt-3">
-                {commentError && (
-                  <div className="text-error text-xs bg-error/10 px-3 py-2 rounded-lg">{commentError}</div>
-                )}
-
-                {/* Comment input */}
-                <div className="flex gap-2 items-center">
-                  <input
-                    type="text"
-                    aria-label="Add a comment"
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleAddComment();
-                      }
-                    }}
-                    placeholder="Add a comment..."
-                    disabled={postingComment}
-                    className="input-luxe flex-1 rounded-xl px-4 py-2.5 text-sm"
-                  />
-                  <button
-                    onClick={handleAddComment}
-                    disabled={postingComment || !commentText.trim()}
-                    className="feed-send-btn disabled:opacity-30"
-                  >
-                    {postingComment ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                  </button>
-                </div>
-
-                {loadingComments ? (
-                  <div className="flex items-center gap-2 py-2">
-                    <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
-                    <span className="text-text-muted text-xs">Loading comments...</span>
-                  </div>
-                ) : comments.length > 0 ? (
-                  <div className="space-y-2.5 max-h-52 overflow-y-auto pr-1 feed-comments-scroll">
-                    {comments.map((comment) => (
-                      <div key={comment.id} className="text-sm flex gap-2">
-                        <span className="font-semibold text-text text-xs shrink-0">
-                          {comment.display_name || comment.username || "User"}
-                        </span>
-                        <span className="text-text-muted text-xs">{comment.comment_text}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-text-dim text-xs py-1">No comments yet. Be the first!</p>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
+
+      {/* Instagram-style comment bottom sheet */}
+      <CommentSheet
+        photoId={showCommentSheet ? post.id : null}
+        postOwnerId={post.user_id}
+        onClose={() => setShowCommentSheet(false)}
+        onCommentCountChange={(delta) => setCommentCount((prev) => Math.max(0, prev + delta))}
+      />
     </motion.article>
   );
 }
@@ -966,12 +850,9 @@ export default function FeedPage() {
             )}
 
             {/* Friend achievement updates */}
-            {achievementUpdates.length > 0 && (
-              <AchievementUpdatesStrip updates={achievementUpdates} />
-            )}
 
             {/* Divider before feed */}
-            {(trendingPost || upcomingParties.length > 0 || achievementUpdates.length > 0) && (
+            {(trendingPost || upcomingParties.length > 0) && (
               <div className="flex items-center gap-3 px-2 pt-1">
                 <div className="h-px flex-1 bg-border/50" />
                 <span className="text-[10px] font-bold uppercase tracking-widest text-text-dim">Your feed</span>
@@ -979,14 +860,51 @@ export default function FeedPage() {
               </div>
             )}
 
-            {/* Feed posts — inject discovery post after position 3 */}
+            {/* Feed posts — inject discovery post after position 3, achievement cards after position 0 */}
             {posts.map((post, index) => (
-              <>
+              <React.Fragment key={post.id}>
                 <PostCard
-                  key={post.id}
                   post={post}
                   onLikeToggle={handleLikeToggle}
                 />
+                {/* Achievement cards injected after first post */}
+                {index === 0 && achievementUpdates.length > 0 && achievementUpdates.map((update) => (
+                  <motion.div
+                    key={`ach-${update.id}`}
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <Link
+                      to={`/profile/${update.friend_id}`}
+                      className="block feed-card p-4 hover:border-primary/20 transition"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="relative shrink-0">
+                          <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-primary/20 bg-surface-light flex items-center justify-center">
+                            {update.friend_avatar_url ? (
+                              <img src={update.friend_avatar_url} alt={update.friend_display_name} className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-xs font-bold text-text">{getInitials(update.friend_display_name)}</span>
+                            )}
+                          </div>
+                          <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-primary flex items-center justify-center border-2 border-bg">
+                            <Trophy className="w-2.5 h-2.5 text-white" />
+                          </div>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm text-text leading-snug">
+                            <span className="font-bold">{update.friend_display_name}</span>
+                            <span className="text-text-muted"> unlocked </span>
+                            <span className="font-bold text-primary">{update.achievement_name}</span>
+                          </p>
+                          <p className="text-[11px] text-text-dim mt-0.5">{timeAgo(update.unlocked_at)}</p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-text-dim shrink-0" />
+                      </div>
+                    </Link>
+                  </motion.div>
+                ))}
+                {/* Discovery post injected after position 3 */}
                 {index === 2 && discoveryPost && discoveryPost.id !== post.id && (
                   <motion.div
                     key={`discovery-${discoveryPost.id}`}
@@ -994,7 +912,6 @@ export default function FeedPage() {
                     animate={{ opacity: 1, y: 0 }}
                     className="relative"
                   >
-                    {/* Discovery badge */}
                     <div className="flex items-center gap-1.5 mb-2 px-1">
                       <Globe className="w-3.5 h-3.5 text-accent" />
                       <span className="text-[10px] font-bold uppercase tracking-widest text-accent">Discover people</span>
@@ -1005,7 +922,7 @@ export default function FeedPage() {
                     />
                   </motion.div>
                 )}
-              </>
+              </React.Fragment>
             ))}
 
             {/* Infinite scroll sentinel */}

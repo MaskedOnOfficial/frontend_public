@@ -7,4 +7,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be configured in frontend environment variables.");
 }
 
-export const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey);
+// flowType must match the Supabase project's auth link format.
+// Our project sends the implicit format (#access_token=... in the URL hash).
+export const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    flowType: "implicit",
+    detectSessionInUrl: true,
+  },
+});

@@ -6,6 +6,7 @@ import api from "../lib/api";
 import { getApiErrorMessage } from "../lib/errors";
 import { isNative } from "../lib/capacitor";
 import { takePhoto } from "../lib/native-camera";
+import { useUploadQueue } from "../context/upload-queue";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, ArrowRight, ImagePlus, Sun, Contrast, Droplets,
@@ -29,6 +30,7 @@ type EditTab = "filters" | "adjust";
 export default function CreatePostPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { enqueue } = useUploadQueue();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -141,23 +143,58 @@ export default function CreatePostPage() {
     setError("");
 
     try {
+      // Process the image NOW while the canvas is still mounted.
+      // This is fast (canvas render + toBlob) — typically < 300 ms.
       const processedFile = await getProcessedFile();
       if (!processedFile) throw new Error("Failed to process image");
-      const compressed = await compressAndStripMetadata(processedFile, { maxSizeMB: 1, maxWidthOrHeight: 1920 });
 
-      const fd = new FormData();
-      fd.append("image", compressed);
-      if (caption.trim()) fd.append("caption", caption.trim());
-      fd.append("global_visibility", String(globalVisibility));
-      fd.append("friends_only", String(friendsOnly));
+      // Snapshot form values so the background job closure doesn't hold
+      // stale references after this component unmounts.
+      const captionSnap = caption.trim();
+      const globalVisibilitySnap = globalVisibility;
+      const friendsOnlySnap = friendsOnly;
 
-      await api.post("/photos", fd, { headers: { "Content-Type": "multipart/form-data" } });
+      // Enqueue the heavy work (compression + HTTP upload) to run in the
+      // background, then immediately navigate so the user can keep scrolling.
+      enqueue({
+        type: "photo",
+        label: "Photo",
+        run: async (setProgress) => {
+          setProgress(5);
+          const compressed = await compressAndStripMetadata(processedFile, {
+            maxSizeMB: 1,
+            maxWidthOrHeight: 1920,
+          });
+          setProgress(20);
+
+          const fd = new FormData();
+          fd.append("image", compressed);
+          if (captionSnap) fd.append("caption", captionSnap);
+          fd.append("global_visibility", String(globalVisibilitySnap));
+          fd.append("friends_only", String(friendsOnlySnap));
+
+          await api.post("/photos", fd, {
+            headers: { "Content-Type": "multipart/form-data" },
+            onUploadProgress: (e) => {
+              if (e.total) {
+                const pct = Math.round((e.loaded / e.total) * 75) + 20;
+                setProgress(Math.min(pct, 95));
+              }
+            },
+          });
+
+          return "/profile/me";
+        },
+      });
+
+      // Navigate immediately — the progress bar handles the rest.
       navigate("/profile/me", { replace: true });
     } catch (err) {
-      setError(getApiErrorMessage(err, "Upload failed"));
-    } finally {
+      setError(getApiErrorMessage(err, "Failed to process image"));
       setUploading(false);
     }
+    // Note: setUploading(false) is intentionally omitted from the success path
+    // because we navigate away. Leaving it here would update unmounted state.
   }
 
   function resetAll() {

@@ -296,7 +296,7 @@ export default function PartyDetailPage() {
           {/* Title & Status */}
           <div className="mb-6">
             <div className="flex items-start justify-between gap-3 mb-3">
-              <h1 className="text-3xl md:text-4xl font-bold text-text flex-1 tracking-tight">{party.title}</h1>
+              <h1 className="text-3xl md:text-4xl font-bold text-text flex-1 tracking-tight break-all [overflow-wrap:anywhere]">{party.title}</h1>
               <span className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full whitespace-nowrap ${getStatusClasses(party.status)}`}>
                 {party.status}
               </span>
@@ -323,8 +323,8 @@ export default function PartyDetailPage() {
               <div key={item.label} className="glass-panel rounded-2xl p-4">
                 <item.icon className={`w-5 h-5 ${item.color} mb-2`} />
                 <p className="text-text-dim text-[10px] uppercase tracking-wider font-bold mb-1">{item.label}</p>
-                <p className="text-text text-sm font-bold">{item.value}</p>
-                <p className="text-text-dim text-xs mt-0.5">{item.sub}</p>
+                <p className="text-text text-sm font-bold break-all [overflow-wrap:anywhere]">{item.value}</p>
+                <p className="text-text-dim text-xs mt-0.5 break-all [overflow-wrap:anywhere]">{item.sub}</p>
               </div>
             ))}
           </div>
@@ -336,7 +336,7 @@ export default function PartyDetailPage() {
                 <PartyPopper className="w-4 h-4 text-primary" />
                 About this Event
               </h2>
-              <p className="text-text-muted leading-relaxed whitespace-pre-wrap text-sm glass-panel rounded-2xl p-5">{party.description}</p>
+              <p className="text-text-muted leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm glass-panel rounded-2xl p-5">{party.description}</p>
             </div>
           )}
 
