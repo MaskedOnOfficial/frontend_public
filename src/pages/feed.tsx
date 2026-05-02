@@ -8,8 +8,8 @@ import { hapticsMedium } from "../lib/haptics";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Heart, MessageCircle, Sparkles, Users, PartyPopper,
-  Loader2, Send, MapPin, Calendar, TrendingUp,
-  Flame, Eye, ChevronRight, Zap, Trophy, Globe, Pin, ChevronDown,
+  Loader2, MapPin, Calendar, TrendingUp,
+  Flame, Eye, ChevronRight, Zap, Trophy, Globe,
 } from "lucide-react";
 
 // --- Types ---
@@ -30,20 +30,6 @@ interface FeedPost {
   avatar_url: string | null;
   liked_by_me: boolean;
   feed_score: number;
-}
-
-interface FeedComment {
-  id: string;
-  user_id: string;
-  comment_text: string;
-  like_count: number;
-  created_at: string;
-  display_name?: string;
-  username?: string;
-  avatar_url?: string | null;
-  parent_comment_id: string | null;
-  is_pinned: boolean;
-  replies: FeedComment[];
 }
 
 interface StoryUser {
@@ -109,14 +95,7 @@ function getInitials(name: string): string {
   return name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 }
 
-function parseMentions(text: string) {
-  const parts = text.split(/(@[\w.]+)/g);
-  return parts.map((part, i) =>
-    /^@[\w.]+$/.test(part)
-      ? <span key={i} className="text-primary font-semibold">{part}</span>
-      : part
-  );
-}
+
 
 function formatPrice(price: number): string {
   if (price === 0) return "Free";
@@ -358,7 +337,6 @@ interface PostCardProps {
 }
 
 function PostCard({ post, onLikeToggle }: PostCardProps) {
-  const { user } = useAuth();
   const [imgLoaded, setImgLoaded] = useState(false);
   const [showCommentSheet, setShowCommentSheet] = useState(false);
   const [commentCount, setCommentCount] = useState(post.comment_count ?? 0);
