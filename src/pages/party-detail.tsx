@@ -183,8 +183,9 @@ export default function PartyDetailPage() {
           },
         };
 
-        const rzp = new (window as { Razorpay: new (opts: unknown) => { open: () => void; on: (event: string, cb: (r: unknown) => void) => void } }).Razorpay(options);
-        rzp.on("payment.failed", (response: { error?: { description?: string } }) => {
+        const rzp = new (window as unknown as { Razorpay: new (opts: unknown) => { open: () => void; on: (event: string, cb: (r: unknown) => void) => void } }).Razorpay(options);
+        rzp.on("payment.failed", (r: unknown) => {
+          const response = r as { error?: { description?: string } };
           reject(new Error(response.error?.description ?? "Payment failed"));
         });
         rzp.open();

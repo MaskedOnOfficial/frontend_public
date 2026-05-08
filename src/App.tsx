@@ -45,7 +45,6 @@ import BlockedUsersPage from "./pages/blocked-users";
 import PaymentHistoryPage from "./pages/payment-history";
 import OnboardingPage from "./pages/onboarding";
 import HostAnalyticsPage from "./pages/host-analytics";
-import LandingPage from "./pages/landing";
 import PrivacyPolicyPage from "./pages/privacy";
 import TermsPage from "./pages/terms";
 import FAQPage from "./pages/faq";

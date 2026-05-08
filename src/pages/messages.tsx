@@ -4,7 +4,6 @@ import { Inbox, Loader2, MessageCircle, PartyPopper, ChevronRight, AlertCircle }
 import api from "../lib/api";
 import type { ConversationSummary } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
-import { getApiErrorMessage } from "../lib/errors";
 
 function timeAgo(dateStr: string | null): string {
   if (!dateStr) return "No messages yet";
@@ -22,7 +21,6 @@ export default function MessagesPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
-  const [fetchError, setFetchError] = useState("");
   const [fetchError, setFetchError] = useState("");
   const [fetchKey, setFetchKey] = useState(0);
 
