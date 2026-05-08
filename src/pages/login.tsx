@@ -71,11 +71,13 @@ export default function LoginPage() {
         const errorCode = axios.isAxiosError(error)
           ? error.response?.data?.error?.code
           : undefined;
-        const message = getApiErrorMessage(error, "Login failed. Please check your credentials.");
-        setError(message);
 
         if (errorCode === "EMAIL_NOT_VERIFIED") {
-          setNotice("Your email is not verified yet. Use the verification page to resend the link.");
+          setError("");
+          setNotice("Your email isn't verified yet. Check your inbox or use the resend link below.");
+        } else {
+          const message = getApiErrorMessage(error, "Login failed. Please check your credentials.");
+          setError(message);
         }
       }
     } finally {
@@ -238,7 +240,7 @@ export default function LoginPage() {
               Forgot password?
             </Link>
             {" · "}
-            <Link to="/auth/verify-email" className="text-primary font-semibold hover:text-accent transition">
+            <Link to="/auth/verify-email" state={{ email }} className="text-primary font-semibold hover:text-accent transition">
               Resend verification
             </Link>
           </p>

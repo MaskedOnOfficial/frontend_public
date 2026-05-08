@@ -26,6 +26,7 @@ export default function SettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showCurrentPw, setShowCurrentPw] = useState(false);
   const [showNewPw, setShowNewPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
   const [pwSaving, setPwSaving] = useState(false);
   const [pwMessage, setPwMessage] = useState("");
   const [pwMessageType, setPwMessageType] = useState<"success" | "error">("success");
@@ -303,9 +304,15 @@ export default function SettingsPage() {
                     {showNewPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                <input type="password" placeholder="Confirm new password" value={confirmPassword}
-                  onChange={e => setConfirmPassword(e.target.value)} required autoComplete="new-password"
-                  className="input-luxe w-full text-sm" />
+                <div className="relative">
+                  <input type={showConfirmPw ? "text" : "password"} placeholder="Confirm new password" value={confirmPassword}
+                    onChange={e => setConfirmPassword(e.target.value)} required autoComplete="new-password"
+                    className="input-luxe w-full text-sm pr-10" />
+                  <button type="button" onClick={() => setShowConfirmPw(v => !v)} aria-label={showConfirmPw ? "Hide" : "Show"}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-dim">
+                    {showConfirmPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
                 <button type="submit" disabled={pwSaving}
                   className="btn-primary-luxe w-full py-2.5 text-sm disabled:opacity-50 flex items-center justify-center gap-2">
                   {pwSaving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : "Update Password"}

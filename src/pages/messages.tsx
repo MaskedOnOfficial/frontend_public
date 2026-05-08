@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Inbox, Loader2, MessageCircle, PartyPopper, ChevronRight } from "lucide-react";
+import { Inbox, Loader2, MessageCircle, PartyPopper, ChevronRight, AlertCircle } from "lucide-react";
 import api from "../lib/api";
 import type { ConversationSummary } from "../types";
+import { getApiErrorMessage } from "../lib/errors";
+import { getApiErrorMessage } from "../lib/errors";
 
 function timeAgo(dateStr: string | null): string {
   if (!dateStr) return "No messages yet";
@@ -20,6 +22,9 @@ export default function MessagesPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+  const [fetchError, setFetchError] = useState("");
+  const [fetchError, setFetchError] = useState("");
+  const [fetchKey, setFetchKey] = useState(0);
 
   useEffect(() => {
     let mounted = true;
@@ -27,14 +32,17 @@ export default function MessagesPage() {
       .then((res) => {
         if (mounted) setConversations(res.data.data.conversations || []);
       })
+      .catch((err) => {
+        if (mounted) setFetchError(getApiErrorMessage(err, "Failed to load messages. Please try again."));
+      })
       .finally(() => {
         if (mounted) setLoading(false);
       });
     return () => { mounted = false; };
-  }, []);
+  }, [fetchKey]);
 
   return (
-    <div className="min-h-screen bg-bg px-4 py-6 md:py-10">
+    <div className="min-h-screen bg-bg px-4 py-6 pb-28 md:py-10 md:pb-12">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -48,6 +56,18 @@ export default function MessagesPage() {
         {loading ? (
           <div className="glass-panel rounded-3xl p-10 flex justify-center">
             <Loader2 className="w-7 h-7 text-primary animate-spin" />
+          </div>
+        ) : fetchError ? (
+          <div className="glass-panel rounded-3xl p-8 text-center">
+            <AlertCircle className="w-12 h-12 text-error mx-auto mb-4" />
+            <h2 className="text-lg font-bold text-text mb-2">Could not load messages</h2>
+            <p className="text-text-muted text-sm max-w-md mx-auto mb-5">{fetchError}</p>
+            <button
+              onClick={() => { setFetchError(""); setLoading(true); setFetchKey(k => k + 1); }}
+              className="inline-flex btn-secondary-luxe px-5 py-3 rounded-xl font-bold"
+            >
+              Try again
+            </button>
           </div>
         ) : conversations.length === 0 ? (
           <div className="glass-panel rounded-3xl p-8 text-center">

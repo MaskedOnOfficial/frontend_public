@@ -154,7 +154,7 @@ function RequestCard({ req, onAccept, onReject, accepting, rejecting }: RequestC
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: 20, height: 0, marginBottom: 0 }}
       transition={{ type: "spring", stiffness: 380, damping: 32 }}
-      className="flex items-center gap-3 p-3.5 rounded-2xl border border-primary/15 bg-primary/[0.02] hover:border-primary/25 transition-all"
+      className="relative flex items-center gap-3 p-3.5 rounded-2xl border border-primary/15 bg-primary/[0.02] hover:border-primary/25 transition-all"
     >
       {/* Left accent bar */}
       <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b from-primary/60 to-primary/15 rounded-l-2xl" />

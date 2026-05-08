@@ -31,20 +31,26 @@ export default function Navbar() {
   const [searching, setSearching] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const debouncedQuery = useDebounce(searchQuery, 300);
 
   // Live search
   useEffect(() => {
     if (debouncedQuery.length < 2) {
+      abortControllerRef.current?.abort();
       return;
     }
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     api
-      .get("/search", { params: { q: debouncedQuery, limit: 5 } })
+      .get("/search", { params: { q: debouncedQuery, limit: 5 }, signal: controller.signal })
       .then((r) => { setResults(r.data.data); setShowDropdown(true); })
       .catch((error) => {
+        if (error?.code === "ERR_CANCELED") return;
         console.error("Navbar search failed:", getApiErrorMessage(error, "Unknown search error"));
       })
-      .finally(() => setSearching(false));
+      .finally(() => { if (!controller.signal.aborted) setSearching(false); });
   }, [debouncedQuery]);
 
   // Close dropdown on outside click

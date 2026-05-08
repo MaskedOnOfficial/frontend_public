@@ -30,7 +30,7 @@ export default function ContactPage() {
     const body = encodeURIComponent(
       `Name: ${name}\nEmail: ${email}\n\nSubject: ${subject}\n\n${message}`,
     );
-    window.location.href = `mailto:wemaskon@gmail.com?subject=${encodeURIComponent(`[maskedOn] ${subject}`)}&body=${body}`;
+    window.location.href = `mailto:team@maskedon.com?subject=${encodeURIComponent(`[maskedOn] ${subject}`)}&body=${body}`;
     setSent(true);
   }
 
@@ -90,10 +90,10 @@ export default function ContactPage() {
                   <div>
                     <p className="text-text font-semibold text-sm">Email us directly</p>
                     <a
-                      href="mailto:wemaskon@gmail.com"
+                      href="mailto:team@maskedon.com"
                       className="text-primary text-sm hover:underline"
                     >
-                      wemaskon@gmail.com
+                      team@maskedon.com
                     </a>
                   </div>
                 </div>

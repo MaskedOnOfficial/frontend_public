@@ -14,6 +14,8 @@ export default function MessageThreadPage() {
 
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [sendError, setSendError] = useState("");
   const [conversation, setConversation] = useState<ConversationSummary | null>(null);
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [body, setBody] = useState("");
@@ -31,6 +33,8 @@ export default function MessageThreadPage() {
       const found = (conversationRes.data.data.conversations || []).find((item: ConversationSummary) => item.id === conversationId) || null;
       setConversation(found);
       setMessages(messagesRes.data.data.messages || []);
+    }).catch(() => {
+      if (mounted) setLoadError("Failed to load conversation. Please go back and try again.");
     }).finally(() => {
       if (mounted) setLoading(false);
     });
@@ -52,12 +56,15 @@ export default function MessageThreadPage() {
 
   async function handleSend() {
     if (!body.trim()) return;
+    setSendError("");
     setSending(true);
     try {
       const res = await api.post(`/messages/conversations/${conversationId}/messages`, { body: body.trim() });
       const nextMessage = res.data.data.message as ConversationMessage;
       setMessages((prev) => [...prev, nextMessage]);
       setBody("");
+    } catch {
+      setSendError("Failed to send message. Please try again.");
     } finally {
       setSending(false);
     }
@@ -67,6 +74,17 @@ export default function MessageThreadPage() {
     return (
       <div className="min-h-screen bg-bg flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-bg flex items-center justify-center px-4">
+        <div className="text-center">
+          <p className="text-error text-sm mb-4">{loadError}</p>
+          <button onClick={() => window.history.back()} className="btn-secondary-luxe px-5 py-3 rounded-xl font-bold text-sm">Go back</button>
+        </div>
       </div>
     );
   }
@@ -121,22 +139,36 @@ export default function MessageThreadPage() {
             <div ref={listEndRef} />
           </div>
 
-          <div className="mt-4 pt-4 border-t border-border flex items-end gap-3">
-            <textarea
-              value={body}
-              onChange={(e) => setBody(e.target.value.slice(0, 2000))}
-              rows={2}
-              placeholder="Write a message"
-              className="input-luxe flex-1 rounded-2xl px-4 py-3 resize-none text-sm"
-            />
-            <button
-              onClick={handleSend}
-              disabled={sending || !body.trim()}
-              className="btn-primary-luxe px-4 py-3.5 rounded-2xl font-bold flex items-center gap-2 disabled:opacity-50"
-            >
-              {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              Send
-            </button>
+          <div className="mt-4 pt-4 border-t border-border flex flex-col gap-2">
+            {sendError && (
+              <p className="text-error text-xs px-1">{sendError}</p>
+            )}
+            <div className="flex items-end gap-3">
+              <div className="flex-1 relative">
+                <textarea
+                  value={body}
+                  onChange={(e) => setBody(e.target.value.slice(0, 2000))}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !sending && body.trim()) {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                  rows={2}
+                  placeholder="Write a message · Ctrl+Enter to send"
+                  className="input-luxe w-full rounded-2xl px-4 py-3 resize-none text-sm"
+                />
+                <span className="absolute bottom-2 right-3 text-[10px] text-text-dim/50">{body.length}/2000</span>
+              </div>
+              <button
+                onClick={handleSend}
+                disabled={sending || !body.trim()}
+                className="btn-primary-luxe px-4 py-3.5 rounded-2xl font-bold flex items-center gap-2 disabled:opacity-50"
+              >
+                {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                Send
+              </button>
+            </div>
           </div>
         </div>
       </div>

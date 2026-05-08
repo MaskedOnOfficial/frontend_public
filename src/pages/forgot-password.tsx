@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import api from "../lib/api";
 import { getApiErrorMessage } from "../lib/errors";
 
@@ -61,9 +62,10 @@ export default function ForgotPasswordPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="btn-primary-luxe w-full font-bold py-3.5 rounded-xl disabled:opacity-60"
+            className="btn-primary-luxe w-full font-bold py-3.5 rounded-xl disabled:opacity-60 flex items-center justify-center gap-2"
           >
-            {submitting ? "Sending..." : "Send reset link"}
+            {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+            {submitting ? "Sending…" : "Send reset link"}
           </button>
         </form>
 

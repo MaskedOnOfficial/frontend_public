@@ -182,7 +182,7 @@ export default function DiscoverPage() {
         default: return true;
       }
     });
-  }, [allParties, selectedCity, search, quickFilter, sortMode]);
+  }, [allParties, selectedCity, search, quickFilter]);
 
   const happeningNow = useMemo(
     () => allParties.filter((p) => p.status === "ongoing").sort((a, b) => new Date(a.date_time).getTime() - new Date(b.date_time).getTime()),

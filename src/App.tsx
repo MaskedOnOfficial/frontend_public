@@ -154,7 +154,7 @@ function HomeRoute() {
     return <Navigate to="/auth/login" replace />;
   }
 
-  return user ? <FeedPage /> : <LandingPage />;
+  return user ? <FeedPage /> : <Navigate to="/auth/login" replace />;
 }
 
 // ─── Auth Guards ────────────────────────────────────────────────────────────────

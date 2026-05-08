@@ -17,7 +17,11 @@ interface Payment {
   party_id: string;
   amount: number;
   currency: string;
-  status: "pending" | "completed" | "refunded";
+  status: "initiated" | "pending" | "completed" | "failed" | "refunded";
+  // Real Razorpay IDs (new payments)
+  razorpay_payment_id: string | null;
+  razorpay_order_id: string | null;
+  // Legacy mock ID (old payments before Razorpay integration)
   mock_transaction_id: string | null;
   created_at: string;
   completed_at: string | null;
@@ -41,9 +45,11 @@ function formatAmount(paisa: number) {
 }
 
 const STATUS = {
-  completed: { label: "Paid", color: "text-success", bg: "bg-success/10", border: "border-success/25", Icon: CheckCircle2 },
-  pending:   { label: "Pending", color: "text-warning", bg: "bg-warning/10", border: "border-warning/25", Icon: Clock },
-  refunded:  { label: "Refunded", color: "text-error", bg: "bg-error/10", border: "border-error/25", Icon: XCircle },
+  completed: { label: "Paid",     color: "text-success", bg: "bg-success/10", border: "border-success/25", Icon: CheckCircle2 },
+  pending:   { label: "Pending",  color: "text-warning", bg: "bg-warning/10", border: "border-warning/25", Icon: Clock },
+  initiated: { label: "Pending",  color: "text-warning", bg: "bg-warning/10", border: "border-warning/25", Icon: Clock },
+  failed:    { label: "Failed",   color: "text-error",   bg: "bg-error/10",   border: "border-error/25",   Icon: XCircle },
+  refunded:  { label: "Refunded", color: "text-error",   bg: "bg-error/10",   border: "border-error/25",   Icon: XCircle },
 } as const;
 
 // ─── Payment Card ─────────────────────────────────────────────────────────────
@@ -69,10 +75,10 @@ function PaymentCard({ payment, index }: { payment: Payment; index: number }) {
               <Calendar className="w-2.5 h-2.5" />
               {formatDate(payment.created_at)} · {formatTime(payment.created_at)}
             </span>
-            {payment.mock_transaction_id && (
-              <span className="flex items-center gap-1 text-[10px] text-text-dim font-mono truncate max-w-[120px]">
+{(payment.razorpay_payment_id ?? payment.mock_transaction_id) && (
+              <span className="flex items-center gap-1 text-[10px] text-text-dim font-mono truncate max-w-[140px]">
                 <Tag className="w-2.5 h-2.5 shrink-0" />
-                {payment.mock_transaction_id.slice(0, 16)}
+                {(payment.razorpay_payment_id ?? payment.mock_transaction_id)!.slice(0, 18)}
               </span>
             )}
           </div>

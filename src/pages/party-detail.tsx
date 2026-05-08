@@ -118,16 +118,82 @@ export default function PartyDetailPage() {
     }
   }
 
+  /** Dynamically loads the Razorpay checkout.js script once and resolves when ready. */
+  function loadRazorpayScript(): Promise<void> {
+    if ((window as { Razorpay?: unknown }).Razorpay) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error("Failed to load payment SDK. Check your internet connection."));
+      document.body.appendChild(script);
+    });
+  }
+
   async function handlePay() {
     setPaying(true);
     setError("");
     try {
-      await api.post(`/parties/${partyId}/pay`);
-      setRequestStatus("paid");
-      setError(""); // #31 — clear on success
-      loadParty();
+      // Step 1: Create a Razorpay order on the backend
+      const initRes = await api.post(`/parties/${partyId}/pay/initiate`);
+      const { order_id, key_id, amount, currency, prefill } = initRes.data.data as {
+        order_id: string;
+        key_id: string;
+        amount: number;
+        currency: string;
+        prefill: { name: string; email: string };
+      };
+
+      // Step 2: Load the Razorpay checkout script
+      await loadRazorpayScript();
+
+      // Step 3: Open the checkout modal and wait for the user to pay or dismiss
+      await new Promise<void>((resolve, reject) => {
+        const options = {
+          key: key_id,
+          amount,
+          currency,
+          name: "maskOn",
+          description: party?.title ?? "Party Ticket",
+          order_id,
+          prefill,
+          theme: { color: "#8B5CF6" },
+          modal: {
+            ondismiss: () => reject(new Error("DISMISSED")),
+          },
+          handler: async (response: {
+            razorpay_payment_id: string;
+            razorpay_order_id: string;
+            razorpay_signature: string;
+          }) => {
+            try {
+              // Step 4: Verify the payment server-side and admit the guest
+              await api.post(`/parties/${partyId}/pay/verify`, {
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature,
+              });
+              setRequestStatus("paid");
+              setError("");
+              loadParty();
+              resolve();
+            } catch (verifyError: unknown) {
+              reject(verifyError);
+            }
+          },
+        };
+
+        const rzp = new (window as { Razorpay: new (opts: unknown) => { open: () => void; on: (event: string, cb: (r: unknown) => void) => void } }).Razorpay(options);
+        rzp.on("payment.failed", (response: { error?: { description?: string } }) => {
+          reject(new Error(response.error?.description ?? "Payment failed"));
+        });
+        rzp.open();
+      });
     } catch (payError: unknown) {
-      setError(getApiErrorMessage(payError, "Payment failed"));
+      if ((payError as Error).message !== "DISMISSED") {
+        setError(getApiErrorMessage(payError, "Payment failed"));
+      }
+      // Dismissed silently — user closed the modal, no error shown
     } finally {
       setPaying(false);
     }

@@ -75,7 +75,7 @@ export default function PrivacyPolicyPage() {
             <p>The entity responsible for processing your personal data is maskedOn, operated from Jaipur, Rajasthan, India.</p>
             <p><strong className="text-text">Data Protection Officer and Grievance Officer:</strong> As required under Rule 5(9) of the SPDI Rules and Rule 3(2) of the Intermediary Guidelines, maskedOn designates a single officer to serve both functions. Contact:</p>
             <div className="mt-2 p-4 rounded-xl bg-bg/40 space-y-1">
-              <p><strong className="text-text">Email:</strong> <a href="mailto:wemaskon@gmail.com" className="text-primary hover:underline">wemaskon@gmail.com</a></p>
+              <p><strong className="text-text">Email:</strong> <a href="mailto:team@maskedon.com" className="text-primary hover:underline">team@maskedon.com</a></p>
               <p><strong className="text-text">Subject line for data matters:</strong> "DATA REQUEST"</p>
               <p><strong className="text-text">Subject line for grievances:</strong> "PRIVACY GRIEVANCE"</p>
               <p className="text-xs text-text-muted/70 pt-1">Acknowledgement of complaints within 24 hours; resolution within 15 days of receipt, as required by the Intermediary Guidelines.</p>
@@ -351,30 +351,30 @@ export default function PrivacyPolicyPage() {
               <li>Notify the relevant government authority or Data Protection Board as required under the DPDPA, 2023 upon the notification provisions of that Act coming into force.</li>
             </ul>
             <p>13.2 maskedOn's notification obligation is subject to any law enforcement or regulatory instruction to delay notification pending an investigation.</p>
-            <p>13.3 If you suspect that your Account has been compromised or that your personal data has been accessed without authorisation, please contact us immediately at <a href="mailto:wemaskon@gmail.com" className="text-primary hover:underline">wemaskon@gmail.com</a> with the subject line "SECURITY INCIDENT".</p>
+            <p>13.3 If you suspect that your Account has been compromised or that your personal data has been accessed without authorisation, please contact us immediately at <a href="mailto:team@maskedon.com" className="text-primary hover:underline">team@maskedon.com</a> with the subject line "SECURITY INCIDENT".</p>
           </Section>
 
           <Section title="14. Your Rights as a Data Principal">
             <p>Under the Digital Personal Data Protection Act, 2023 and the SPDI Rules, 2011, you have the following rights in relation to your personal data:</p>
             <p><strong className="text-text">14.1 Right of Access</strong></p>
-            <p>You have the right to obtain confirmation of whether maskedOn is processing your personal data and to receive a summary of the data held and the processing activities undertaken. You can view much of your data directly through your profile and settings. For a complete data summary, submit a request to <a href="mailto:wemaskon@gmail.com" className="text-primary hover:underline">wemaskon@gmail.com</a> with the subject line "DATA REQUEST — ACCESS".</p>
+            <p>You have the right to obtain confirmation of whether maskedOn is processing your personal data and to receive a summary of the data held and the processing activities undertaken. You can view much of your data directly through your profile and settings. For a complete data summary, submit a request to <a href="mailto:team@maskedon.com" className="text-primary hover:underline">team@maskedon.com</a> with the subject line "DATA REQUEST — ACCESS".</p>
             <p><strong className="text-text">14.2 Right of Correction</strong></p>
-            <p>You have the right to have inaccurate or incomplete personal data corrected or completed. You can edit most profile data directly through the Settings page. For data you cannot update through the Platform interface, contact us at <a href="mailto:wemaskon@gmail.com" className="text-primary hover:underline">wemaskon@gmail.com</a> with the subject line "DATA REQUEST — CORRECTION".</p>
+            <p>You have the right to have inaccurate or incomplete personal data corrected or completed. You can edit most profile data directly through the Settings page. For data you cannot update through the Platform interface, contact us at <a href="mailto:team@maskedon.com" className="text-primary hover:underline">team@maskedon.com</a> with the subject line "DATA REQUEST — CORRECTION".</p>
             <p><strong className="text-text">14.3 Right of Erasure</strong></p>
-            <p>You have the right to request the erasure of your personal data where it is no longer necessary for the purpose it was collected, or where you withdraw consent (where consent is the sole lawful basis for processing). You can delete your entire Account through Settings → Delete Account, which initiates the 30-day deletion process described in Section 12. For targeted deletion of specific data, contact us at <a href="mailto:wemaskon@gmail.com" className="text-primary hover:underline">wemaskon@gmail.com</a> with the subject line "DATA REQUEST — ERASURE".</p>
+            <p>You have the right to request the erasure of your personal data where it is no longer necessary for the purpose it was collected, or where you withdraw consent (where consent is the sole lawful basis for processing). You can delete your entire Account through Settings → Delete Account, which initiates the 30-day deletion process described in Section 12. For targeted deletion of specific data, contact us at <a href="mailto:team@maskedon.com" className="text-primary hover:underline">team@maskedon.com</a> with the subject line "DATA REQUEST — ERASURE".</p>
             <p><strong className="text-text">14.4 Right of Data Portability</strong></p>
-            <p>You have the right to receive a copy of your personal data in a structured, commonly used, and machine-readable format. To request a data export, email us at <a href="mailto:wemaskon@gmail.com" className="text-primary hover:underline">wemaskon@gmail.com</a> with the subject line "DATA REQUEST — EXPORT". We will endeavour to provide your data within thirty (30) days of receipt of a verified request.</p>
+            <p>You have the right to receive a copy of your personal data in a structured, commonly used, and machine-readable format. To request a data export, email us at <a href="mailto:team@maskedon.com" className="text-primary hover:underline">team@maskedon.com</a> with the subject line "DATA REQUEST — EXPORT". We will endeavour to provide your data within thirty (30) days of receipt of a verified request.</p>
             <p><strong className="text-text">14.5 Right to Withdraw Consent</strong></p>
             <p>Where processing is based on consent, you may withdraw your consent at any time. Withdrawal of consent does not affect the lawfulness of processing carried out before the withdrawal. Note that withdrawal of consent to the core data processing described in Section 4.1 will necessitate Account deletion as the Platform cannot be provided without processing foundational personal data.</p>
             <p><strong className="text-text">14.6 Right to Grievance Redressal</strong></p>
-            <p>You have the right to have your grievances regarding the processing of your personal data addressed by maskedOn. You may raise a grievance with our Data Protection and Grievance Officer at <a href="mailto:wemaskon@gmail.com" className="text-primary hover:underline">wemaskon@gmail.com</a> (subject line: "PRIVACY GRIEVANCE"). We will acknowledge your grievance within twenty-four (24) hours and resolve it within fifteen (15) days.</p>
+            <p>You have the right to have your grievances regarding the processing of your personal data addressed by maskedOn. You may raise a grievance with our Data Protection and Grievance Officer at <a href="mailto:team@maskedon.com" className="text-primary hover:underline">team@maskedon.com</a> (subject line: "PRIVACY GRIEVANCE"). We will acknowledge your grievance within twenty-four (24) hours and resolve it within fifteen (15) days.</p>
             <p>If you are not satisfied with our resolution, you may approach:</p>
             <ul className="list-disc pl-5 space-y-1.5">
               <li>The <strong className="text-text">Data Protection Board of India</strong> (once constituted and operational under the DPDPA, 2023);</li>
               <li>The appropriate <strong className="text-text">Consumer Disputes Redressal Commission</strong> under the Consumer Protection Act, 2019.</li>
             </ul>
             <p><strong className="text-text">14.7 Right to Nominate</strong></p>
-            <p>Under the DPDPA, 2023, you have the right to nominate another individual to exercise your data rights on your behalf in the event of your death or incapacity. To register a nominee, contact us at <a href="mailto:wemaskon@gmail.com" className="text-primary hover:underline">wemaskon@gmail.com</a> with supporting documentation.</p>
+            <p>Under the DPDPA, 2023, you have the right to nominate another individual to exercise your data rights on your behalf in the event of your death or incapacity. To register a nominee, contact us at <a href="mailto:team@maskedon.com" className="text-primary hover:underline">team@maskedon.com</a> with supporting documentation.</p>
             <p><strong className="text-text">14.8 Verification of Requests</strong></p>
             <p>To protect your privacy, maskedOn will verify your identity before processing any data rights request. Requests must be submitted from the email address associated with your Account or be accompanied by sufficient identification to confirm your identity.</p>
           </Section>
@@ -383,7 +383,7 @@ export default function PrivacyPolicyPage() {
             <p>15.1 maskedOn is an adult social platform intended exclusively for individuals aged <strong className="text-text">18 years and older</strong>. We do not knowingly collect personal data from anyone under the age of 18.</p>
             <p>15.2 Age is verified through self-declaration at registration (date of birth and checkbox confirmation). maskedOn does not use government ID verification for age confirmation at registration, but reserves the right to request identity verification at any time where there is reasonable suspicion of age misrepresentation.</p>
             <p>15.3 If maskedOn becomes aware that a person under the age of 18 has created an Account or provided personal data through the Platform, we will promptly delete the Account and all associated data without notice.</p>
-            <p>15.4 If you believe that a minor has registered on the Platform, please report it immediately to <a href="mailto:wemaskon@gmail.com" className="text-primary hover:underline">wemaskon@gmail.com</a> with the subject line "MINOR ACCOUNT REPORT".</p>
+            <p>15.4 If you believe that a minor has registered on the Platform, please report it immediately to <a href="mailto:team@maskedon.com" className="text-primary hover:underline">team@maskedon.com</a> with the subject line "MINOR ACCOUNT REPORT".</p>
           </Section>
 
           <Section title="16. Third-Party Links and Services">
@@ -414,7 +414,7 @@ export default function PrivacyPolicyPage() {
             <div className="mt-3 p-4 rounded-xl bg-bg/40 space-y-1.5">
               <p><strong className="text-text">Platform:</strong> maskedOn</p>
               <p><strong className="text-text">Principal Place of Operations:</strong> Jaipur, Rajasthan, India</p>
-              <p><strong className="text-text">Data Protection Officer / Grievance Officer Email:</strong>{" "}<a href="mailto:wemaskon@gmail.com" className="text-primary hover:underline">wemaskon@gmail.com</a></p>
+              <p><strong className="text-text">Data Protection Officer / Grievance Officer Email:</strong>{" "}<a href="mailto:team@maskedon.com" className="text-primary hover:underline">team@maskedon.com</a></p>
               <div className="pt-2 space-y-1 text-xs text-text-muted/80">
                 <p>Use subject line <strong>"DATA REQUEST — ACCESS/CORRECTION/ERASURE/EXPORT"</strong> for data rights requests.</p>
                 <p>Use subject line <strong>"PRIVACY GRIEVANCE"</strong> for privacy complaints.</p>

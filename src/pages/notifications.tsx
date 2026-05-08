@@ -128,8 +128,8 @@ const DEFAULT_CONFIG: NotifConfig = {
 const TAB_TYPES: Record<FilterTab, string[]> = {
   all: [],
   requests: ["join_request", "request_approved", "request_rejected"],
-  social: ["friend_request", "friend_accepted", "photo_liked", "photo_commented", "new_rating"],
-  parties: ["payment_confirmed"],
+  social: ["friend_request", "friend_accepted", "photo_liked", "photo_commented", "new_rating", "message"],
+  parties: ["payment_confirmed", "announcement"],
 };
 
 // ─── Helpers ───────────────────────────────────────────────────────────────

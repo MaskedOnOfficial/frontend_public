@@ -5,7 +5,7 @@ import { useAuth } from "../context/auth-hook";
 import { getApiErrorMessage } from "../lib/errors";
 import { ensureBackendAwake } from "../lib/api";
 import { motion } from "framer-motion";
-import { ArrowRight, Loader2, User, AtSign, Mail, Lock } from "lucide-react";
+import { ArrowRight, Loader2, User, AtSign, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useTheme } from "../context/use-theme";
 
 export default function RegisterPage() {
@@ -22,6 +22,8 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [wakingUp, setWakingUp] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const mountedRef = useRef(true);
   const backendReadyRef = useRef(false);
   const wakePromiseRef = useRef<Promise<void> | null>(null);
@@ -132,7 +134,7 @@ export default function RegisterPage() {
 
   const fields = [
     { id: "displayName", label: "Display Name", type: "text", value: displayName, setter: setDisplayName, placeholder: "Riya Sharma", icon: User, auto: "name", max: 100 },
-    { id: "username", label: "Username", type: "text", value: username, setter: setUsername, placeholder: "riya_hosts", icon: AtSign, auto: "username", max: 50 },
+    { id: "username", label: "Username", type: "text", value: username, setter: setUsername, placeholder: "riya_hosts", icon: AtSign, auto: "off", max: 50 },
     { id: "email", label: "Email", type: "email", value: email, setter: setEmail, placeholder: "you@example.com", icon: Mail, auto: "email", max: 254 },
     { id: "password", label: "Password", type: "password", value: password, setter: setPassword, placeholder: "Min 8 characters", icon: Lock, auto: "new-password", min: 8, max: 128 },
   ];
@@ -192,21 +194,36 @@ export default function RegisterPage() {
                     <Icon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim" />
                     <input
                       id={f.id}
-                      type={f.type}
+                      type={f.id === "password" ? (showPassword ? "text" : "password") : f.type}
                       value={f.value}
                       onChange={(e) => f.setter(e.target.value)}
                       required
-                      autoComplete="off"
+                      autoComplete={
+                        f.id === "email" ? "email"
+                        : f.id === "displayName" ? "name"
+                        : f.id === "password" ? "new-password"
+                        : "off"
+                      }
                       minLength={'min' in f ? f.min : undefined}
                       maxLength={'max' in f ? f.max : undefined}
                       aria-describedby={f.id === "password" ? "password-requirements" : undefined}
-                      className="input-luxe w-full rounded-xl pl-10 pr-4 py-3.5 text-sm"
+                      className={`input-luxe w-full rounded-xl pl-10 ${f.id === "password" ? "pr-10" : "pr-4"} py-3.5 text-sm`}
                       placeholder={f.placeholder}
                     />
+                    {f.id === "password" && (
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-text-dim hover:text-text transition p-1"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    )}
                   </div>
                   {f.id === "password" && (
                     <p id="password-requirements" className="text-[11px] text-text-dim mt-2">
-                      Password must be at least 8 characters.
+                      Min 8 characters, including uppercase, lowercase, and a number.
                     </p>
                   )}
                 </motion.div>
@@ -225,16 +242,24 @@ export default function RegisterPage() {
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim" />
                 <input
                   id="confirmPassword"
-                  type="password"
+                  type={showConfirmPassword ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
                   autoComplete="new-password"
                   minLength={8}
                   maxLength={128}
-                  className="input-luxe w-full rounded-xl pl-10 pr-4 py-3.5 text-sm"
+                  className="input-luxe w-full rounded-xl pl-10 pr-10 py-3.5 text-sm"
                   placeholder="Re-enter your password"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-dim hover:text-text transition p-1"
+                  aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                >
+                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </motion.div>
 
