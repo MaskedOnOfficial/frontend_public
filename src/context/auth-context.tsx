@@ -2,7 +2,7 @@ import { useState, useEffect, type ReactNode } from "react";
 import axios from "axios";
 import { Capacitor } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
-import api, { clearStoredAuthTokens, ensureBackendAwake, persistAuthTokens } from "../lib/api";
+import api, { clearStoredAuthTokens, ensureBackendAwake, getStoredRefreshToken, persistAuthTokens } from "../lib/api";
 import { getApiErrorMessage } from "../lib/errors";
 import { AuthContext } from "./auth-context-base";
 import type { AuthTokens, User } from "../types";
@@ -23,7 +23,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       } catch (error) {
         if (axios.isAxiosError(error) && error.response?.status === 401) {
-          if (!cancelled) setUser(null);
+          // The interceptor already attempted a token refresh. It only clears stored
+          // tokens when the server explicitly rejects them (401/403). If tokens are
+          // still present it means the refresh failed transiently (network error,
+          // backend cold start, 5xx) — don't log the user out. They'll auto-recover
+          // on the next request once the backend is reachable.
+          if (!getStoredRefreshToken()) {
+            if (!cancelled) setUser(null);
+          }
           return;
         }
 

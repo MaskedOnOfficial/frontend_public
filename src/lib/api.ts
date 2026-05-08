@@ -283,7 +283,17 @@ api.interceptors.response.use(
           }
         })
         .catch((refreshErr) => {
-          clearStoredAuthTokens();
+          // Only wipe stored tokens when the server explicitly rejects the refresh
+          // token (401 / 403 = token is invalid or revoked). Network errors, 5xx,
+          // or timeouts are transient — don't clear so the user can recover on the
+          // next app open without being logged out.
+          if (
+            axios.isAxiosError(refreshErr) &&
+            refreshErr.response &&
+            (refreshErr.response.status === 401 || refreshErr.response.status === 403)
+          ) {
+            clearStoredAuthTokens();
+          }
           throw refreshErr;
         })
         .finally(() => {
