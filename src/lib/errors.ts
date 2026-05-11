@@ -9,6 +9,12 @@ export function getApiErrorMessage(error: unknown, fallback: string): string {
 
     const status = error.response.status;
 
+    // Always prefer the server's own message when it's user-friendly (e.g. "Invalid email or password")
+    const maybeMessage = error.response.data?.error?.message;
+    if (typeof maybeMessage === "string" && maybeMessage.trim()) {
+      return maybeMessage.trim();
+    }
+
     if (status === 401) {
       return "Your session has expired. Please sign in again.";
     }
@@ -23,12 +29,6 @@ export function getApiErrorMessage(error: unknown, fallback: string): string {
 
     if (status >= 500) {
       return "We're having trouble connecting to the server. Please try again in a moment.";
-    }
-
-    // For other 4xx errors, the server message is usually user-friendly (e.g. "Username already taken")
-    const maybeMessage = error.response.data?.error?.message;
-    if (typeof maybeMessage === "string" && maybeMessage.trim()) {
-      return maybeMessage;
     }
   }
 
