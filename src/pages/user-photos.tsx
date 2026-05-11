@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import api from "../lib/api";
 import { useAuth } from "../context/auth-hook";
 import PhotoGrid from "../components/photo-grid";
@@ -10,6 +10,8 @@ import { Camera, Upload, Loader2, ChevronLeft, ChevronRight } from "lucide-react
 
 export default function UserPhotosPage() {
   const { userId } = useParams<{ userId: string }>();
+  const [searchParams] = useSearchParams();
+  const initialPhotoId = searchParams.get("photo") ?? undefined;
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -165,7 +167,7 @@ export default function UserPhotosPage() {
           </div>
         )}
 
-        <PhotoGrid photos={photos} onLike={handleLike} onDelete={isOwnProfile ? handleDelete : undefined} currentUserId={user?.id} />
+        <PhotoGrid photos={photos} onLike={handleLike} onDelete={isOwnProfile ? handleDelete : undefined} currentUserId={user?.id} initialPhotoId={initialPhotoId} />
 
         {totalPages > 1 && (
           <div className="flex justify-center items-center gap-3 mt-8">

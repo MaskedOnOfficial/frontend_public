@@ -13,6 +13,7 @@ interface PhotoGridProps {
   currentUserId?: string;
   commentCounts?: Record<string, number>;
   onSave?: (photoId: string, saved: boolean) => void;
+  initialPhotoId?: string;
 }
 
 interface Comment {
@@ -26,8 +27,15 @@ interface Comment {
   avatar_url?: string | null;
 }
 
-export default function PhotoGrid({ photos, onLike, onDelete, currentUserId, commentCounts, onSave }: PhotoGridProps) {
+export default function PhotoGrid({ photos, onLike, onDelete, currentUserId, commentCounts, onSave, initialPhotoId }: PhotoGridProps) {
   const [lightbox, setLightbox] = useState<Photo | null>(null);
+
+  // Auto-open a specific photo when navigating from a notification
+  useEffect(() => {
+    if (!initialPhotoId || photos.length === 0) return;
+    const target = photos.find((p) => p.id === initialPhotoId);
+    if (target) setLightbox(target);
+  }, [initialPhotoId, photos]);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmDeleteCommentId, setConfirmDeleteCommentId] = useState<string | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);

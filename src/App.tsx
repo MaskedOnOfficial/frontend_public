@@ -30,6 +30,7 @@ import ManageRequestsPage from "./pages/manage-requests";
 import RateCrowdPage from "./pages/rate-crowd";
 import PartyPhotosPage from "./pages/party-photos";
 import UserPhotosPage from "./pages/user-photos";
+import PhotoRedirectPage from "./pages/photo-redirect";
 import NotificationsPage from "./pages/notifications";
 import PublicProfilePage from "./pages/public-profile";
 import SearchPage from "./pages/search";
@@ -356,6 +357,7 @@ function AppShell() {
           <Route path="/profile/me/photos"              element={<UserPhotosPage />} />
           <Route path="/profile/:userId"                element={<PublicProfilePage />} />
           <Route path="/profile/:userId/photos"         element={<UserPhotosPage />} />
+          <Route path="/photos/:photoId"               element={<PhotoRedirectPage />} />
           <Route path="/notifications"                  element={<NotificationsPage />} />
           <Route path="/search"                         element={<SearchPage />} />
           <Route path="/settings"                       element={<SettingsPage />} />

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import api from "../lib/api";
 import { compressAndStripMetadata } from "../lib/image-utils";
 import { isNative } from "../lib/capacitor";
@@ -13,6 +13,8 @@ import { ArrowLeft, Camera, Upload, Loader2, Star, ChevronLeft, ChevronRight, Tr
 
 export default function PartyPhotosPage() {
   const { partyId } = useParams<{ partyId: string }>();
+  const [searchParams] = useSearchParams();
+  const initialPhotoId = searchParams.get("photo") ?? undefined;
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -212,7 +214,7 @@ export default function PartyPhotosPage() {
           </div>
         )}
 
-        <PhotoGrid photos={photos} onLike={handleLike} onDelete={(id) => setDeleteConfirmId(id)} currentUserId={user?.id} />
+        <PhotoGrid photos={photos} onLike={handleLike} onDelete={(id) => setDeleteConfirmId(id)} currentUserId={user?.id} initialPhotoId={initialPhotoId} />
 
         {/* DELETE CONFIRMATION MODAL */}
         <AnimatePresence>

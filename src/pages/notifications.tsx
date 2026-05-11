@@ -166,7 +166,7 @@ function getNotifLink(n: Notification): string | null {
   if (type === "friend_request" && reference_id) return `/profile/${reference_id}`;
   if (type === "friend_accepted" && reference_id) return `/profile/${reference_id}`;
   if (type === "new_rating") return "/profile/me";
-  if (type === "photo_liked" || type === "photo_commented") return "/profile/me";
+  if ((type === "photo_liked" || type === "photo_commented") && reference_id) return `/photos/${reference_id}`;
   if (type === "message" && reference_id) return `/messages/${reference_id}`;
   if (type === "announcement" && reference_id) return `/parties/${reference_id}`;
   if (reference_type === "party" && reference_id) {
