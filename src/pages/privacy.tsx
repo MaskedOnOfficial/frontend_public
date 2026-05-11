@@ -211,8 +211,8 @@ export default function PrivacyPolicyPage() {
                     <td className="py-2">Device push notification token (only if opt-in granted)</td>
                   </tr>
                   <tr className="border-b border-white/5">
-                    <td className="py-2 pr-4 text-text">Netlify Inc. (USA)</td>
-                    <td className="py-2 pr-4">Frontend application hosting</td>
+                    <td className="py-2 pr-4 text-text">GitHub, Inc. (USA)</td>
+                    <td className="py-2 pr-4">Frontend application hosting (GitHub Pages)</td>
                     <td className="py-2">IP address, HTTP request headers (access logs)</td>
                   </tr>
                   <tr>
@@ -239,7 +239,7 @@ export default function PrivacyPolicyPage() {
           </Section>
 
           <Section title="7. Cross-Border Transfer of Personal Data">
-            <p>7.1 maskedOn's primary database infrastructure is hosted on Supabase Inc., whose servers may be located in the United States of America or other jurisdictions outside India. Push notification delivery uses Firebase Cloud Messaging (Google LLC), which also operates from infrastructure outside India. Frontend hosting via Netlify Inc. is similarly US-based.</p>
+            <p>7.1 maskedOn's primary database infrastructure is hosted on Supabase Inc., whose servers may be located in the United States of America or other jurisdictions outside India. Push notification delivery uses Firebase Cloud Messaging (Google LLC), which also operates from infrastructure outside India. Frontend hosting via GitHub Pages (GitHub, Inc.) is similarly US-based.</p>
             <p>7.2 By using the Platform, you expressly acknowledge and consent to the transfer of your personal data to these jurisdictions outside India for the purposes described in this Policy. The laws of those jurisdictions may differ from Indian law and may offer a different level of protection for personal data.</p>
             <p>7.3 maskedOn takes the following measures to ensure an adequate level of protection for cross-border data transfers:</p>
             <ul className="list-disc pl-5 space-y-1.5">
