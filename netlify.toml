@@ -4,6 +4,7 @@
 
 [build.environment]
   NODE_VERSION = "22"
+  VITE_APP_URL = "https://maskedon.com"
 
 # Serve assetlinks.json with the correct MIME type and no caching so
 # Android App Links verification always gets a fresh, parseable response.

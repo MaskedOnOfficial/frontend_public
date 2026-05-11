@@ -5,7 +5,7 @@ import { useNotifications } from "../context/use-notifications-hook";
 import api from "../lib/api";
 import type { Party } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
-import { Search, Bell, LogOut, Compass, Plus, LayoutDashboard, Inbox, Loader2, Settings } from "lucide-react";
+import { Search, Bell, LogOut, Compass, Plus, LayoutDashboard, Inbox, Loader2, Settings, User } from "lucide-react";
 import { useTheme } from "../context/use-theme";
 
 type SearchUser = { id: string; username: string; display_name: string; avatar_url: string | null; social_rating: number };
@@ -214,6 +214,10 @@ export default function Navbar() {
               <Link to="/dashboard" aria-label="Host dashboard" className="hidden lg:flex items-center gap-1.5 text-text-muted hover:text-text transition text-sm font-medium px-3 py-2 rounded-lg hover:bg-white/[0.04]">
                 <LayoutDashboard className="w-4 h-4" />
                 <span className="hidden xl:inline">Dashboard</span>
+              </Link>
+              <Link to="/profile/me" aria-label="My profile" className="hidden lg:flex items-center gap-1.5 text-text-muted hover:text-primary transition text-sm font-medium px-3 py-2 rounded-lg hover:bg-primary/[0.06]">
+                <User className="w-4 h-4" />
+                <span className="hidden xl:inline">Profile</span>
               </Link>
 
               {/* Mobile search icon */}

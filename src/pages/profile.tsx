@@ -735,7 +735,7 @@ export default function ProfilePage() {
   // -- Share profile --
   async function handleShareProfile() {
     if (!user) return;
-    const appUrl = import.meta.env.VITE_APP_URL as string || window.location.origin;
+    const appUrl = (import.meta.env.VITE_APP_URL as string) || "https://maskedon.com";
     const url = `${appUrl}/profile/${user.id}`;
     const shareData = { title: `${user.display_name} on maskOn`, url };
     if (isNative()) {

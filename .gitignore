@@ -28,6 +28,7 @@ GoogleService-Info.plist
 .env
 .env.*
 !.env.example
+!.env.production
 .env.local
 .env.production
 .env.production.local

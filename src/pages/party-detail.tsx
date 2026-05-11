@@ -280,7 +280,7 @@ export default function PartyDetailPage() {
 
   // #30 — Share / copy link
   function handleShare() {
-    const appUrl = import.meta.env.VITE_APP_URL as string || window.location.origin;
+    const appUrl = (import.meta.env.VITE_APP_URL as string) || "https://maskedon.com";
     const url = `${appUrl}/parties/${partyId}`;
     if (navigator.share) {
       navigator.share({ title: party?.title || "maskedOn Party", url }).catch(() => {});
