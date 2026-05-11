@@ -6,15 +6,15 @@ import { getApiErrorMessage } from "../lib/errors";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Users, UserPlus, UserCheck, UserMinus, Clock, Search, Loader2,
-  Star, ChevronRight, X, Check, Sparkles, RefreshCw, UserX, AlertCircle,
+  Star, ChevronRight, X, Check, RefreshCw, UserX, AlertCircle,
   Send,
 } from "lucide-react";
 
-// ─── Types ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 type Tab = "friends" | "requests" | "sent";
 
-// ─── Helpers ───────────────────────────────────────────────────────────────
+// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -52,7 +52,7 @@ function Avatar({ src, name, size = "md" }: { src: string | null; name: string; 
   );
 }
 
-// ─── Friend Card ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Friend Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface FriendCardProps {
   user: FriendUser;
@@ -136,7 +136,7 @@ function FriendCard({ user, onUnfriend, unfriending }: FriendCardProps) {
   );
 }
 
-// ─── Request Card (incoming) ───────────────────────────────────────────────
+// â”€â”€â”€ Request Card (incoming) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface RequestCardProps {
   req: PendingFriendRequest;
@@ -197,7 +197,7 @@ function RequestCard({ req, onAccept, onReject, accepting, rejecting }: RequestC
   );
 }
 
-// ─── Sent Request Card ─────────────────────────────────────────────────────
+// â”€â”€â”€ Sent Request Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface SentCardProps {
   req: PendingFriendRequest;
@@ -263,7 +263,7 @@ function SentCard({ req, onCancel, cancelling }: SentCardProps) {
   );
 }
 
-// ─── Suggestion Card ───────────────────────────────────────────────────────
+// â”€â”€â”€ Suggestion Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface SuggestionCardProps {
   user: FriendUser;
@@ -315,7 +315,7 @@ function SuggestionCard({ user, onAdd, adding, added }: SuggestionCardProps) {
   );
 }
 
-// ─── Main Page ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ Main Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function FriendsPage() {
   const navigate = useNavigate();
@@ -365,7 +365,7 @@ export default function FriendsPage() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  // ── Filtered friends list ─────────────────────────────────────────────
+  // â”€â”€ Filtered friends list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const filteredFriends = useMemo(() => {
     if (!search.trim()) return friends;
     const q = search.toLowerCase();
@@ -374,7 +374,7 @@ export default function FriendsPage() {
     );
   }, [friends, search]);
 
-  // ── Actions ───────────────────────────────────────────────────────────
+  // â”€â”€ Actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   async function handleUnfriend(userId: string) {
     setUnfriendingIds((s) => new Set(s).add(userId));
@@ -437,13 +437,13 @@ export default function FriendsPage() {
       setAddedIds((s) => new Set(s).add(userId));
       setSuggestions((s) => s.filter((u) => u.id !== userId));
     } catch {
-      // ignore — suggestion stays
+      // ignore â€” suggestion stays
     } finally {
       setAddingIds((s) => { const n = new Set(s); n.delete(userId); return n; });
     }
   }
 
-  // ── Loading skeleton ───────────────────────────────────────────────────
+  // â”€â”€ Loading skeleton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (loading) {
     return (
       <div className="min-h-screen bg-bg pb-28 md:pb-12">
@@ -467,7 +467,7 @@ export default function FriendsPage() {
     <div className="min-h-screen bg-bg pb-28 md:pb-12 premium-shell">
       <div className="max-w-2xl mx-auto px-4 py-6 md:py-8">
 
-        {/* ── Header ── */}
+        {/* â”€â”€ Header â”€â”€ */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -478,7 +478,7 @@ export default function FriendsPage() {
             <h1 className="text-2xl font-bold text-text tracking-tight">Friends</h1>
             <p className="text-text-dim text-xs mt-0.5">
               {friends.length} friend{friends.length !== 1 ? "s" : ""}
-              {incoming.length > 0 && ` · ${incoming.length} pending request${incoming.length !== 1 ? "s" : ""}`}
+              {incoming.length > 0 && ` Â· ${incoming.length} pending request${incoming.length !== 1 ? "s" : ""}`}
             </p>
           </div>
           <motion.button
@@ -491,7 +491,7 @@ export default function FriendsPage() {
           </motion.button>
         </motion.div>
 
-        {/* ── Error ── */}
+        {/* â”€â”€ Error â”€â”€ */}
         {fetchError && (
           <div className="bg-error/10 border border-error/25 rounded-xl p-3.5 text-error text-sm mb-5 flex items-center justify-between gap-3">
             <span className="flex items-center gap-2">
@@ -502,7 +502,7 @@ export default function FriendsPage() {
           </div>
         )}
 
-        {/* ── Incoming requests banner ── */}
+        {/* â”€â”€ Incoming requests banner â”€â”€ */}
         <AnimatePresence>
           {incoming.length > 0 && tab !== "requests" && (
             <motion.button
@@ -528,7 +528,7 @@ export default function FriendsPage() {
           )}
         </AnimatePresence>
 
-        {/* ── Tabs ── */}
+        {/* â”€â”€ Tabs â”€â”€ */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -563,7 +563,7 @@ export default function FriendsPage() {
           })}
         </motion.div>
 
-        {/* ── Friends Tab ── */}
+        {/* â”€â”€ Friends Tab â”€â”€ */}
         <AnimatePresence mode="wait">
           {tab === "friends" && (
             <motion.div key="friends" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -576,7 +576,7 @@ export default function FriendsPage() {
                     type="search"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search friends…"
+                    placeholder="Search friendsâ€¦"
                     className="input-luxe w-full pl-10 pr-4 py-2.5 text-sm rounded-xl"
                   />
                 </div>
@@ -619,8 +619,7 @@ export default function FriendsPage() {
               {/* Suggestions */}
               {suggestions.length > 0 && (
                 <div className="mt-6">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Sparkles className="w-3.5 h-3.5 text-primary" />
+                  <div className="mb-3">
                     <p className="text-xs font-bold text-text-dim uppercase tracking-wide">People you may know</p>
                   </div>
                   <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
@@ -641,7 +640,7 @@ export default function FriendsPage() {
             </motion.div>
           )}
 
-          {/* ── Requests Tab ── */}
+          {/* â”€â”€ Requests Tab â”€â”€ */}
           {tab === "requests" && (
             <motion.div key="requests" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               {incoming.length === 0 ? (
@@ -671,7 +670,7 @@ export default function FriendsPage() {
             </motion.div>
           )}
 
-          {/* ── Sent Tab ── */}
+          {/* â”€â”€ Sent Tab â”€â”€ */}
           {tab === "sent" && (
             <motion.div key="sent" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               {sent.length === 0 ? (

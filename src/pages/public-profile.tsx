@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import api from "../lib/api";
 import { useAuth } from "../context/auth-hook";
@@ -10,7 +10,7 @@ import TrustBadge from "../components/trust-badge";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Camera, Grid3x3, Users, Heart, UserPlus, UserCheck, UserX, Clock,
-  X, Loader2, ChevronLeft, ChevronRight, Edit3, Sparkles, Award,
+  X, Loader2, ChevronLeft, ChevronRight, Edit3, Award,
   MessageCircle, ArrowLeft, ShieldBan, ShieldOff, Eye, MoreVertical, Flag, CalendarDays,
   PartyPopper, Flame, Crown, Trophy, Star, Shield, Check, BarChart3, Pin, ChevronDown
 } from "lucide-react";
@@ -162,6 +162,8 @@ export default function PublicProfilePage() {
   const [blockedByThem, setBlockedByThem] = useState(false);
   const [blockLoading, setBlockLoading] = useState(false);
   const [showBlockConfirm, setShowBlockConfirm] = useState(false);
+  const [unfriendConfirm, setUnfriendConfirm] = useState(false);
+  const [deleteCommentConfirmId, setDeleteCommentConfirmId] = useState<string | null>(null);
 
   // Report
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -473,12 +475,11 @@ export default function PublicProfilePage() {
   const memberSince = new Date(profile.created_at).toLocaleDateString("en-IN", { month: "short", year: "numeric" });
   const profilePhotos = photos.filter((photo) => !photo.party_id);
 
-  // ── Public achievements (same unlock logic as own profile) ──
+  // -- Public achievements (same unlock logic as own profile) --
   const achievements = [
     { id: "first-party", icon: PartyPopper, name: "First Party", desc: "Attend your first party", earned: profile.parties_attended >= 1, color: "#F59E0B" },
     { id: "weekend-warrior", icon: Flame, name: "Weekend Warrior", desc: "Attend 5+ parties", earned: profile.parties_attended >= 5, color: "#F97316" },
     { id: "party-animal", icon: Flame, name: "Party Animal", desc: "Attend 10+ parties", earned: profile.parties_attended >= 10, color: "#EF4444" },
-    { id: "nightlife-legend", icon: Sparkles, name: "Nightlife Legend", desc: "Attend 25+ parties", earned: profile.parties_attended >= 25, color: "#D946EF" },
     { id: "host-debut", icon: Crown, name: "Host Debut", desc: "Host your first event", earned: profile.parties_hosted >= 1, color: "#D4A853" },
     { id: "super-host", icon: Trophy, name: "Super Host", desc: "Host 5+ events", earned: profile.parties_hosted >= 5, color: "#EC4899" },
     { id: "festival-host", icon: Award, name: "Festival Host", desc: "Host 15+ events", earned: profile.parties_hosted >= 15, color: "#9B6DFF" },
@@ -548,11 +549,11 @@ export default function PublicProfilePage() {
         <div className="relative" ref={unfriendRef}>
           <button onClick={() => setShowUnfriendMenu((v) => !v)} disabled={friendLoading}
             className="bg-success/15 hover:bg-success/25 text-success border border-success/20 text-sm font-bold px-5 py-2.5 rounded-xl transition flex items-center gap-2 disabled:opacity-50 tap-active">
-            <UserCheck className="w-4 h-4" /> Friends <span className="text-success/60 text-xs">▾</span>
+            <UserCheck className="w-4 h-4" /> Friends <span className="text-success/60 text-xs">?</span>
           </button>
           {showUnfriendMenu && (
             <div className="absolute top-full left-0 mt-1 glass-panel rounded-xl shadow-2xl overflow-hidden z-10 w-44">
-              <button onClick={handleUnfriend} className="w-full text-left px-4 py-2.5 text-xs text-error hover:bg-error/10 transition flex items-center gap-2">
+              <button onClick={() => setUnfriendConfirm(true)} className="w-full text-left px-4 py-2.5 text-xs text-error hover:bg-error/10 transition flex items-center gap-2">
                 <UserX className="w-3.5 h-3.5" /> Unfriend
               </button>
               <button onClick={() => { setShowUnfriendMenu(false); setShowBlockConfirm(true); }} className="w-full text-left px-4 py-2.5 text-xs text-error hover:bg-error/10 transition flex items-center gap-2 border-t border-primary/[0.06]">
@@ -609,7 +610,7 @@ export default function PublicProfilePage() {
           className="glass-panel rounded-3xl overflow-hidden shadow-2xl"
           style={{ boxShadow: `0 8px 48px ${trustLevel.color}18, 0 2px 16px rgba(0,0,0,0.3)` }}
         >
-          {/* ── Card-internal gradient strip (replaces the wasted hero space) ── */}
+          {/* -- Card-internal gradient strip (replaces the wasted hero space) -- */}
           <div className="relative h-28 overflow-hidden">
             {/* Banner image or gradient fallback */}
             {profile.banner_url ? (
@@ -693,9 +694,7 @@ export default function PublicProfilePage() {
               >
                 <Shield className="w-2.5 h-2.5" /> {trustLevel.name}
               </span>
-              <span className="text-text-dim text-[11px] flex items-center gap-1">
-                <Sparkles className="w-2.5 h-2.5" /> Since {memberSince}
-              </span>
+              <span className="text-text-dim text-[11px]">Since {memberSince}</span>
               {!isOwnProfile && mutualFriends.length > 0 && (
                 <div className="flex items-center gap-1">
                   <div className="flex -space-x-1">
@@ -1283,7 +1282,17 @@ export default function PublicProfilePage() {
                             <div className="flex items-center gap-4 mt-1.5 text-xs text-text-dim">
                               <span>{timeAgo(comment.created_at)}</span>
                               <button type="button" onClick={() => setReplyingTo({ id: comment.id, display_name: comment.display_name || comment.username || "User", username: comment.username })} className="font-semibold hover:text-text transition">Reply</button>
-                              {me && me.id === comment.user_id && <button onClick={() => handleDeleteComment(comment.id)} className="text-error hover:text-error/80 transition font-medium">Delete</button>}
+                              {me && me.id === comment.user_id && (
+                                deleteCommentConfirmId === comment.id ? (
+                                  <span className="flex items-center gap-1.5">
+                                    <button onClick={() => { handleDeleteComment(comment.id); setDeleteCommentConfirmId(null); }} className="text-error font-bold transition">Yes, delete</button>
+                                    <span className="text-text-dim/40">·</span>
+                                    <button onClick={() => setDeleteCommentConfirmId(null)} className="font-semibold hover:text-text transition">Cancel</button>
+                                  </span>
+                                ) : (
+                                  <button onClick={() => setDeleteCommentConfirmId(comment.id)} className="text-error hover:text-error/80 transition font-medium">Delete</button>
+                                )
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1310,7 +1319,17 @@ export default function PublicProfilePage() {
                                       <div className="flex items-center gap-3 mt-1 text-[11px] text-text-dim">
                                         <span>{timeAgo(reply.created_at)}</span>
                                         <button type="button" onClick={() => setReplyingTo({ id: comment.id, display_name: comment.display_name || comment.username || "User", username: comment.username })} className="font-semibold hover:text-text transition">Reply</button>
-                                        {me && me.id === reply.user_id && <button onClick={() => handleDeleteComment(reply.id)} className="text-error hover:text-error/80 transition font-medium">Delete</button>}
+                                        {me && me.id === reply.user_id && (
+                                          deleteCommentConfirmId === reply.id ? (
+                                            <span className="flex items-center gap-1.5">
+                                              <button onClick={() => { handleDeleteComment(reply.id); setDeleteCommentConfirmId(null); }} className="text-error font-bold transition">Yes, delete</button>
+                                              <span className="text-text-dim/40">·</span>
+                                              <button onClick={() => setDeleteCommentConfirmId(null)} className="font-semibold hover:text-text transition">Cancel</button>
+                                            </span>
+                                          ) : (
+                                            <button onClick={() => setDeleteCommentConfirmId(reply.id)} className="text-error hover:text-error/80 transition font-medium">Delete</button>
+                                          )
+                                        )}
                                       </div>
                                     </div>
                                   </div>
@@ -1448,6 +1467,48 @@ export default function PublicProfilePage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Unfriend Confirmation Modal */}
+      <AnimatePresence>
+        {unfriendConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90] flex items-center justify-center p-4"
+            onClick={() => setUnfriendConfirm(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="glass-panel rounded-3xl overflow-hidden max-w-sm w-full shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-error/10 border border-error/15 mx-auto mb-4 flex items-center justify-center">
+                  <UserX className="w-7 h-7 text-error" />
+                </div>
+                <h3 className="text-text font-bold text-lg mb-1">Remove Friend?</h3>
+                <p className="text-text-muted text-sm leading-relaxed">You'll no longer be friends. You can always send a friend request again later.</p>
+              </div>
+              <div className="flex border-t border-primary/[0.06]">
+                <button onClick={() => setUnfriendConfirm(false)} className="flex-1 py-3.5 text-sm font-semibold text-text-muted hover:bg-surface-light transition tap-active">
+                  Cancel
+                </button>
+                <button
+                  onClick={() => { handleUnfriend(); setUnfriendConfirm(false); }}
+                  className="flex-1 py-3.5 text-sm font-bold text-error hover:bg-error/10 transition border-l border-primary/[0.06] tap-active"
+                >
+                  Remove
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Comment Delete Confirmation (handled inline) */}
     </div>
   );
 }

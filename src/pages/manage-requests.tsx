@@ -28,7 +28,7 @@ export default function ManageRequestsPage() {
       setRequests(reqsRes.data.data.requests);
       setPartyTitle(partyRes.data.data.party.title);
     } catch (error) {
-      console.error("Failed to load party requests:", getApiErrorMessage(error, "Unknown requests error"));
+      setActionError(getApiErrorMessage(error, "Failed to load requests"));
     } finally {
       setLoading(false);
     }

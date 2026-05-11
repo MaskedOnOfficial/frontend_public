@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Check, PartyPopper, Users, Star, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, Check, PartyPopper, Users, Star, ShieldCheck } from "lucide-react";
 
-// ─── Step Definitions ─────────────────────────────────────────────────────────
+// â”€â”€â”€ Step Definitions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface Step {
   emoji: string;
-  Icon: React.ComponentType<{ className?: string }>;
+  Icon?: React.ComponentType<{ className?: string }>;
   iconColor: string;
   iconBg: string;
   title: string;
@@ -17,17 +17,16 @@ interface Step {
 
 const STEPS: Step[] = [
   {
-    emoji: "🎭",
+    emoji: "ðŸŽ­",
     Icon: PartyPopper,
     iconColor: "text-hot",
     iconBg: "bg-gradient-to-br from-hot/20 to-primary/20",
     title: "Welcome to maskedOn",
     subtitle: "The social platform for party lovers",
-    body: "Discover exclusive events, connect with your crew, and build your nightlife reputation — all in one place.",
+    body: "Discover exclusive events, connect with your crew, and build your nightlife reputation â€” all in one place.",
   },
   {
-    emoji: "🔍",
-    Icon: Sparkles,
+    emoji: "ðŸ”",
     iconColor: "text-primary",
     iconBg: "bg-gradient-to-br from-primary/20 to-accent/20",
     title: "Find Your Vibe",
@@ -35,7 +34,7 @@ const STEPS: Step[] = [
     body: "Browse events near you, see which friends are going, and request to join with a single tap. Hosts personally review every request.",
   },
   {
-    emoji: "⭐",
+    emoji: "â­",
     Icon: Star,
     iconColor: "text-warning",
     iconBg: "bg-gradient-to-br from-warning/20 to-hot/10",
@@ -44,7 +43,7 @@ const STEPS: Step[] = [
     body: "After every event, attendees rate the crowd. Build a high social rating to unlock more exclusive parties with lower entry requirements.",
   },
   {
-    emoji: "🤝",
+    emoji: "ðŸ¤",
     Icon: Users,
     iconColor: "text-accent",
     iconBg: "bg-gradient-to-br from-accent/20 to-primary/10",
@@ -53,7 +52,7 @@ const STEPS: Step[] = [
     body: "Add friends, see where they're headed, and get personalised event picks based on who you know. Your social circle shapes your feed.",
   },
   {
-    emoji: "🛡️",
+    emoji: "ðŸ›¡ï¸",
     Icon: ShieldCheck,
     iconColor: "text-success",
     iconBg: "bg-gradient-to-br from-success/20 to-accent/10",
@@ -65,7 +64,7 @@ const STEPS: Step[] = [
 
 const SPRING = { type: "spring", stiffness: 380, damping: 32 } as const;
 
-// ─── Onboarding Page ──────────────────────────────────────────────────────────
+// â”€â”€â”€ Onboarding Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
@@ -91,14 +90,14 @@ export default function OnboardingPage() {
 
   return (
     <div className="min-h-screen bg-bg flex flex-col px-6 py-safe-top">
-      {/* ── Top Bar ─── */}
+      {/* â”€â”€ Top Bar â”€â”€â”€ */}
       <div className="flex items-center justify-between pt-6 mb-2">
         <button
           onClick={prev}
           aria-label="Previous step"
           className={`text-sm font-semibold text-text-muted hover:text-text transition tap-active ${step === 0 ? "invisible" : ""}`}
         >
-          ← Back
+          â† Back
         </button>
         <button
           onClick={finish}
@@ -108,7 +107,7 @@ export default function OnboardingPage() {
         </button>
       </div>
 
-      {/* ── Progress Bar ─── */}
+      {/* â”€â”€ Progress Bar â”€â”€â”€ */}
       <div className="flex items-center gap-1.5 mt-3 mb-10">
         {STEPS.map((_, i) => (
           <div
@@ -121,7 +120,7 @@ export default function OnboardingPage() {
         ))}
       </div>
 
-      {/* ── Slide Content ─── */}
+      {/* â”€â”€ Slide Content â”€â”€â”€ */}
       <div className="flex-1 flex flex-col items-center justify-center max-w-sm mx-auto w-full text-center">
         <AnimatePresence mode="wait">
           <motion.div
@@ -140,7 +139,7 @@ export default function OnboardingPage() {
               className={`w-28 h-28 rounded-[2rem] ${current.iconBg} flex flex-col items-center justify-center mb-8 shadow-lg`}
             >
               <span className="text-5xl leading-none mb-1" role="img" aria-hidden>{current.emoji}</span>
-              <Icon className={`w-5 h-5 ${current.iconColor} opacity-70`} />
+              {Icon && <Icon className={`w-5 h-5 ${current.iconColor} opacity-70`} />}
             </motion.div>
 
             {/* Text */}
@@ -172,7 +171,7 @@ export default function OnboardingPage() {
         </AnimatePresence>
       </div>
 
-      {/* ── Bottom Controls ─── */}
+      {/* â”€â”€ Bottom Controls â”€â”€â”€ */}
       <div className="max-w-sm mx-auto w-full pb-10 pt-8 flex flex-col items-center gap-5">
         {/* Dots */}
         <div className="flex items-center gap-2">

@@ -156,11 +156,12 @@ export default function RateCrowdPage() {
         ) : (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="glass-panel rounded-2xl p-6 text-center">
             <p className="text-text font-bold mb-1">How was the crowd energy?</p>
-            <p className="text-text-dim text-xs mb-4">Rating window closes {deadlineStr}</p>
+            <p className="text-text-muted text-xs mb-1">Rating window closes {deadlineStr}</p>
+            <p className="text-text-dim text-xs mb-4">1 star = terrible &nbsp;·&nbsp; 5 stars = electric — affects the host's vibe score</p>
             <div
-              className="flex items-center justify-center gap-2 mb-3"
-              role="radiogroup"
-              aria-label="Rate the crowd energy"
+              className="flex items-center justify-center gap-3 mb-3"
+              role="group"
+              aria-label="Rate the crowd energy from 1 to 5 stars"
               onKeyDown={(e) => {
                 if (e.key === "ArrowRight" || e.key === "ArrowUp") {
                   e.preventDefault();
@@ -175,9 +176,7 @@ export default function RateCrowdPage() {
                 <button
                   key={i}
                   type="button"
-                  role="radio"
-                  aria-checked={score === i}
-                  aria-label={`${i} star${i !== 1 ? "s" : ""}`}
+                  aria-label={`${i} star${i !== 1 ? "s" : ""}${score === i ? " (selected)" : ""}`}
                   onMouseEnter={() => setHoverScore(i)}
                   onMouseLeave={() => setHoverScore(0)}
                   onClick={() => setScore(i)}
@@ -185,18 +184,21 @@ export default function RateCrowdPage() {
                   className="transition-all duration-200 hover:scale-125 active:scale-95 tap-active focus-visible:ring-2 focus-visible:ring-warning/60 rounded-full outline-none"
                 >
                   <Star
-                    className={`w-10 h-10 transition-all duration-200 ${
+                    className={`w-11 h-11 transition-all duration-200 ${
                       i <= activeScore
-                        ? "text-warning drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]"
-                        : "text-text-dim/20"
+                        ? "text-warning drop-shadow-[0_0_10px_rgba(245,158,11,0.6)]"
+                        : "text-text-muted/70"
                     }`}
                     fill={i <= activeScore ? "currentColor" : "none"}
-                    strokeWidth={i <= activeScore ? 0 : 1.5}
+                    strokeWidth={i <= activeScore ? 0 : 1.75}
                   />
                 </button>
               ))}
             </div>
-            <p className="text-text-muted text-sm font-medium h-5 mb-4">
+            <p className={`text-sm font-semibold h-5 mb-4 transition-colors ${
+              activeScore === 0 ? "text-text-dim" : "text-text"
+            }`}>
+              {activeScore === 0 && "Tap a star to rate"}
               {activeScore === 1 && "Terrible vibes 😬"}
               {activeScore === 2 && "Below average 😕"}
               {activeScore === 3 && "Decent crowd 🙂"}

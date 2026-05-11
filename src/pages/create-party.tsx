@@ -1,8 +1,9 @@
-﻿import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/auth-hook";
 import { compressAndStripMetadata } from "../lib/image-utils";
 import api from "../lib/api";
+import { getApiErrorMessage } from "../lib/errors";
 import { isNative } from "../lib/capacitor";
 import { takePhoto } from "../lib/native-camera";
 import { hapticsMedium } from "../lib/haptics";
@@ -11,7 +12,7 @@ import { COUNTRIES, getStatesForCountry, getDistrictsForState } from "../lib/loc
 import { motion, AnimatePresence } from "framer-motion";
 import MapPicker from "../components/MapPicker";
 import {
-  MapPin, Clock, Users, Ticket, Shield, Loader2, Sparkles, X,
+  MapPin, Clock, Ticket, Shield, Loader2, X,
   ChevronLeft, Camera, Upload, Calendar, Zap, Crown, PartyPopper,
   Check, Save, Trash2, Info, Lock, Eye, EyeOff, UtensilsCrossed,
   Leaf, Wine, Cigarette, AlertTriangle, Globe, Image, Navigation,
@@ -26,16 +27,9 @@ const DRAFT_KEY = "maskedon_party_draft_v2";
 
 const PRICE_PRESETS = [
   { label: "Free", value: 0, icon: PartyPopper, desc: "Open to all" },
-  { label: "₹500", value: 300, icon: Ticket, desc: "Budget friendly" },
-  { label: "₹1000", value: 1000, icon: Crown, desc: "Premium vibes" },
+  { label: "?500", value: 300, icon: Ticket, desc: "Budget friendly" },
+  { label: "?1000", value: 1000, icon: Crown, desc: "Premium vibes" },
   { label: "Custom", value: -1, icon: Zap, desc: "Set your own" },
-];
-
-const CAPACITY_PRESETS = [
-  { label: "Small", value: 30, emoji: "🍸" },
-  { label: "Medium", value: 75, emoji: "🎉" },
-  { label: "Large", value: 200, emoji: "🏟️" },
-  { label: "Massive", value: 500, emoji: "🔥" },
 ];
 
 const TRUST_GATES = [
@@ -73,8 +67,7 @@ interface FormState {
   // Time
   date_time: string;
   end_time: string;
-  // Capacity & pricing
-  max_capacity: number;
+  // Pricing
   ticket_price: number;
   // Tags & trust
   tags: string[];
@@ -106,7 +99,6 @@ const EMPTY_FORM: FormState = {
   longitude: null,
   date_time: "",
   end_time: "",
-  max_capacity: 30,
   ticket_price: 0,
   tags: [],
   min_rating: 0,
@@ -237,6 +229,10 @@ export default function CreatePartyPage() {
   const [dir, setDir] = useState(1);
   const [showDraft, setShowDraft] = useState(false);
   const [priceTier, setPriceTier] = useState(0);
+  // Deposit flow
+  const [depositModal, setDepositModal] = useState<{ partyId: string; depositAmount: number } | null>(null);
+  const [depositPaying, setDepositPaying] = useState(false);
+  const [depositError, setDepositError] = useState("");
 
   const [form, setForm] = useState<FormState>({ ...EMPTY_FORM });
   const [coverFile, setCoverFile] = useState<File | null>(null);
@@ -436,7 +432,6 @@ export default function CreatePartyPage() {
         if (formSnap.longitude !== null) fd.append("longitude", String(formSnap.longitude));
         fd.append("date_time", new Date(formSnap.date_time).toISOString());
         fd.append("end_time", new Date(formSnap.end_time).toISOString());
-        fd.append("max_capacity", String(formSnap.max_capacity));
         fd.append("ticket_price", String(Math.round(Number(formSnap.ticket_price) * 100)));
         if (formSnap.tags.length > 0) fd.append("tags", JSON.stringify(formSnap.tags));
         if (formSnap.min_rating > 0) fd.append("min_rating", String(formSnap.min_rating));
@@ -473,8 +468,106 @@ export default function CreatePartyPage() {
       },
     });
 
-    // Navigate immediately — the progress toast handles the rest.
+    // For paid events: do NOT navigate away — wait for deposit modal
+    if (Number(formSnap.ticket_price) > 0) {
+      // Submit directly (not as background job) to capture response
+      setLoading(true);
+      try {
+        const fd2 = new FormData();
+        fd2.append("title", formSnap.title);
+        if (formSnap.description) fd2.append("description", formSnap.description);
+        fd2.append("location_name", formSnap.location_name);
+        fd2.append("location_city", formSnap.location_district || formSnap.location_city);
+        fd2.append("location_country", formSnap.location_country);
+        fd2.append("location_state", formSnap.location_state);
+        fd2.append("location_district", formSnap.location_district);
+        if (formSnap.latitude !== null) fd2.append("latitude", String(formSnap.latitude));
+        if (formSnap.longitude !== null) fd2.append("longitude", String(formSnap.longitude));
+        fd2.append("date_time", new Date(formSnap.date_time).toISOString());
+        fd2.append("end_time", new Date(formSnap.end_time).toISOString());
+        fd2.append("ticket_price", String(Math.round(Number(formSnap.ticket_price) * 100)));
+        if (formSnap.tags.length > 0) fd2.append("tags", JSON.stringify(formSnap.tags));
+        if (formSnap.min_rating > 0) fd2.append("min_rating", String(formSnap.min_rating));
+        fd2.append("is_private", String(formSnap.is_private));
+        fd2.append("allow_photos", String(formSnap.allow_photos));
+        if (formSnap.food_type) fd2.append("food_type", formSnap.food_type);
+        fd2.append("allows_alcohol", String(formSnap.allows_alcohol));
+        fd2.append("allows_smoking", String(formSnap.allows_smoking));
+        fd2.append("allows_other_substances", String(formSnap.allows_other_substances));
+        if (coverFileSnap) {
+          const compressed = await compressAndStripMetadata(coverFileSnap, { maxSizeMB: 1, maxWidthOrHeight: 1920 });
+          fd2.append("cover_image", compressed);
+        }
+        const directRes = await api.post("/parties", fd2, { headers: { "Content-Type": "multipart/form-data" } });
+        clearDraft(draftKeySnap);
+        const { party, deposit_required, deposit_amount } = directRes.data.data;
+        if (deposit_required && deposit_amount > 0) {
+          setDepositModal({ partyId: party.id, depositAmount: deposit_amount });
+        } else {
+          navigate(`/parties/${party.id}`, { replace: true });
+        }
+      } catch (err) {
+        setError(getApiErrorMessage(err, "Failed to create event"));
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // Navigate immediately — the progress toast handles the rest (free events only).
     navigate("/", { replace: true });
+  }
+
+  async function handleDepositPay() {
+    if (!depositModal) return;
+    setDepositPaying(true);
+    setDepositError("");
+    try {
+      const initRes = await api.post(`/parties/${depositModal.partyId}/deposit/initiate`);
+      const { order_id, amount, currency, key_id } = initRes.data.data;
+
+      await new Promise<void>((resolve, reject) => {
+        const rzp = new (window as unknown as { Razorpay: new (opts: unknown) => { open(): void } }).Razorpay({
+          key: key_id,
+          amount,
+          currency,
+          order_id,
+          name: "maskOn",
+          description: "Refundable host security deposit",
+          theme: { color: "#6C63FF" },
+          handler: async (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => {
+            try {
+              await api.post(`/parties/${depositModal.partyId}/deposit/verify`, {
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature,
+              });
+              resolve();
+            } catch (e) {
+              reject(e);
+            }
+          },
+          modal: { ondismiss: () => reject(new Error("Payment dismissed")) },
+        });
+        rzp.open();
+      });
+
+      navigate(`/parties/${depositModal.partyId}`, { replace: true });
+    } catch (err) {
+      const msg = (err as Error).message;
+      if (msg === "Payment dismissed") {
+        setDepositError("Payment cancelled. You can pay the deposit from the event page.");
+      } else {
+        setDepositError(getApiErrorMessage(err, "Deposit payment failed. Please try again."));
+      }
+    } finally {
+      setDepositPaying(false);
+    }
+  }
+
+  function handleDepositSkip() {
+    if (!depositModal) return;
+    navigate(`/parties/${depositModal.partyId}`, { replace: true });
   }
 
   const isFree = Number(form.ticket_price) === 0;
@@ -486,13 +579,13 @@ export default function CreatePartyPage() {
   };
 
   return (
+    <>
     <div className="min-h-screen bg-bg pb-32">
       <div className="max-w-lg mx-auto px-4 pt-6 pb-4">
 
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-5">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/8 border border-primary/15 mb-3">
-            <Sparkles className="w-3.5 h-3.5 text-primary" />
+          <div className="inline-flex items-center px-3 py-1 rounded-full bg-primary/8 border border-primary/15 mb-3">
             <span className="text-[11px] font-bold text-primary uppercase tracking-[0.15em]">Create Experience</span>
           </div>
           <h1 className="text-2xl font-bold text-text tracking-tight">{STEP_META[step - 1].title}</h1>
@@ -891,39 +984,6 @@ export default function CreatePartyPage() {
               <motion.div key="s4" custom={dir} variants={slide} initial="enter" animate="center" exit="exit"
                 transition={{ duration: 0.25, ease: "easeInOut" }} className="space-y-4">
 
-                {/* Capacity */}
-                <div className="glass-panel rounded-2xl p-5 space-y-3">
-                  <h2 className="text-sm font-bold text-text flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-hot/10 flex items-center justify-center">
-                      <Users className="w-4 h-4 text-hot" />
-                    </div>
-                    Guest Capacity
-                  </h2>
-                  <div className="grid grid-cols-4 gap-2">
-                    {CAPACITY_PRESETS.map((p) => (
-                      <button key={p.value} type="button"
-                        onClick={() => { setForm((prev) => ({ ...prev, max_capacity: p.value })); hapticsMedium(); }}
-                        className={`flex flex-col items-center gap-0.5 p-2.5 rounded-xl transition-all duration-200 tap-active
-                          ${form.max_capacity === p.value ? "host-capacity-active" : "host-capacity-idle"}`}>
-                        <span className="text-base leading-none">{p.emoji}</span>
-                        <span className="text-[9px] font-bold uppercase tracking-wider mt-0.5">{p.label}</span>
-                        <span className="text-[9px] text-text-dim">{p.value}</span>
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-text-dim font-medium">Custom →</span>
-                    <input
-                      type="number"
-                      value={form.max_capacity}
-                      onChange={(e) => setForm({ ...form, max_capacity: Math.max(2, Math.min(10000, Number(e.target.value))) })}
-                      min={2}
-                      max={10000}
-                      className="input-luxe w-24 rounded-lg px-3 py-2 text-sm text-center"
-                    />
-                  </div>
-                </div>
-
                 {/* Pricing */}
                 <div className="glass-panel rounded-2xl p-5 space-y-4">
                   <h2 className="text-sm font-bold text-text flex items-center gap-2">
@@ -950,7 +1010,7 @@ export default function CreatePartyPage() {
                   <AnimatePresence>
                     {priceTier === 3 && (
                       <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-                        <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Price (₹)</label>
+                        <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Price (?)</label>
                         <input
                           type="number"
                           value={form.ticket_price}
@@ -1053,9 +1113,9 @@ export default function CreatePartyPage() {
                   <div className="grid grid-cols-3 gap-2">
                     {(
                       [
-                        { value: "veg", label: "Veg", emoji: "🥗", color: "text-success" },
-                        { value: "non_veg", label: "Non-Veg", emoji: "🍖", color: "text-error" },
-                        { value: "vegan", label: "Vegan", emoji: "🌱", color: "text-accent" },
+                        { value: "veg", label: "Veg", emoji: "??", color: "text-success" },
+                        { value: "non_veg", label: "Non-Veg", emoji: "??", color: "text-error" },
+                        { value: "vegan", label: "Vegan", emoji: "??", color: "text-accent" },
                       ] as { value: "veg" | "non_veg" | "vegan"; label: string; emoji: string; color: string }[]
                     ).map((f) => (
                       <button key={f.value} type="button"
@@ -1140,12 +1200,8 @@ export default function CreatePartyPage() {
                       <span>{form.date_time ? new Date(form.date_time).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "—"}</span>
                     </div>
                     <div className="flex items-center gap-2 text-text-muted">
-                      <Users className="w-3.5 h-3.5 text-hot shrink-0" />
-                      <span>{form.max_capacity} guests</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-text-muted">
                       <Ticket className="w-3.5 h-3.5 text-warning shrink-0" />
-                      <span>{isFree ? "Free" : `₹${form.ticket_price}`}</span>
+                      <span>{isFree ? "Free" : `?${form.ticket_price}`}</span>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-1.5 pt-1">
@@ -1207,5 +1263,80 @@ export default function CreatePartyPage() {
 
       </div>
     </div>
+
+    {/* Deposit Payment Modal */}
+    <AnimatePresence>
+      {depositModal && (
+        <motion.div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div
+            className="w-full max-w-md mx-auto glass-panel rounded-t-3xl sm:rounded-3xl p-6 pb-8"
+            initial={{ y: 80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 80, opacity: 0 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          >
+            {/* Icon */}
+            <div className="flex justify-center mb-4">
+              <div className="w-14 h-14 rounded-full bg-primary/15 flex items-center justify-center">
+                <Shield className="w-7 h-7 text-primary" />
+              </div>
+            </div>
+
+            <h2 className="text-xl font-bold text-text text-center mb-1">Security Deposit Required</h2>
+            <p className="text-sm text-text-dim text-center mb-5">
+              Your event has been created! To activate it, a refundable security deposit is required.
+            </p>
+
+            {/* Deposit amount card */}
+            <div className="rounded-2xl bg-primary/8 border border-primary/20 p-4 mb-5">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm text-text-dim">Security deposit</span>
+                <span className="text-lg font-bold text-primary">
+                  ?{(depositModal.depositAmount / 100).toLocaleString("en-IN")}
+                </span>
+              </div>
+              <p className="text-xs text-text-dim leading-relaxed">
+                This is 10% of your ticket price. It will be refunded to your account within 7–10 days after your event successfully completes.
+              </p>
+            </div>
+
+            {depositError && (
+              <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-error/10 border border-error/20 mb-4">
+                <AlertTriangle className="w-3.5 h-3.5 text-error shrink-0 mt-0.5" />
+                <p className="text-xs text-error leading-relaxed">{depositError}</p>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleDepositPay}
+              disabled={depositPaying}
+              className="w-full py-3.5 rounded-2xl btn-primary-luxe font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2 tap-active mb-3"
+            >
+              {depositPaying ? (
+                <><Loader2 className="w-4 h-4 animate-spin" />Processing…</>
+              ) : (
+                <><Ticket className="w-4 h-4" />Pay ?{(depositModal.depositAmount / 100).toLocaleString("en-IN")} deposit</>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDepositSkip}
+              disabled={depositPaying}
+              className="w-full py-3 rounded-2xl btn-secondary-luxe font-semibold text-sm tap-active"
+            >
+              Skip for now (event may be inactive)
+            </button>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+    </>
   );
 }

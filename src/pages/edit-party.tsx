@@ -9,7 +9,7 @@ import { getTrustLevel } from "../lib/trust-levels";
 import { isNative } from "../lib/capacitor";
 import { takePhoto } from "../lib/native-camera";
 import { motion } from "framer-motion";
-import { Image, MapPin, Clock, Users, Ticket, Shield, Tag, Loader2, Sparkles, X, ChevronDown, Eye, ArrowLeft } from "lucide-react";
+import { Image, MapPin, Clock, Ticket, Shield, Tag, Loader2, X, ChevronDown, Eye, ArrowLeft } from "lucide-react";
 
 function toLocalDatetime(iso: string): string {
   const d = new Date(iso);
@@ -22,7 +22,6 @@ interface PreviewForm {
   title: string;
   location_city: string;
   date_time: string;
-  max_capacity: number;
   ticket_price: number;
   min_rating: number;
 }
@@ -34,10 +33,9 @@ function PreviewCard({ form, isFree }: { form: PreviewForm; isFree: boolean }) {
       <h3 className="text-lg font-bold text-text mb-5 tracking-tight">{form.title.trim() || "Untitled Experience"}</h3>
       <div className="space-y-3.5 text-sm">
         {[
-          { icon: MapPin, label: "City", value: form.location_city || "—", color: "text-accent" },
-          { icon: Clock, label: "When", value: form.date_time ? new Date(form.date_time).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "—", color: "text-primary" },
-          { icon: Users, label: "Capacity", value: `${form.max_capacity} guests`, color: "text-text-muted" },
-          { icon: Ticket, label: "Entry", value: isFree ? "Free" : `₹${Number(form.ticket_price || 0)}`, color: "text-hot" },
+          { icon: MapPin, label: "City", value: form.location_city || "â€”", color: "text-accent" },
+          { icon: Clock, label: "When", value: form.date_time ? new Date(form.date_time).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "â€”", color: "text-primary" },
+          { icon: Ticket, label: "Entry", value: isFree ? "Free" : `â‚¹${Number(form.ticket_price || 0)}`, color: "text-hot" },
           { icon: Shield, label: "Trust gate", value: Number(form.min_rating) > 0 ? getTrustLevel(Number(form.min_rating), 1).name + "+" : "Open", color: "text-warning" },
         ].map((item) => (
           <div key={item.label} className="flex items-center justify-between">
@@ -68,7 +66,6 @@ export default function EditPartyPage() {
     location_city: "",
     date_time: "",
     end_time: "",
-    max_capacity: 20,
     ticket_price: 0,
     tags: "",
     min_rating: 0,
@@ -107,7 +104,6 @@ export default function EditPartyPage() {
         location_city: p.location_city,
         date_time: toLocalDatetime(p.date_time),
         end_time: p.end_time ? toLocalDatetime(p.end_time) : "",
-        max_capacity: p.max_capacity,
         ticket_price: p.ticket_price / 100,
         tags: parseTags(p.tags).join(", "),
         min_rating: p.min_rating,
@@ -181,7 +177,6 @@ export default function EditPartyPage() {
         }
         formData.append("end_time", new Date(form.end_time).toISOString());
       }
-      formData.append("max_capacity", String(form.max_capacity));
       formData.append("ticket_price", String(Math.round(Number(form.ticket_price) * 100)));
       if (form.tags) {
         const tags = form.tags.split(",").map((t) => t.trim()).filter(Boolean);
@@ -275,7 +270,7 @@ export default function EditPartyPage() {
               <div>
                 <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Tags</label>
                 <input name="tags" value={form.tags} onChange={handleChange} placeholder="rooftop, afro-house, intimate" maxLength={500} className="input-luxe w-full rounded-xl px-4 py-3.5" />
-                <p className="text-text-dim text-xs mt-1.5">{tagCount} tag{tagCount === 1 ? "" : "s"} · Separate with commas</p>
+                <p className="text-text-dim text-xs mt-1.5">{tagCount} tag{tagCount === 1 ? "" : "s"} Â· Separate with commas</p>
               </div>
             </section>
 
@@ -331,16 +326,12 @@ export default function EditPartyPage() {
               </div>
             </section>
 
-            {/* Capacity & Pricing */}
+            {/* Pricing & Trust */}
             <section className="glass-panel rounded-2xl p-5 space-y-5">
-              <h2 className="text-base font-bold text-text flex items-center gap-2"><Users className="w-4 h-4 text-hot" />Capacity, Pricing & Trust</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <h2 className="text-base font-bold text-text flex items-center gap-2"><Ticket className="w-4 h-4 text-warning" />Pricing &amp; Trust</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Max Capacity *</label>
-                  <input type="number" name="max_capacity" value={form.max_capacity} onChange={handleChange} min={2} max={10000} required className="input-luxe w-full rounded-xl px-4 py-3.5" aria-label="Maximum party capacity" />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Ticket Price (₹)</label>
+                  <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Ticket Price (â‚¹)</label>
                   <input type="number" name="ticket_price" value={form.ticket_price} onChange={(e) => setForm({ ...form, ticket_price: Math.max(0, Number(e.target.value)) })} min={0} step="1" className="input-luxe w-full rounded-xl px-4 py-3.5" aria-label="Ticket price in rupees" />
                   <span className="text-text-dim text-xs mt-1.5 block">0 = Free entry</span>
                 </div>
@@ -353,7 +344,7 @@ export default function EditPartyPage() {
             </section>
 
             <button type="submit" disabled={saving} className="btn-primary-luxe w-full font-bold py-4 rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2">
-              {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving Changes...</> : <><Sparkles className="w-4 h-4" />Save Changes</>}
+              {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving Changes...</> : <>Save Changes</>}
             </button>
           </form>
 

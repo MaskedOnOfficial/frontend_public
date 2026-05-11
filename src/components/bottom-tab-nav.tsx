@@ -1,14 +1,14 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Home, Compass, Plus, Inbox, User } from "lucide-react";
+import { Home, Compass, SquarePen, Inbox, User } from "lucide-react";
 import { useAuth } from "../context/auth-hook";
 
 const tabs = [
-  { to: "/", label: "Feed", icon: Home, end: true },
-  { to: "/parties", label: "Discover", icon: Compass, end: true },
-  { to: "/parties/create", label: "Host", icon: Plus, end: false, special: true },
-  { to: "/my-requests", label: "Requests", icon: Inbox, end: false },
-  { to: "/profile/me", label: "Profile", icon: User, end: false },
+  { to: "/",            label: "Feed",     icon: Home,      end: true  },
+  { to: "/post",        label: "Post",     icon: SquarePen, end: false },
+  { to: "/parties",     label: "Events",   icon: Compass,   end: false, special: true },
+  { to: "/my-requests", label: "Requests", icon: Inbox,     end: false },
+  { to: "/profile/me",  label: "Profile",  icon: User,      end: false },
 ] as const;
 
 export default function BottomTabNav() {
@@ -18,6 +18,16 @@ export default function BottomTabNav() {
   // Highlight Profile tab for /profile/me and /settings
   function isProfileActive() {
     return location.pathname === "/profile/me" || location.pathname.startsWith("/settings");
+  }
+
+  // Highlight Events tab for all /parties/* routes (not /parties/create which is now via /post)
+  function isEventsActive() {
+    return location.pathname.startsWith("/parties");
+  }
+
+  // Highlight Post tab for /post
+  function isPostActive() {
+    return location.pathname === "/post";
   }
 
   return (
@@ -30,6 +40,8 @@ export default function BottomTabNav() {
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isProfileTab = tab.to === "/profile/me";
+            const isEventsTab  = tab.to === "/parties";
+            const isPostTab    = tab.to === "/post";
             return (
               <li key={tab.to}>
                 <NavLink
@@ -37,7 +49,10 @@ export default function BottomTabNav() {
                   end={tab.end}
                   aria-label={tab.label}
                   className={({ isActive: navIsActive }) => {
-                    const isActive = isProfileTab ? isProfileActive() : navIsActive;
+                    const isActive = isProfileTab ? isProfileActive()
+                      : isEventsTab  ? isEventsActive()
+                      : isPostTab    ? isPostActive()
+                      : navIsActive;
                     return `flex flex-col items-center justify-center py-1.5 text-[10px] font-semibold transition-colors tap-active ${
                       'special' in tab && tab.special
                         ? "text-primary"
@@ -48,7 +63,10 @@ export default function BottomTabNav() {
                   }}
                 >
                   {({ isActive: navIsActive }) => {
-                    const isActive = isProfileTab ? isProfileActive() : navIsActive;
+                    const isActive = isProfileTab ? isProfileActive()
+                      : isEventsTab  ? isEventsActive()
+                      : isPostTab    ? isPostActive()
+                      : navIsActive;
                     return (
                     <>
                       {'special' in tab && tab.special ? (

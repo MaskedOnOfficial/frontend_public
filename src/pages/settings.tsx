@@ -5,7 +5,7 @@ import { useTheme } from "../context/use-theme";
 import api from "../lib/api";
 import { getApiErrorMessage } from "../lib/errors";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Edit3, Moon, Sun, LogOut, Shield, User, Mail, Calendar, Loader2, Lock, Trash2, Eye, EyeOff, HelpCircle, FileText, MessageCircle, Bug, ChevronRight } from "lucide-react";
+import { ArrowLeft, Edit3, Moon, Sun, LogOut, Shield, User, Mail, Calendar, Loader2, Lock, Trash2, Eye, EyeOff, HelpCircle, FileText, MessageCircle, Bug, ChevronRight, Upload, CheckCircle, Clock, XCircle, AlertCircle } from "lucide-react";
 
 export default function SettingsPage() {
   const { user, logout, refreshUser } = useAuth();
@@ -38,6 +38,14 @@ export default function SettingsPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const deleteDialogRef = useRef<HTMLDivElement>(null);
+
+  // ID verification
+  const [idFile, setIdFile] = useState<File | null>(null);
+  const [idUploading, setIdUploading] = useState(false);
+  const [idMessage, setIdMessage] = useState("");
+  const [idMessageType, setIdMessageType] = useState<"success" | "error">("success");
+  const [localIdStatus, setLocalIdStatus] = useState<string | null>(null);
+  const idFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (user) {
@@ -124,6 +132,34 @@ export default function SettingsPage() {
   async function handleSignOut() {
     await logout();
     navigate("/auth/login", { replace: true });
+  }
+
+  async function handleIdVerificationSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!idFile) {
+      setIdMessage("Please select a document image first.");
+      setIdMessageType("error");
+      return;
+    }
+    setIdUploading(true);
+    setIdMessage("");
+    try {
+      const formData = new FormData();
+      formData.append("document", idFile);
+      await api.post("/users/me/id-verification", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setLocalIdStatus("pending");
+      setIdFile(null);
+      if (idFileInputRef.current) idFileInputRef.current.value = "";
+      setIdMessage("Your ID has been submitted for review. We'll notify you within 2-3 business days.");
+      setIdMessageType("success");
+    } catch (err: unknown) {
+      setIdMessage(getApiErrorMessage(err, "Upload failed. Please try again."));
+      setIdMessageType("error");
+    } finally {
+      setIdUploading(false);
+    }
   }
 
   if (!user) return null;
@@ -257,6 +293,72 @@ export default function SettingsPage() {
             Open Host Dashboard
           </Link>
         </motion.div>
+
+        {/* ID Verification */}
+        {(() => {
+          const idStatus = localIdStatus ?? user.id_verification_status ?? "not_submitted";
+          type IdStatusCfg = { label: string; color: string; bg: string };
+          const statusConfig: Record<string, IdStatusCfg> = {
+            not_submitted: { label: "Not submitted", color: "text-text-muted", bg: "bg-surface-light" },
+            pending:       { label: "Under review",  color: "text-warning",    bg: "bg-warning/10" },
+            verified:      { label: "Verified",      color: "text-success",    bg: "bg-success/10" },
+            rejected:      { label: "Rejected",      color: "text-error",      bg: "bg-error/10" },
+          };
+          const cfg = statusConfig[idStatus] ?? statusConfig["not_submitted"];
+          const StatusIcon = idStatus === "verified" ? CheckCircle : idStatus === "pending" ? Clock : idStatus === "rejected" ? XCircle : AlertCircle;
+          const canSubmit = idStatus === "not_submitted" || idStatus === "rejected";
+
+          return (
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+              className="glass-panel rounded-2xl p-6 mb-4">
+              <h2 className="text-sm font-bold text-text mb-1 flex items-center gap-2">
+                <Shield className="w-3.5 h-3.5 text-primary" /> Identity Verification
+              </h2>
+              <p className="text-text-dim text-xs mb-4">
+                Upload a government-issued ID (Aadhaar or PAN) for a verified badge. Documents are stored securely and never shared publicly.
+              </p>
+
+              {/* Status badge */}
+              <div className={`flex items-center gap-2 px-3 py-2 rounded-xl mb-4 ${cfg.bg}`}>
+                <StatusIcon className={`w-4 h-4 shrink-0 ${cfg.color}`} />
+                <span className={`text-xs font-semibold ${cfg.color}`}>{cfg.label}</span>
+              </div>
+
+              {idMessage && (
+                <div className={`text-xs px-3 py-2 rounded-lg mb-4 ${idMessageType === "error" ? "bg-error/10 text-error" : "bg-success/10 text-success"}`}
+                  role="alert" aria-live="polite">
+                  {idMessage}
+                </div>
+              )}
+
+              {canSubmit && (
+                <form onSubmit={handleIdVerificationSubmit} className="space-y-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">
+                      Select Document
+                    </label>
+                    <input
+                      ref={idFileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={(e) => setIdFile(e.target.files?.[0] ?? null)}
+                      className="block w-full text-sm text-text-muted file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:btn-secondary-luxe cursor-pointer"
+                      aria-label="Upload Aadhaar or PAN card image"
+                    />
+                    <p className="text-[10px] text-text-dim mt-1">JPEG, PNG or WebP · Max 5 MB</p>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={!idFile || idUploading}
+                    className="btn-primary-luxe w-full py-2.5 text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {idUploading ? <><Loader2 className="w-4 h-4 animate-spin" />Uploading…</> : <><Upload className="w-4 h-4" />Submit for Verification</>}
+                  </button>
+                </form>
+              )}
+            </motion.div>
+          );
+        })()}
 
         {/* Change Password */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}

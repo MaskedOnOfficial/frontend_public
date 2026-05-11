@@ -31,11 +31,10 @@ import RateCrowdPage from "./pages/rate-crowd";
 import PartyPhotosPage from "./pages/party-photos";
 import UserPhotosPage from "./pages/user-photos";
 import NotificationsPage from "./pages/notifications";
-import MessagesPage from "./pages/messages";
-import MessageThreadPage from "./pages/message-thread";
 import PublicProfilePage from "./pages/public-profile";
 import SearchPage from "./pages/search";
 import CreatePostPage from "./pages/create-post";
+import PostHubPage from "./pages/post-hub";
 import FriendsPage from "./pages/friends";
 import AchievementsPage from "./pages/achievements";
 import AttendeesPage from "./pages/attendees";
@@ -80,12 +79,12 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
     return { hasError: true, error };
   }
 
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error("[ErrorBoundary]", error, info.componentStack);
+  }
+
   render() {
     if (this.state.hasError) {
-      const safeMessage = import.meta.env.PROD
-        ? "An unexpected error occurred. Please refresh and try again."
-        : this.state.error?.message || "An unexpected error occurred.";
-
       return (
         <div className="min-h-screen bg-bg flex items-center justify-center px-4">
           <div className="text-center max-w-md">
@@ -93,7 +92,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
               <span className="text-3xl">⚠️</span>
             </div>
             <h1 className="text-xl font-bold text-text mb-2">Something went wrong</h1>
-            <p className="text-text-muted text-sm mb-6">{safeMessage}</p>
+            <p className="text-text-muted text-sm mb-6">Something unexpected happened. Please go back and try again.</p>
             <button
               onClick={() => { this.setState({ hasError: false, error: null }); window.location.href = "/"; }}
               className="btn-primary-luxe font-bold px-6 py-3 rounded-xl"
@@ -358,11 +357,10 @@ function AppShell() {
           <Route path="/profile/:userId"                element={<PublicProfilePage />} />
           <Route path="/profile/:userId/photos"         element={<UserPhotosPage />} />
           <Route path="/notifications"                  element={<NotificationsPage />} />
-          <Route path="/messages"                       element={<MessagesPage />} />
-          <Route path="/messages/:conversationId"       element={<MessageThreadPage />} />
           <Route path="/search"                         element={<SearchPage />} />
           <Route path="/settings"                       element={<SettingsPage />} />
           <Route path="/create-post"                    element={<CreatePostPage />} />
+          <Route path="/post"                           element={<PostHubPage />} />
           <Route path="/onboarding"                     element={<OnboardingPage />} />
           <Route path="/dashboard/analytics"            element={<HostAnalyticsPage />} />
         </Route>

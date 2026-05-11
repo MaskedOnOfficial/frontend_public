@@ -4,7 +4,7 @@ import type { Photo } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
 import { useBackButton } from "../lib/use-back-button";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, MessageCircle, Trash2, X, Loader2, Send } from "lucide-react";
+import { Heart, MessageCircle, Trash2, X, Loader2, Send, Bookmark } from "lucide-react";
 
 interface PhotoGridProps {
   photos: Photo[];
@@ -12,6 +12,7 @@ interface PhotoGridProps {
   onDelete?: (photoId: string) => void;
   currentUserId?: string;
   commentCounts?: Record<string, number>;
+  onSave?: (photoId: string, saved: boolean) => void;
 }
 
 interface Comment {
@@ -25,14 +26,18 @@ interface Comment {
   avatar_url?: string | null;
 }
 
-export default function PhotoGrid({ photos, onLike, onDelete, currentUserId, commentCounts }: PhotoGridProps) {
+export default function PhotoGrid({ photos, onLike, onDelete, currentUserId, commentCounts, onSave }: PhotoGridProps) {
   const [lightbox, setLightbox] = useState<Photo | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmDeleteCommentId, setConfirmDeleteCommentId] = useState<string | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [postingComment, setPostingComment] = useState(false);
   const [commentError, setCommentError] = useState("");
+  // Save state keyed by photoId
+  const [savedMap, setSavedMap] = useState<Record<string, boolean>>({});
+  const [savingId, setSavingId] = useState<string | null>(null);
 
   async function loadComments(photoId: string) {
     setLoadingComments(true);
@@ -78,6 +83,8 @@ export default function PhotoGrid({ photos, onLike, onDelete, currentUserId, com
     setComments([]);
     setNewComment("");
     setCommentError("");
+    // Seed saved state from photo prop
+    setSavedMap((prev) => ({ ...prev, [photo.id]: !!photo.is_saved }));
     loadComments(photo.id);
   }
 
@@ -90,6 +97,27 @@ export default function PhotoGrid({ photos, onLike, onDelete, currentUserId, com
 
   // Android back button closes lightbox
   useBackButton(!!lightbox, useCallback(() => { setLightbox(null); setComments([]); setNewComment(""); setCommentError(""); }, []));
+
+  async function handleToggleSave(photoId: string) {
+    if (savingId) return;
+    const isSaved = !!savedMap[photoId];
+    setSavingId(photoId);
+    // Optimistic update
+    setSavedMap((prev) => ({ ...prev, [photoId]: !isSaved }));
+    try {
+      if (isSaved) {
+        await api.delete(`/photos/${photoId}/save`);
+      } else {
+        await api.post(`/photos/${photoId}/save`);
+      }
+      onSave?.(photoId, !isSaved);
+    } catch {
+      // Revert on error
+      setSavedMap((prev) => ({ ...prev, [photoId]: isSaved }));
+    } finally {
+      setSavingId(null);
+    }
+  }
 
   // Keyboard navigation for lightbox
   useEffect(() => {
@@ -193,6 +221,16 @@ export default function PhotoGrid({ photos, onLike, onDelete, currentUserId, com
                           {lightbox.like_count}
                         </button>
                       )}
+                      <button
+                        onClick={() => handleToggleSave(lightbox.id)}
+                        aria-label={savedMap[lightbox.id] ? "Remove from saved" : "Save photo"}
+                        disabled={savingId === lightbox.id}
+                        className={`transition-transform hover:scale-110 disabled:opacity-50 ${
+                          savedMap[lightbox.id] ? "text-primary" : "text-text-dim"
+                        }`}
+                      >
+                        <Bookmark className="w-4 h-4" fill={savedMap[lightbox.id] ? "currentColor" : "none"} />
+                      </button>
                       {onDelete && currentUserId === lightbox.user_id && (
                         <button
                           onClick={() => setConfirmDeleteId(lightbox.id)}
@@ -239,8 +277,16 @@ export default function PhotoGrid({ photos, onLike, onDelete, currentUserId, com
                           </p>
                           <div className="flex items-center gap-2 text-[10px] text-text-dim mt-1">
                             <span className="flex items-center gap-0.5"><Heart className="w-2.5 h-2.5" /> {comment.like_count}</span>
-                            {currentUserId === comment.user_id && (
-                              <button onClick={() => handleDeleteComment(comment.id)} className="text-error hover:text-error/80 transition">Delete</button>
+                          {currentUserId === comment.user_id && (
+                              confirmDeleteCommentId === comment.id ? (
+                                <span className="flex items-center gap-1.5">
+                                  <button onClick={() => { handleDeleteComment(comment.id); setConfirmDeleteCommentId(null); }} className="text-error font-bold transition">Yes, delete</button>
+                                  <span className="text-text-dim/40">·</span>
+                                  <button onClick={() => setConfirmDeleteCommentId(null)} className="font-semibold hover:text-text transition">Cancel</button>
+                                </span>
+                              ) : (
+                                <button onClick={() => setConfirmDeleteCommentId(comment.id)} className="text-error hover:text-error/80 transition">Delete</button>
+                              )
                             )}
                           </div>
                         </div>

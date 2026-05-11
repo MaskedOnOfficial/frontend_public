@@ -98,6 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     username: string,
     password: string,
     displayName: string,
+    dateOfBirth: string,
     acceptedTerms: boolean,
     acceptedPrivacy: boolean
   ) {
@@ -106,6 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       username,
       password,
       display_name: displayName,
+      date_of_birth: dateOfBirth,
       accepted_terms: acceptedTerms,
       accepted_privacy: acceptedPrivacy,
     });

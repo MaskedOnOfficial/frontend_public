@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import api from "../lib/api";
 import type { PartyRequest } from "../types";
@@ -6,7 +6,7 @@ import { getApiErrorMessage } from "../lib/errors";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MapPin, Calendar, Loader2, Inbox, RefreshCw, Ticket,
-  Clock, CheckCircle, XCircle, RotateCcw, Sparkles, Timer,
+  Clock, CheckCircle, XCircle, RotateCcw, Timer,
   TrendingUp, AlertCircle, ChevronRight, X, Trophy, Star,
 } from "lucide-react";
 
@@ -42,7 +42,7 @@ function getCountdown(isoDate: string): { label: string; urgent: boolean } {
 
 function formatPrice(paisa: number) {
   if (!paisa || paisa === 0) return "Free";
-  return `₹${(paisa / 100).toLocaleString("en-IN")}`;
+  return `?${(paisa / 100).toLocaleString("en-IN")}`;
 }
 
 const STATUS_CONFIG = {
@@ -365,8 +365,8 @@ export default function MyRequestsPage() {
     );
   }
 
-  const TABS: { key: FilterTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-    { key: "all", label: "All", icon: Sparkles },
+  const TABS: { key: FilterTab; label: string; icon?: React.ComponentType<{ className?: string }> }[] = [
+    { key: "all", label: "All" },
     { key: "pending", label: "Pending", icon: Clock },
     { key: "approved", label: "Approved", icon: CheckCircle },
     { key: "rejected", label: "Rejected", icon: XCircle },
@@ -402,13 +402,13 @@ export default function MyRequestsPage() {
             className="grid grid-cols-4 gap-2.5 mb-5"
           >
             {[
-              { label: "Total", value: stats.total, color: "text-text", icon: Sparkles, iconColor: "text-primary" },
+              { label: "Total", value: stats.total, color: "text-text", iconColor: "text-primary" },
               { label: "Pending", value: stats.pending, color: "text-warning", icon: Clock, iconColor: "text-warning" },
               { label: "Approved", value: stats.approved, color: "text-success", icon: CheckCircle, iconColor: "text-success" },
               { label: "Win rate", value: stats.successRate !== null ? `${stats.successRate}%` : "—", color: "text-hot", icon: TrendingUp, iconColor: "text-hot" },
             ].map(({ label, value, color, icon: Icon, iconColor }) => (
               <div key={label} className="glass-panel rounded-xl p-3 text-center flex flex-col items-center gap-1">
-                <Icon className={`w-3.5 h-3.5 ${iconColor}`} />
+                {Icon && <Icon className={`w-3.5 h-3.5 ${iconColor}`} />}
                 <span className={`text-lg font-bold ${color} leading-none`}>{value}</span>
                 <span className="text-[9px] font-semibold text-text-dim uppercase tracking-wide">{label}</span>
               </div>
@@ -423,9 +423,6 @@ export default function MyRequestsPage() {
             transition={{ delay: 0.12 }}
             className="mb-5 flex items-center gap-3 px-4 py-3 rounded-2xl bg-gradient-to-r from-success/10 to-accent/5 border border-success/20"
           >
-            <div className="w-8 h-8 rounded-xl bg-success/15 flex items-center justify-center shrink-0">
-              <Sparkles className="w-4 h-4 text-success" />
-            </div>
             <div className="flex-1 min-w-0">
               <p className="text-success font-bold text-sm">
                 {stats.upcomingApproved === 1 ? "You're in for 1 upcoming party!" : `You're in for ${stats.upcomingApproved} upcoming parties!`}
@@ -478,7 +475,7 @@ export default function MyRequestsPage() {
                     : "text-text-dim border-border bg-surface hover:text-text hover:border-border-hover"
                 }`}
               >
-                <Icon className="w-3 h-3" />
+                {Icon && <Icon className="w-3 h-3" />}
                 {label}
                 {count > 0 && (
                   <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${isActive ? "bg-white/20 text-white" : "bg-surface-light text-text-dim"}`}>
@@ -525,8 +522,7 @@ export default function MyRequestsPage() {
                   : `Nothing to show in the ${activeTab} tab.`}
               </p>
               {activeTab === "all" && (
-                <Link to="/parties" className="inline-flex items-center gap-2 btn-primary-luxe px-5 py-2.5 rounded-xl font-bold text-sm">
-                  <Sparkles className="w-4 h-4" />
+                <Link to="/parties" className="inline-flex items-center btn-primary-luxe px-5 py-2.5 rounded-xl font-bold text-sm">
                   Discover parties
                 </Link>
               )}
@@ -544,9 +540,8 @@ export default function MyRequestsPage() {
               >
                 <Link
                   to="/parties"
-                  className="flex items-center justify-center gap-2 py-3 rounded-2xl border border-border bg-surface text-text-dim text-sm font-semibold hover:text-text hover:border-border-hover transition"
+                  className="flex items-center justify-center py-3 rounded-2xl border border-border bg-surface text-text-dim text-sm font-semibold hover:text-text hover:border-border-hover transition"
                 >
-                  <Sparkles className="w-4 h-4 text-primary" />
                   Discover more parties
                 </Link>
               </motion.div>

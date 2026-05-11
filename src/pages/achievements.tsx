@@ -4,11 +4,11 @@ import api from "../lib/api";
 import { getApiErrorMessage } from "../lib/errors";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Trophy, PartyPopper, Crown, Users, Camera, Star, Sparkles,
+  Trophy, PartyPopper, Crown, Users, Camera, Star,
   Lock, RefreshCw, AlertCircle, CheckCircle2,
 } from "lucide-react";
 
-// ─── Static Catalog (mirrors backend achievement-rules.ts) ────────────────────
+// â”€â”€â”€ Static Catalog (mirrors backend achievement-rules.ts) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface AchievementMeta {
   key: string;
@@ -26,7 +26,7 @@ interface AchievementGroup {
   colorClass: string;
   bgClass: string;
   borderClass: string;
-  Icon: React.ComponentType<{ className?: string }>;
+  Icon?: React.ComponentType<{ className?: string }>;
   achievements: AchievementMeta[];
 }
 
@@ -38,10 +38,10 @@ const GROUPS: AchievementGroup[] = [
     borderClass: "border-hot/20",
     Icon: PartyPopper,
     achievements: [
-      { key: "first-party",      name: "First Party",      description: "Attend your first party",  icon: "🎉", statKey: "parties_attended", threshold: 1  },
-      { key: "weekend-warrior",  name: "Weekend Warrior",  description: "Attend 5+ parties",        icon: "🔥", statKey: "parties_attended", threshold: 5  },
-      { key: "party-animal",     name: "Party Animal",     description: "Attend 10+ parties",       icon: "🐉", statKey: "parties_attended", threshold: 10 },
-      { key: "nightlife-legend", name: "Nightlife Legend", description: "Attend 25+ parties",       icon: "👑", statKey: "parties_attended", threshold: 25 },
+      { key: "first-party",      name: "First Party",      description: "Attend your first party",  icon: "ðŸŽ‰", statKey: "parties_attended", threshold: 1  },
+      { key: "weekend-warrior",  name: "Weekend Warrior",  description: "Attend 5+ parties",        icon: "ðŸ”¥", statKey: "parties_attended", threshold: 5  },
+      { key: "party-animal",     name: "Party Animal",     description: "Attend 10+ parties",       icon: "ðŸ‰", statKey: "parties_attended", threshold: 10 },
+      { key: "nightlife-legend", name: "Nightlife Legend", description: "Attend 25+ parties",       icon: "ðŸ‘‘", statKey: "parties_attended", threshold: 25 },
     ],
   },
   {
@@ -51,9 +51,9 @@ const GROUPS: AchievementGroup[] = [
     borderClass: "border-primary/20",
     Icon: Crown,
     achievements: [
-      { key: "host-debut",    name: "Host Debut",    description: "Host your first event", icon: "🎙️", statKey: "parties_hosted", threshold: 1  },
-      { key: "super-host",   name: "Super Host",    description: "Host 5+ events",        icon: "⚡", statKey: "parties_hosted", threshold: 5  },
-      { key: "festival-host",name: "Festival Host", description: "Host 15+ events",       icon: "🎪", statKey: "parties_hosted", threshold: 15 },
+      { key: "host-debut",    name: "Host Debut",    description: "Host your first event", icon: "ðŸŽ™ï¸", statKey: "parties_hosted", threshold: 1  },
+      { key: "super-host",   name: "Super Host",    description: "Host 5+ events",        icon: "âš¡", statKey: "parties_hosted", threshold: 5  },
+      { key: "festival-host",name: "Festival Host", description: "Host 15+ events",       icon: "ðŸŽª", statKey: "parties_hosted", threshold: 15 },
     ],
   },
   {
@@ -63,9 +63,9 @@ const GROUPS: AchievementGroup[] = [
     borderClass: "border-accent/20",
     Icon: Users,
     achievements: [
-      { key: "social-spark",     name: "Social Spark",     description: "Make 5+ friends",  icon: "✨", statKey: "friend_count", threshold: 5  },
-      { key: "social-butterfly", name: "Social Butterfly", description: "Make 10+ friends", icon: "🦋", statKey: "friend_count", threshold: 10 },
-      { key: "connector",        name: "Connector",        description: "Make 25+ friends", icon: "🕸️", statKey: "friend_count", threshold: 25 },
+      { key: "social-spark",     name: "Social Spark",     description: "Make 5+ friends",  icon: "âœ¨", statKey: "friend_count", threshold: 5  },
+      { key: "social-butterfly", name: "Social Butterfly", description: "Make 10+ friends", icon: "ðŸ¦‹", statKey: "friend_count", threshold: 10 },
+      { key: "connector",        name: "Connector",        description: "Make 25+ friends", icon: "ðŸ•¸ï¸", statKey: "friend_count", threshold: 25 },
     ],
   },
   {
@@ -75,8 +75,8 @@ const GROUPS: AchievementGroup[] = [
     borderClass: "border-warning/20",
     Icon: Camera,
     achievements: [
-      { key: "shutterbug",    name: "Shutterbug",    description: "Post 5+ profile photos",  icon: "📸", statKey: "profile_photo_count", threshold: 5  },
-      { key: "gallery-master",name: "Gallery Master",description: "Post 20+ profile photos", icon: "🖼️", statKey: "profile_photo_count", threshold: 20 },
+      { key: "shutterbug",    name: "Shutterbug",    description: "Post 5+ profile photos",  icon: "ðŸ“¸", statKey: "profile_photo_count", threshold: 5  },
+      { key: "gallery-master",name: "Gallery Master",description: "Post 20+ profile photos", icon: "ðŸ–¼ï¸", statKey: "profile_photo_count", threshold: 20 },
     ],
   },
   {
@@ -86,10 +86,10 @@ const GROUPS: AchievementGroup[] = [
     borderClass: "border-success/20",
     Icon: Star,
     achievements: [
-      { key: "crowd-favorite",  name: "Crowd Favorite",  description: "Keep average rating above 4.5", icon: "⭐" },
-      { key: "critic-choice",   name: "Critic's Choice", description: "Keep average rating above 4.8", icon: "💎" },
-      { key: "trusted",         name: "Trusted",         description: "Reach Spark trust level",       icon: "🔵" },
-      { key: "legendary-trust", name: "Legendary Trust", description: "Reach Luminary or Inferno",     icon: "🟣" },
+      { key: "crowd-favorite",  name: "Crowd Favorite",  description: "Keep average rating above 4.5", icon: "â­" },
+      { key: "critic-choice",   name: "Critic's Choice", description: "Keep average rating above 4.8", icon: "ðŸ’Ž" },
+      { key: "trusted",         name: "Trusted",         description: "Reach Spark trust level",       icon: "ðŸ”µ" },
+      { key: "legendary-trust", name: "Legendary Trust", description: "Reach Luminary or Inferno",     icon: "ðŸŸ£" },
     ],
   },
   {
@@ -97,16 +97,15 @@ const GROUPS: AchievementGroup[] = [
     colorClass: "text-text",
     bgClass: "bg-surface-light",
     borderClass: "border-border",
-    Icon: Sparkles,
     achievements: [
-      { key: "all-rounder", name: "All-Rounder", description: "Host 5+, attend 10+, 10+ friends, 5+ photos", icon: "🌟" },
+      { key: "all-rounder", name: "All-Rounder", description: "Host 5+, attend 10+, 10+ friends, 5+ photos", icon: "ðŸŒŸ" },
     ],
   },
 ];
 
 const TOTAL_ACHIEVEMENTS = GROUPS.reduce((n, g) => n + g.achievements.length, 0);
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface AchievementStats {
   parties_attended: number;
@@ -129,7 +128,7 @@ interface AchievementsData {
   stats: AchievementStats | null;
 }
 
-// ─── Badge Card ───────────────────────────────────────────────────────────────
+// â”€â”€â”€ Badge Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface BadgeCardProps {
   meta: AchievementMeta;
@@ -214,7 +213,7 @@ function BadgeCard({ meta, unlocked, unlockedAt, group, stats, index }: BadgeCar
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Main Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function AchievementsPage() {
   const [data, setData] = useState<AchievementsData | null>(null);
@@ -263,7 +262,7 @@ export default function AchievementsPage() {
     <div className="min-h-screen bg-bg pb-28 md:pb-12 premium-shell">
       <div className="max-w-2xl mx-auto px-4 py-6 md:py-8">
 
-        {/* ── Header ── */}
+        {/* â”€â”€ Header â”€â”€ */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -331,7 +330,7 @@ export default function AchievementsPage() {
           )}
         </motion.div>
 
-        {/* ── Error ── */}
+        {/* â”€â”€ Error â”€â”€ */}
         {error && (
           <div className="bg-error/10 border border-error/25 rounded-xl p-3.5 text-error text-sm mb-5 flex items-center justify-between gap-3">
             <span className="flex items-center gap-2">
@@ -342,7 +341,7 @@ export default function AchievementsPage() {
           </div>
         )}
 
-        {/* ── Filter tabs ── */}
+        {/* â”€â”€ Filter tabs â”€â”€ */}
         <div className="flex items-center gap-1.5 mb-5">
           {(["all", "unlocked", "locked"] as const).map((f) => (
             <motion.button
@@ -365,7 +364,7 @@ export default function AchievementsPage() {
           ))}
         </div>
 
-        {/* ── Groups ── */}
+        {/* â”€â”€ Groups â”€â”€ */}
         <AnimatePresence mode="wait">
           <motion.div key={filter} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
             {GROUPS.map((group) => {
@@ -389,9 +388,11 @@ export default function AchievementsPage() {
                   {/* Section header */}
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <div className={`w-6 h-6 rounded-lg ${group.bgClass} flex items-center justify-center`}>
-                        <GroupIcon className={`w-3.5 h-3.5 ${group.colorClass}`} />
-                      </div>
+                      {GroupIcon && (
+                        <div className={`w-6 h-6 rounded-lg ${group.bgClass} flex items-center justify-center`}>
+                          <GroupIcon className={`w-3.5 h-3.5 ${group.colorClass}`} />
+                        </div>
+                      )}
                       <p className="text-xs font-bold text-text uppercase tracking-wide">{group.category}</p>
                     </div>
                     <span className={`text-[10px] font-bold ${group.colorClass}`}>
@@ -430,7 +431,7 @@ export default function AchievementsPage() {
                 <p className="text-text-dim text-sm mt-1">
                   {filter === "unlocked"
                     ? "Start attending parties and connecting with people."
-                    : "Incredible — you're a maskedOn legend."}
+                    : "Incredible â€” you're a maskedOn legend."}
                 </p>
                 {filter === "unlocked" && (
                   <Link to="/parties" className="btn-primary-luxe inline-flex items-center gap-2 mt-4 px-5 py-2.5 rounded-xl text-sm font-bold">

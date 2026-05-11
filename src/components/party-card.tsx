@@ -32,11 +32,6 @@ function getStatusClasses(status: string) {
 
 export default function PartyCard({ party }: { party: Party }) {
   const tags = parseTags(party.tags);
-  const capacityPercent = party.max_capacity > 0
-    ? Math.min(100, Math.round((party.current_attendees / party.max_capacity) * 100))
-    : 0;
-  const isSoldOut = party.max_capacity > 0 && party.current_attendees >= party.max_capacity;
-  const isFillingFast = capacityPercent >= 75 && party.status === "upcoming" && !isSoldOut;
   const [imgLoaded, setImgLoaded] = useState(false);
 
   return (
@@ -77,25 +72,12 @@ export default function PartyCard({ party }: { party: Party }) {
           <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${getStatusClasses(party.status)}`}>
             {party.status}
           </span>
-          {isFillingFast && (
-            <span className="filling-fast px-2 py-0.5 rounded-full">
-              <span className="filling-fast-dot" />
-              Filling Fast
-            </span>
-          )}
         </div>
-
-        {/* Sold out overlay */}
-        {isSoldOut && party.status === "upcoming" && (
-          <div className="absolute inset-0 bg-bg/50 backdrop-blur-[2px] flex items-center justify-center">
-            <span className="text-xs font-black uppercase tracking-widest text-hot bg-bg/80 px-4 py-2 rounded-full border border-hot/30">Sold Out</span>
-          </div>
-        )}
       </div>
 
-      {/* Content */}
-      <div className="p-4 space-y-3">
-        <h3 className="text-text font-bold text-base group-hover:text-primary transition-colors line-clamp-1 tracking-tight break-all [overflow-wrap:anywhere]">
+      {/* Card content */}
+      <div className="p-4 flex flex-col gap-3">
+        <h3 className="font-bold text-text text-sm leading-tight line-clamp-2">
           {party.title}
         </h3>
 
@@ -110,13 +92,20 @@ export default function PartyCard({ party }: { party: Party }) {
           </div>
         </div>
 
-        {/* Capacity bar */}
+        {/* Friends attending or host info */}
         <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <div className="flex items-center gap-1.5 text-text-muted text-xs">
-              <Users className="w-3.5 h-3.5" />
-              <span>{party.current_attendees}/{party.max_capacity}</span>
-            </div>
+          <div className="flex items-center justify-between">
+            {(party.friends_attending ?? 0) > 0 ? (
+              <div className="flex items-center gap-1.5 text-accent text-xs font-semibold">
+                <Users className="w-3.5 h-3.5" />
+                <span>{party.friends_attending} friend{party.friends_attending === 1 ? '' : 's'} going</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 text-text-muted text-xs">
+                <Users className="w-3.5 h-3.5" />
+                <span>Open</span>
+              </div>
+            )}
             {party.host_display_name && (
               <div className="flex items-center gap-1.5">
                 <div className="w-5 h-5 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-[8px] text-white font-bold">
@@ -125,12 +114,6 @@ export default function PartyCard({ party }: { party: Party }) {
                 <span className="text-text-dim text-[11px] truncate max-w-[80px]">{party.host_display_name}</span>
               </div>
             )}
-          </div>
-          <div className="h-1.5 bg-surface-light rounded-full overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all duration-500 bg-gradient-to-r from-primary via-accent to-hot"
-              style={{ width: `${capacityPercent}%` }}
-            />
           </div>
         </div>
 

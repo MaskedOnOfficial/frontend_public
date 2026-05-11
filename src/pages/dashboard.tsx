@@ -334,7 +334,7 @@ export default function DashboardPage() {
             </div>
             <div className="space-y-3">
               {upcomingParties.map((party, i) => {
-                const capPct = party.max_capacity > 0 ? Math.round((party.current_attendees / party.max_capacity) * 100) : 0;
+                const capPct = (party.max_capacity ?? 0) > 0 ? Math.round(((party.current_attendees ?? 0) / (party.max_capacity ?? 1)) * 100) : 0;
                 const isSoon = new Date(party.date_time).getTime() - now < 86400000; // < 24h
 
                 return (
@@ -520,7 +520,7 @@ export default function DashboardPage() {
                               <span className="w-0.5 h-0.5 rounded-full bg-text-dim" />
                               <span>{party.current_attendees} guests</span>
                               <span className="w-0.5 h-0.5 rounded-full bg-text-dim" />
-                              <span>{party.ticket_price > 0 ? formatPrice(party.ticket_price * party.current_attendees) : "Free"}</span>
+                              <span>{party.ticket_price > 0 ? formatPrice(party.ticket_price * (party.current_attendees ?? 0)) : "Free"}</span>
                             </div>
                           </div>
                           <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full shrink-0 ${getStatusClasses(party.status)}`}>

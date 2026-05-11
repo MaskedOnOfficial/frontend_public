@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useCallback, useMemo, type FormEvent } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/auth-hook";
 import { compressAndStripMetadata } from "../lib/image-utils";
@@ -15,9 +15,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Camera, Grid3x3, Star, Users, Heart, Loader2, X, Trash2,
   Edit3, ChevronLeft, ChevronRight, LayoutDashboard,
-  PartyPopper, Award, ImagePlus, Sparkles, Check, UserPlus, MessageCircle, ArrowLeft,
+  PartyPopper, Award, ImagePlus, Check, UserPlus, MessageCircle, ArrowLeft,
   Eye, BarChart3, Pencil, Sun, Contrast, Droplets, RotateCw,
-  Flame, Crown, Shield, Share2, Search, Trophy, CalendarDays, Pin, ChevronDown
+  Flame, Crown, Shield, Share2, Search, Trophy, CalendarDays, Pin, ChevronDown, Bookmark
 } from "lucide-react";
 
 /* helpers */
@@ -65,7 +65,7 @@ export default function ProfilePage() {
   const feedPhotoRefs = useRef<(HTMLDivElement | null)[]>([]);
   const storyOverlayRef = useRef<HTMLDivElement>(null);
 
-  const [tab, setTab] = useState<"photos" | "ratings" | "friends">("photos");
+  const [tab, setTab] = useState<"photos" | "ratings" | "friends" | "saved">("photos");
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
@@ -92,6 +92,10 @@ export default function ProfilePage() {
   const [partyTitles, setPartyTitles] = useState<Record<string, string>>({});
   const [storyPartyId, setStoryPartyId] = useState<string | null>(null);
   const [storyIndex, setStoryIndex] = useState(0);
+
+  // Saved photos
+  const [savedPhotos, setSavedPhotos] = useState<Photo[]>([]);
+  const [savedLoading, setSavedLoading] = useState(false);
 
   const partyPhotos = useMemo(() => photos.filter((photo) => photo.party_id), [photos]);
 
@@ -153,6 +157,10 @@ export default function ProfilePage() {
   const [editingCaptionId, setEditingCaptionId] = useState<string | null>(null);
   const [editCaptionText, setEditCaptionText] = useState("");
   const [savingCaption, setSavingCaption] = useState(false);
+
+  // Delete confirmations
+  const [deletePhotoConfirmId, setDeletePhotoConfirmId] = useState<string | null>(null);
+  const [deleteCommentConfirmId, setDeleteCommentConfirmId] = useState<string | null>(null);
 
   // Photo insights
   const [insightsPhotoId, setInsightsPhotoId] = useState<string | null>(null);
@@ -292,6 +300,13 @@ export default function ProfilePage() {
   useEffect(() => {
     if (user && tab === "ratings") loadRatings();
     if (user && tab === "friends") { loadFriendsList(); loadPendingRequests(); }
+    if (user && tab === "saved" && savedPhotos.length === 0) {
+      setSavedLoading(true);
+      api.get("/photos/saved?limit=50")
+        .then((res) => setSavedPhotos(res.data.data.photos || []))
+        .catch(() => {})
+        .finally(() => setSavedLoading(false));
+    }
   }, [loadFriendsList, loadPendingRequests, loadRatings, tab, user]);
 
   async function handleAcceptFriend(requesterId: string) {
@@ -662,13 +677,12 @@ export default function ProfilePage() {
   const photoPages = Math.ceil(photosTotal / 36);
   const memberSince = new Date(user.created_at).toLocaleDateString("en-IN", { month: "short", year: "numeric" });
 
-  // ── Achievements (computed from existing user activity) ──
+  // -- Achievements (computed from existing user activity) --
   const friendCountVal = friendCount ?? 0;
   const achievements = [
     { id: "first-party", icon: PartyPopper, name: "First Party", desc: "Attend your first party", earned: user.parties_attended >= 1, color: "#F59E0B" },
     { id: "weekend-warrior", icon: Flame, name: "Weekend Warrior", desc: "Attend 5+ parties", earned: user.parties_attended >= 5, color: "#F97316" },
     { id: "party-animal", icon: Flame, name: "Party Animal", desc: "Attend 10+ parties", earned: user.parties_attended >= 10, color: "#EF4444" },
-    { id: "nightlife-legend", icon: Sparkles, name: "Nightlife Legend", desc: "Attend 25+ parties", earned: user.parties_attended >= 25, color: "#D946EF" },
     { id: "host-debut", icon: Crown, name: "Host Debut", desc: "Host your first event", earned: user.parties_hosted >= 1, color: "#D4A853" },
     { id: "super-host", icon: Trophy, name: "Super Host", desc: "Host 5+ events", earned: user.parties_hosted >= 5, color: "#EC4899" },
     { id: "festival-host", icon: Award, name: "Festival Host", desc: "Host 15+ events", earned: user.parties_hosted >= 15, color: "#9B6DFF" },
@@ -692,7 +706,7 @@ export default function ProfilePage() {
   ];
   const earnedAchievements = achievements.filter(a => a.earned);
 
-  // ── Profile Completion ──
+  // -- Profile Completion --
   const completionSteps = [
     { label: "Add photo", done: !!user.avatar_url, weight: 25 },
     { label: "Write bio", done: !!user.bio, weight: 20 },
@@ -703,14 +717,14 @@ export default function ProfilePage() {
   ];
   const profileCompletion = completionSteps.reduce((sum, s) => sum + (s.done ? s.weight : 0), 0);
 
-  // ── Rating distribution (from history) ──
+  // -- Rating distribution (from history) --
   const ratingDistribution = [5, 4, 3, 2, 1].map(score => ({
     score,
     count: ratingHistory.filter(r => Math.round(r.avg_score) === score).length,
   }));
   const maxDistCount = Math.max(...ratingDistribution.map(d => d.count), 1);
 
-  // ── Filtered friends (for search) ──
+  // -- Filtered friends (for search) --
   const filteredFriends = friendSearch
     ? friends.filter(f =>
         f.display_name.toLowerCase().includes(friendSearch.toLowerCase()) ||
@@ -718,7 +732,7 @@ export default function ProfilePage() {
       )
     : friends;
 
-  // ── Share profile ──
+  // -- Share profile --
   async function handleShareProfile() {
     if (!user) return;
     const appUrl = import.meta.env.VITE_APP_URL as string || window.location.origin;
@@ -738,7 +752,7 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-bg pb-28 md:pb-12">
 
-      {/* ── TOAST ── */}
+      {/* -- TOAST -- */}
       <AnimatePresence>
         {toast && (
           <motion.div
@@ -760,7 +774,7 @@ export default function ProfilePage() {
 
       <div className="max-w-2xl mx-auto px-4 pt-4 relative z-10">
 
-        {/* ── PROFILE CARD ── */}
+        {/* -- PROFILE CARD -- */}
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
@@ -770,7 +784,7 @@ export default function ProfilePage() {
         >
           <canvas ref={avatarCanvasRef} className="hidden" />
 
-          {/* ── Card-internal gradient strip ── */}
+          {/* -- Card-internal gradient strip -- */}
           <div className="relative h-28 overflow-hidden">
             {/* Banner image or gradient fallback */}
             {user.banner_url ? (
@@ -861,14 +875,12 @@ export default function ProfilePage() {
                     <Shield className="w-2.5 h-2.5" />
                     {trustLevel.name}
                   </span>
-                  <span className="text-text-dim text-[11px] flex items-center gap-1">
-                    <Sparkles className="w-2.5 h-2.5" /> Since {memberSince}
-                  </span>
+                  <span className="text-text-dim text-[11px]">Since {memberSince}</span>
                 </div>
               </div>
             </div>
 
-            {/* ── EDIT FORM ── */}
+            {/* -- EDIT FORM -- */}
             <AnimatePresence>
               {editing && (
                 <motion.form
@@ -904,7 +916,7 @@ export default function ProfilePage() {
                           className={`flex-1 py-2.5 text-[10px] font-bold uppercase tracking-wider text-center tap-active transition ${
                             avatarEditTab === "filters" ? "text-primary border-b-2 border-primary" : "text-text-dim"
                           }`}>
-                          <Sparkles className="w-3.5 h-3.5 mx-auto mb-0.5" /> Filters
+                          Filters
                         </button>
                         <button type="button" onClick={() => setAvatarEditTab("adjust")}
                           className={`flex-1 py-2.5 text-[10px] font-bold uppercase tracking-wider text-center tap-active transition ${
@@ -1005,7 +1017,7 @@ export default function ProfilePage() {
               )}
             </AnimatePresence>
 
-            {/* ── STATS ROW ── */}
+            {/* -- STATS ROW -- */}
             <div className="grid grid-cols-5 gap-1 mt-6 pt-5 border-t border-primary/[0.06]">
               {[
                 { label: "Posts", value: profilePhotos.length, icon: Grid3x3 },
@@ -1030,7 +1042,7 @@ export default function ProfilePage() {
           </div>
         </motion.div>
 
-        {/* ── ACTION BUTTONS ── */}
+        {/* -- ACTION BUTTONS -- */}
         <div className="grid grid-cols-3 gap-2 mt-3">
           <button
             onClick={() => { setEditing(true); setMessage(""); }}
@@ -1052,7 +1064,7 @@ export default function ProfilePage() {
           </Link>
         </div>
 
-        {/* ── PROFILE COMPLETION ── */}
+        {/* -- PROFILE COMPLETION -- */}
         {profileCompletion < 100 && (
           <motion.div
             initial={{ opacity: 0, y: 12 }}
@@ -1090,7 +1102,7 @@ export default function ProfilePage() {
           </motion.div>
         )}
 
-        {/* ── ACHIEVEMENTS ── */}
+        {/* -- ACHIEVEMENTS -- */}
         {achievements.length > 0 && (
           <div className="mt-5">
             <div className="flex items-center justify-between mb-3">
@@ -1134,12 +1146,13 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* ── TAB BAR ── */}
+        {/* -- TAB BAR -- */}
         <div className="flex mt-5 rounded-xl overflow-hidden glass-panel p-0.5">
           {([
             { key: "photos" as const, icon: Grid3x3, label: "Posts" },
             { key: "ratings" as const, icon: Award, label: "Reviews" },
             { key: "friends" as const, icon: Users, label: "Friends" },
+            { key: "saved" as const, icon: Bookmark, label: "Saved" },
           ]).map((t) => (
             <button
               key={t.key}
@@ -1159,10 +1172,10 @@ export default function ProfilePage() {
           ))}
         </div>
 
-        {/* ── TAB CONTENT ── */}
+        {/* -- TAB CONTENT -- */}
         <div className="mt-4">
 
-          {/* ═══ PHOTOS TAB ═══ */}
+          {/* --- PHOTOS TAB --- */}
           {tab === "photos" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
               {/* Past Events */}
@@ -1273,7 +1286,7 @@ export default function ProfilePage() {
             </motion.div>
           )}
 
-          {/* ═══ RATINGS TAB ═══ */}
+          {/* --- RATINGS TAB --- */}
           {tab === "ratings" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
               {/* Trust Level summary card */}
@@ -1393,7 +1406,7 @@ export default function ProfilePage() {
             </motion.div>
           )}
 
-          {/* ═══ FRIENDS TAB ═══ */}
+          {/* --- FRIENDS TAB --- */}
           {tab === "friends" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
               {/* Friend search */}
@@ -1529,10 +1542,41 @@ export default function ProfilePage() {
               ) : null}
             </motion.div>
           )}
+
+          {/* --- SAVED TAB --- */}
+          {tab === "saved" && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+              {savedLoading ? (
+                <div className="flex items-center justify-center py-16 gap-2">
+                  <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                  <span className="text-text-muted text-sm">Loading saved posts…</span>
+                </div>
+              ) : savedPhotos.length === 0 ? (
+                <div className="text-center py-16 glass-panel rounded-2xl">
+                  <Bookmark className="w-8 h-8 text-text-dim mx-auto mb-3" />
+                  <p className="text-text font-semibold mb-1">No saved posts yet</p>
+                  <p className="text-text-dim text-sm">Tap the bookmark icon on any photo to save it for later.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-1">
+                  {savedPhotos.map((photo) => (
+                    <div key={photo.id} className="relative aspect-square rounded-xl overflow-hidden bg-surface">
+                      <img
+                        src={photo.thumbnail_url || photo.image_url}
+                        alt={photo.caption || "Saved photo"}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
         </div>
       </div>
 
-      {/* ═══ INSTAGRAM-STYLE SCROLLABLE FEED ═══ */}
+      {/* --- INSTAGRAM-STYLE SCROLLABLE FEED --- */}
       <AnimatePresence>
         {feedStartIndex !== null && (
           <motion.div
@@ -1581,7 +1625,7 @@ export default function ProfilePage() {
                       <button onClick={() => loadInsights(photo.id)} className="text-text-dim hover:text-primary transition p-2 rounded-lg hover:bg-primary/10 tap-active" aria-label="View insights" title="Insights">
                         <BarChart3 className="w-4 h-4" />
                       </button>
-                      <button onClick={() => handleDeletePhoto(photo.id)} className="text-text-dim hover:text-error transition p-2 rounded-lg hover:bg-error/10 tap-active" aria-label="Delete photo">
+                      <button onClick={() => setDeletePhotoConfirmId(photo.id)} className="text-text-dim hover:text-error transition p-2 rounded-lg hover:bg-error/10 tap-active" aria-label="Delete photo">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
@@ -1708,7 +1752,7 @@ export default function ProfilePage() {
         )}
       </AnimatePresence>
 
-      {/* ═══ COMMENTS BOTTOM SHEET ═══ */}
+      {/* --- COMMENTS BOTTOM SHEET --- */}
       <AnimatePresence>
         {activeCommentPhotoId && (
           <motion.div
@@ -1767,7 +1811,17 @@ export default function ProfilePage() {
                               <span>{timeAgo(comment.created_at)}</span>
                               <button type="button" onClick={() => setReplyingTo({ id: comment.id, display_name: comment.display_name || comment.username || "User", username: comment.username })} className="font-semibold hover:text-text transition">Reply</button>
                               <button type="button" onClick={() => handlePinComment(comment.id)} className="font-semibold hover:text-primary transition">{comment.is_pinned ? "Unpin" : "Pin"}</button>
-                              {user && user.id === comment.user_id && <button onClick={() => handleDeleteComment(comment.id)} className="text-error hover:text-error/80 transition font-medium">Delete</button>}
+                              {user && user.id === comment.user_id && (
+                                deleteCommentConfirmId === comment.id ? (
+                                  <span className="flex items-center gap-1.5">
+                                    <button onClick={() => { handleDeleteComment(comment.id); setDeleteCommentConfirmId(null); }} className="text-error font-bold transition">Yes, delete</button>
+                                    <span className="text-text-dim/40">·</span>
+                                    <button onClick={() => setDeleteCommentConfirmId(null)} className="font-semibold hover:text-text transition">Cancel</button>
+                                  </span>
+                                ) : (
+                                  <button onClick={() => setDeleteCommentConfirmId(comment.id)} className="text-error hover:text-error/80 transition font-medium">Delete</button>
+                                )
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1794,7 +1848,17 @@ export default function ProfilePage() {
                                       <div className="flex items-center gap-3 mt-1 text-[11px] text-text-dim">
                                         <span>{timeAgo(reply.created_at)}</span>
                                         <button type="button" onClick={() => setReplyingTo({ id: comment.id, display_name: comment.display_name || comment.username || "User", username: comment.username })} className="font-semibold hover:text-text transition">Reply</button>
-                                        {user && user.id === reply.user_id && <button onClick={() => handleDeleteComment(reply.id)} className="text-error hover:text-error/80 transition font-medium">Delete</button>}
+                                        {user && user.id === reply.user_id && (
+                                          deleteCommentConfirmId === reply.id ? (
+                                            <span className="flex items-center gap-1.5">
+                                              <button onClick={() => { handleDeleteComment(reply.id); setDeleteCommentConfirmId(null); }} className="text-error font-bold transition">Yes, delete</button>
+                                              <span className="text-text-dim/40">·</span>
+                                              <button onClick={() => setDeleteCommentConfirmId(null)} className="font-semibold hover:text-text transition">Cancel</button>
+                                            </span>
+                                          ) : (
+                                            <button onClick={() => setDeleteCommentConfirmId(reply.id)} className="text-error hover:text-error/80 transition font-medium">Delete</button>
+                                          )
+                                        )}
                                       </div>
                                     </div>
                                   </div>
@@ -1832,7 +1896,7 @@ export default function ProfilePage() {
         )}
       </AnimatePresence>
 
-      {/* ═══ PAST EVENT VIEWER ═══ */}
+      {/* --- PAST EVENT VIEWER --- */}
       <AnimatePresence>
         {storyPartyId && storyPhotos.length > 0 && (
           <motion.div
@@ -1928,6 +1992,46 @@ export default function ProfilePage() {
                 <p className="text-white text-sm">{storyPhotos[storyIndex].caption}</p>
               </div>
             )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Photo Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deletePhotoConfirmId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90] flex items-center justify-center p-4"
+            onClick={() => setDeletePhotoConfirmId(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="glass-panel rounded-3xl overflow-hidden max-w-sm w-full shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-error/10 border border-error/15 mx-auto mb-4 flex items-center justify-center">
+                  <Trash2 className="w-7 h-7 text-error" />
+                </div>
+                <h3 className="text-text font-bold text-lg mb-1">Delete Photo?</h3>
+                <p className="text-text-muted text-sm leading-relaxed">This photo will be permanently removed and cannot be recovered.</p>
+              </div>
+              <div className="flex border-t border-primary/[0.06]">
+                <button onClick={() => setDeletePhotoConfirmId(null)} className="flex-1 py-3.5 text-sm font-semibold text-text-muted hover:bg-surface-light transition tap-active">
+                  Cancel
+                </button>
+                <button
+                  onClick={() => { handleDeletePhoto(deletePhotoConfirmId); setDeletePhotoConfirmId(null); }}
+                  className="flex-1 py-3.5 text-sm font-bold text-error hover:bg-error/10 transition border-l border-primary/[0.06] tap-active"
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

@@ -8,7 +8,7 @@ import TrustBadge from "../components/trust-badge";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Star, ArrowLeft, AlertCircle, RefreshCw,
-  Calendar, Users, CheckCircle2, Circle, Crown,
+  Calendar, Users, CheckCircle2, Crown,
   TrendingUp, Award,
 } from "lucide-react";
 
@@ -79,7 +79,6 @@ function TrustLadder({ currentRating, totalParties }: { currentRating: number; t
               )}
             </div>
             {isActive && <CheckCircle2 className="w-4 h-4 text-success shrink-0" />}
-            {!isActive && i > levels.indexOf(current) && <Circle className="w-4 h-4 text-text-dim/30 shrink-0" />}
           </div>
         );
       })}

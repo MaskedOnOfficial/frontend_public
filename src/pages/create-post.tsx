@@ -10,10 +10,10 @@ import { useUploadQueue } from "../context/upload-queue";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, ArrowRight, ImagePlus, Sun, Contrast, Droplets,
-  Loader2, X, RotateCw, Sparkles, Check, Globe, Lock
+  Loader2, X, RotateCw, Check, Globe, Lock
 } from "lucide-react";
 
-/* ─── Filter presets ─── */
+/* â”€â”€â”€ Filter presets â”€â”€â”€ */
 const FILTERS = [
   { name: "Normal", css: "" },
   { name: "Vivid", css: "saturate(1.4) contrast(1.1)" },
@@ -34,7 +34,7 @@ export default function CreatePostPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Step: select → edit → caption
+  // Step: select â†’ edit â†’ caption
   const [step, setStep] = useState<"select" | "edit" | "caption">("select");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -58,7 +58,7 @@ export default function CreatePostPage() {
   const filterCSS = FILTERS[selectedFilter].css;
   const combinedCSS = [filterCSS, adjustCSS].filter(Boolean).join(" ");
 
-  /* ─── Image Selection ─── */
+  /* â”€â”€â”€ Image Selection â”€â”€â”€ */
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -87,7 +87,7 @@ export default function CreatePostPage() {
     else fileInputRef.current?.click();
   }
 
-  /* ─── Apply edits to canvas and get final file ─── */
+  /* â”€â”€â”€ Apply edits to canvas and get final file â”€â”€â”€ */
   const getProcessedFile = useCallback(async (): Promise<File | null> => {
     if (!imagePreview || !imageFile) return null;
 
@@ -136,7 +136,7 @@ export default function CreatePostPage() {
     });
   }, [imagePreview, imageFile, combinedCSS, rotation]);
 
-  /* ─── Upload ─── */
+  /* â”€â”€â”€ Upload â”€â”€â”€ */
   async function handlePost() {
     if (!imageFile) return;
     setUploading(true);
@@ -144,7 +144,7 @@ export default function CreatePostPage() {
 
     try {
       // Process the image NOW while the canvas is still mounted.
-      // This is fast (canvas render + toBlob) — typically < 300 ms.
+      // This is fast (canvas render + toBlob) â€” typically < 300 ms.
       const processedFile = await getProcessedFile();
       if (!processedFile) throw new Error("Failed to process image");
 
@@ -187,7 +187,7 @@ export default function CreatePostPage() {
         },
       });
 
-      // Navigate immediately — the progress bar handles the rest.
+      // Navigate immediately â€” the progress bar handles the rest.
       navigate("/profile/me", { replace: true });
     } catch (err) {
       setError(getApiErrorMessage(err, "Failed to process image"));
@@ -220,7 +220,7 @@ export default function CreatePostPage() {
       <canvas ref={canvasRef} className="hidden" />
       <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleFileSelect} className="hidden" aria-label="Select photo" />
 
-      {/* ─── HEADER ─── */}
+      {/* â”€â”€â”€ HEADER â”€â”€â”€ */}
       <div className="sticky top-0 z-20 bg-bg/80 backdrop-blur-lg border-b border-primary/[0.06]">
         <div className="max-w-lg mx-auto px-4 h-14 flex items-center justify-between">
           <button
@@ -256,14 +256,14 @@ export default function CreatePostPage() {
               className="text-primary font-bold text-sm flex items-center gap-1 tap-active disabled:opacity-50"
             >
               {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-              {uploading ? "Posting…" : "Share"}
+              {uploading ? "Postingâ€¦" : "Share"}
             </button>
           )}
           {step === "select" && <div className="w-16" />}
         </div>
       </div>
 
-      {/* ─── ERROR ─── */}
+      {/* â”€â”€â”€ ERROR â”€â”€â”€ */}
       <AnimatePresence>
         {error && (
           <motion.div
@@ -280,7 +280,7 @@ export default function CreatePostPage() {
         )}
       </AnimatePresence>
 
-      {/* ─── STEP 1: SELECT IMAGE ─── */}
+      {/* â”€â”€â”€ STEP 1: SELECT IMAGE â”€â”€â”€ */}
       {step === "select" && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -304,7 +304,7 @@ export default function CreatePostPage() {
         </motion.div>
       )}
 
-      {/* ─── STEP 2: EDIT IMAGE ─── */}
+      {/* â”€â”€â”€ STEP 2: EDIT IMAGE â”€â”€â”€ */}
       {step === "edit" && imagePreview && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -333,7 +333,7 @@ export default function CreatePostPage() {
                 editTab === "filters" ? "text-primary border-b-2 border-primary" : "text-text-dim"
               }`}
             >
-              <Sparkles className="w-4 h-4 mx-auto mb-1" /> Filters
+              Filters
             </button>
             <button
               onClick={() => setEditTab("adjust")}
@@ -424,7 +424,7 @@ export default function CreatePostPage() {
         </motion.div>
       )}
 
-      {/* ─── STEP 3: CAPTION ─── */}
+      {/* â”€â”€â”€ STEP 3: CAPTION â”€â”€â”€ */}
       {step === "caption" && imagePreview && (
         <motion.div
           initial={{ opacity: 0, x: 20 }}
@@ -458,7 +458,7 @@ export default function CreatePostPage() {
               <textarea
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
-                placeholder="Write a caption…"
+                placeholder="Write a captionâ€¦"
                 maxLength={500}
                 rows={4}
                 className="input-luxe w-full rounded-xl px-3 py-2.5 text-sm resize-none"
@@ -468,7 +468,7 @@ export default function CreatePostPage() {
             </div>
           </div>
 
-          {/* Visibility toggles — placed right after caption so they're noticed */}
+          {/* Visibility toggles â€” placed right after caption so they're noticed */}
           <div className="mt-5 space-y-3">
             {/* Toggle 1: Show Globally */}
             <div className="glass-panel rounded-2xl px-4 py-3.5 flex items-center justify-between gap-4">

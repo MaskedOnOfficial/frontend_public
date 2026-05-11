@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../lib/api";
 import type { Party } from "../types";
@@ -6,7 +6,7 @@ import { getApiErrorMessage } from "../lib/errors";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, MapPin, Calendar, Ticket, PartyPopper, Users, Clock,
-  Sparkles, Zap, X, SlidersHorizontal, TrendingUp,
+  Zap, X, SlidersHorizontal, TrendingUp,
   Star, RefreshCw, Shield,
 } from "lucide-react";
 import { SkeletonPartyCard } from "../components/skeleton";
@@ -193,7 +193,7 @@ export default function DiscoverPage() {
     () =>
       allParties
         .filter((p) => p.status === "upcoming")
-        .sort((a, b) => b.current_attendees - a.current_attendees)
+        .sort((a, b) => (b.current_attendees ?? 0) - (a.current_attendees ?? 0))
         .slice(0, 6),
     [allParties]
   );
@@ -356,7 +356,7 @@ export default function DiscoverPage() {
             className="flex gap-2 overflow-x-auto scrollbar-hide pb-1"
           >
             {([
-              { key: "all" as QuickFilter, label: "Explore", icon: <Sparkles className="w-3 h-3" /> },
+              { key: "all" as QuickFilter, label: "Explore" },
               { key: "tonight" as QuickFilter, label: "Tonight", icon: <Zap className="w-3 h-3" /> },
               { key: "weekend" as QuickFilter, label: "Weekend", icon: <Calendar className="w-3 h-3" /> },
               { key: "free" as QuickFilter, label: "Free", icon: <Ticket className="w-3 h-3" /> },
@@ -369,7 +369,7 @@ export default function DiscoverPage() {
                   quickFilter === key ? "discover-quick-pill-active" : "discover-quick-pill-idle"
                 }`}
               >
-                {icon}
+                {icon && icon}
                 {label}
               </button>
             ))}
@@ -611,7 +611,9 @@ function Section({
 }
 
 function LivePartyCard({ party }: { party: Party }) {
-  const capacityPercent = party.max_capacity > 0 ? Math.round((party.current_attendees / party.max_capacity) * 100) : 0;
+  const maxCap = party.max_capacity ?? 0;
+  const curAttendees = party.current_attendees ?? 0;
+  const capacityPercent = maxCap > 0 ? Math.round((curAttendees / maxCap) * 100) : 0;
   return (
     <Link to={`/parties/${party.id}`} className="block discover-live-card group tap-active">
       <div className="relative aspect-[16/9] overflow-hidden rounded-t-xl">
@@ -652,7 +654,9 @@ function LivePartyCard({ party }: { party: Party }) {
 }
 
 function TrendingCard({ party, rank }: { party: Party; rank: number }) {
-  const capacityPercent = party.max_capacity > 0 ? Math.round((party.current_attendees / party.max_capacity) * 100) : 0;
+  const maxCap = party.max_capacity ?? 0;
+  const curAttendees = party.current_attendees ?? 0;
+  const capacityPercent = maxCap > 0 ? Math.round((curAttendees / maxCap) * 100) : 0;
   return (
     <Link to={`/parties/${party.id}`} className="block discover-card rounded-xl overflow-hidden group tap-active">
       <div className="relative aspect-[4/3] overflow-hidden">
@@ -757,9 +761,11 @@ function FriendsGoingCard({ party }: { party: Party }) {
 }
 
 function EventCard({ party }: { party: Party }) {
-  const capacityPercent = party.max_capacity > 0 ? Math.round((party.current_attendees / party.max_capacity) * 100) : 0;
+  const maxCap = party.max_capacity ?? 0;
+  const curAttendees = party.current_attendees ?? 0;
+  const capacityPercent = maxCap > 0 ? Math.round((curAttendees / maxCap) * 100) : 0;
   const isFillingFast = capacityPercent >= 75 && party.status === "upcoming";
-  const isSoldOut = party.max_capacity > 0 && party.current_attendees >= party.max_capacity;
+  const isSoldOut = maxCap > 0 && curAttendees >= maxCap;
   const isLive = party.status === "ongoing";
   const timeLabel = getTimeUntil(party.date_time);
 
@@ -858,12 +864,12 @@ function EventCard({ party }: { party: Party }) {
           </span>
         </div>
 
-        {party.max_capacity > 0 && (
+        {maxCap > 0 && (
           <div>
             <div className="flex items-center justify-between mb-1">
               <span className="flex items-center gap-1 text-text-dim text-[11px]">
                 <Users className="w-3 h-3" />
-                {party.current_attendees}/{party.max_capacity}
+                {curAttendees}/{maxCap}
               </span>
               {party.host_display_name && (
                 <div className="flex items-center gap-1.5">

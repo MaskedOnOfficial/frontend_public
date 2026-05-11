@@ -10,6 +10,10 @@ export interface User {
   total_ratings: number;
   parties_hosted: number;
   parties_attended: number;
+  is_email_verified?: boolean;
+  date_of_birth?: string | null;
+  id_verification_status?: "not_submitted" | "pending" | "verified" | "rejected";
+  id_verification_submitted_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -31,8 +35,8 @@ export interface Party {
   longitude: number | null;
   date_time: string;
   end_time: string | null;
-  max_capacity: number;
-  current_attendees: number;
+  max_capacity?: number | null;
+  current_attendees?: number;
   ticket_price: number;
   currency: string;
   cover_image_url: string | null;
@@ -59,9 +63,15 @@ export interface Party {
   host_display_name?: string;
   host_avatar_url?: string | null;
   host_social_rating?: number;
-  // Friends attending (enriched by discover endpoint)
+  // Friends attending (enriched by discover endpoint or party detail for guests)
   friends_attending?: number;
   friends_attending_avatars?: { user_id: string; display_name: string; avatar_url: string | null }[];
+  friends_attending_list?: { user_id: string; display_name: string; avatar_url: string | null }[];
+  // Revenue model (migration 023)
+  host_commission_rate?: number;
+  deposit_amount?: number;
+  deposit_status?: "not_required" | "pending" | "paid" | "refunded";
+  deposit_payment_id?: string | null;
 }
 
 export interface PartyRequest {
@@ -84,11 +94,21 @@ export interface PartyRequest {
   party_location_city?: string;
   party_cover_image_url?: string | null;
   party_ticket_price?: number;
-  party_max_capacity?: number;
+  party_max_capacity?: number | null;
   party_current_attendees?: number;
   party_host_id?: string;
   party_end_time?: string | null;
   party_tags?: string | null;
+}
+
+export interface FeeBreakdown {
+  ticket_price: number;
+  platform_fee: number;
+  platform_fee_rate_percent: number;
+  user_total: number;
+  host_commission: number;
+  host_commission_rate_percent: number;
+  host_payout_per_ticket: number;
 }
 
 export interface Payment {
@@ -98,7 +118,9 @@ export interface Payment {
   party_id: string;
   amount: number;
   currency: string;
-  status: "pending" | "completed" | "refunded";
+  status: "initiated" | "pending" | "completed" | "failed" | "refunded" | "partial_refund" | "refund_failed";
+  platform_fee: number;
+  payment_type: "ticket" | "deposit";
   mock_transaction_id: string | null;
   created_at: string;
   completed_at: string | null;
@@ -146,6 +168,7 @@ export interface Photo {
   username?: string;
   display_name?: string;
   avatar_url?: string | null;
+  is_saved?: boolean;
 }
 
 export interface Notification {

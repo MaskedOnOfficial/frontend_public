@@ -124,30 +124,41 @@ export default function CrowdRatingGate({ pendingParties, onAllRated }: CrowdRat
 
         {/* Star Rating */}
         <div className="text-center mb-6">
-          <div className="flex items-center justify-center gap-2 mb-3">
+          <p className="text-text-muted text-xs mb-3">
+            1 star = terrible &nbsp;·&nbsp; 5 stars = electric — your rating affects the host's vibe score
+          </p>
+          <div
+            className="flex items-center justify-center gap-3 mb-3"
+            role="group"
+            aria-label="Rate the crowd energy from 1 to 5 stars"
+          >
             {[1, 2, 3, 4, 5].map((i) => (
               <button
                 key={i}
                 type="button"
+                aria-label={`${i} star${i !== 1 ? "s" : ""}${score === i ? " (selected)" : ""}`}
                 onMouseEnter={() => setHoverScore(i)}
                 onMouseLeave={() => setHoverScore(0)}
                 onClick={() => setScore(i)}
                 disabled={submitting}
-                className="transition-all duration-200 hover:scale-125 active:scale-95 tap-active"
+                className="transition-all duration-200 hover:scale-125 active:scale-95 tap-active focus-visible:ring-2 focus-visible:ring-warning/60 rounded-full outline-none"
               >
                 <Star
-                  className={`w-10 h-10 transition-all duration-200 ${
+                  className={`w-11 h-11 transition-all duration-200 ${
                     i <= activeScore
-                      ? "text-warning drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]"
-                      : "text-text-dim/20"
+                      ? "text-warning drop-shadow-[0_0_10px_rgba(245,158,11,0.6)]"
+                      : "text-text-muted/70"
                   }`}
                   fill={i <= activeScore ? "currentColor" : "none"}
-                  strokeWidth={i <= activeScore ? 0 : 1.5}
+                  strokeWidth={i <= activeScore ? 0 : 1.75}
                 />
               </button>
             ))}
           </div>
-          <p className="text-text-muted text-sm font-medium h-5">
+          <p className={`text-sm font-semibold h-5 transition-colors ${
+            activeScore === 0 ? "text-text-dim" : "text-text"
+          }`}>
+            {activeScore === 0 && "Tap a star to rate"}
             {activeScore === 1 && "Terrible vibes 😬"}
             {activeScore === 2 && "Below average 😕"}
             {activeScore === 3 && "Decent crowd 🙂"}

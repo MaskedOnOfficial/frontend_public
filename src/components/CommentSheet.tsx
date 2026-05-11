@@ -60,6 +60,7 @@ export default function CommentSheet({ photoId, postOwnerId, onClose, onCommentC
   const [commentError, setCommentError] = useState("");
   const [replyingTo, setReplyingTo] = useState<{ id: string; display_name: string; username?: string } | null>(null);
   const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
+  const [confirmDeleteCommentId, setConfirmDeleteCommentId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -270,13 +271,33 @@ export default function CommentSheet({ photoId, postOwnerId, onClose, onCommentC
                             Reply
                           </button>
                           {user && user.id === comment.user_id && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteComment(comment.id)}
-                              className="font-semibold text-error hover:text-error/80 transition"
-                            >
-                              Delete
-                            </button>
+                            confirmDeleteCommentId === comment.id ? (
+                              <span className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => { handleDeleteComment(comment.id); setConfirmDeleteCommentId(null); }}
+                                  className="font-bold text-error transition"
+                                >
+                                  Yes, delete
+                                </button>
+                                <span className="text-text-dim/40">·</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmDeleteCommentId(null)}
+                                  className="font-semibold hover:text-text transition"
+                                >
+                                  Cancel
+                                </button>
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setConfirmDeleteCommentId(comment.id)}
+                                className="font-semibold text-error hover:text-error/80 transition"
+                              >
+                                Delete
+                              </button>
+                            )
                           )}
                         </div>
 
@@ -322,13 +343,33 @@ export default function CommentSheet({ photoId, postOwnerId, onClose, onCommentC
                                   Reply
                                 </button>
                                 {user && user.id === reply.user_id && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteComment(reply.id)}
-                                    className="font-semibold text-error hover:text-error/80 transition"
-                                  >
-                                    Delete
-                                  </button>
+                                  confirmDeleteCommentId === reply.id ? (
+                                    <span className="flex items-center gap-1.5">
+                                      <button
+                                        type="button"
+                                        onClick={() => { handleDeleteComment(reply.id); setConfirmDeleteCommentId(null); }}
+                                        className="font-bold text-error transition"
+                                      >
+                                        Yes, delete
+                                      </button>
+                                      <span className="text-text-dim/40">·</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => setConfirmDeleteCommentId(null)}
+                                        className="font-semibold hover:text-text transition"
+                                      >
+                                        Cancel
+                                      </button>
+                                    </span>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => setConfirmDeleteCommentId(reply.id)}
+                                      className="font-semibold text-error hover:text-error/80 transition"
+                                    >
+                                      Delete
+                                    </button>
+                                  )
                                 )}
                               </div>
                             </div>

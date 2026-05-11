@@ -5,7 +5,7 @@ import { useAuth } from "../context/auth-hook";
 import { getApiErrorMessage } from "../lib/errors";
 import { ensureBackendAwake } from "../lib/api";
 import { motion } from "framer-motion";
-import { ArrowRight, Loader2, User, AtSign, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { ArrowRight, Loader2, User, AtSign, Mail, Lock, Eye, EyeOff, Calendar } from "lucide-react";
 import { useTheme } from "../context/use-theme";
 
 export default function RegisterPage() {
@@ -17,6 +17,7 @@ export default function RegisterPage() {
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
   const [error, setError] = useState("");
@@ -65,6 +66,14 @@ export default function RegisterPage() {
       return "Password must include uppercase, lowercase, and a number";
     }
     if (password !== confirmPassword) return "Passwords do not match";
+    if (!dateOfBirth) return "Date of birth is required";
+    const dob = new Date(dateOfBirth);
+    if (isNaN(dob.getTime())) return "Please enter a valid date of birth";
+    const today = new Date();
+    const age = today.getFullYear() - dob.getFullYear()
+      - (today < new Date(today.getFullYear(), dob.getMonth(), dob.getDate()) ? 1 : 0);
+    if (age < 18) return "You must be at least 18 years old to register";
+    if (age > 120) return "Please enter a valid date of birth";
     if (!acceptedTerms) return "You must accept the Terms & Conditions";
     if (!acceptedPrivacy) return "You must accept the Privacy Policy";
     return null;
@@ -88,6 +97,7 @@ export default function RegisterPage() {
         username.trim(),
         password,
         displayName.trim(),
+        dateOfBirth,
         acceptedTerms,
         acceptedPrivacy
       );
@@ -109,6 +119,7 @@ export default function RegisterPage() {
             username.trim(),
             password,
             displayName.trim(),
+            dateOfBirth,
             acceptedTerms,
             acceptedPrivacy
           );
@@ -261,6 +272,33 @@ export default function RegisterPage() {
                   {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: -16 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.44 }}
+            >
+              <label htmlFor="dateOfBirth" className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">
+                Date of Birth
+              </label>
+              <div className="relative">
+                <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim pointer-events-none" />
+                <input
+                  id="dateOfBirth"
+                  type="date"
+                  value={dateOfBirth}
+                  onChange={(e) => setDateOfBirth(e.target.value)}
+                  required
+                  max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split("T")[0]}
+                  min="1900-01-01"
+                  className="input-luxe w-full rounded-xl pl-10 pr-4 py-3.5 text-sm"
+                  aria-describedby="dob-note"
+                />
+              </div>
+              <p id="dob-note" className="text-[11px] text-text-dim mt-2">
+                You must be at least 18 years old to use this platform.
+              </p>
             </motion.div>
 
             <motion.div

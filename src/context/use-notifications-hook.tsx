@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, type React
 import { useAuth } from "./auth-hook";
 import io from "socket.io-client";
 import api from "../lib/api";
+import type { ConversationMessage } from "../types";
 
 const WS_URL = (import.meta.env.VITE_WS_URL as string | undefined)?.trim();
 
@@ -14,24 +15,13 @@ interface FrontendNotification {
   reference_type?: string;
 }
 
-interface FrontendMessage {
-  id: string;
-  conversation_id: string;
-  sender_id: string;
-  body: string;
-  created_at: string;
-  read_at: string | null;
-}
-
 interface NotificationsContextValue {
   unreadCount: number;
-  messageUnreadCount: number;
   notification: FrontendNotification | null;
-  latestMessage: FrontendMessage | null;
+  latestMessage: ConversationMessage | null;
   isConnected: boolean;
   socketError: string | null;
   updateUnreadCount: (count: number) => void;
-  setMessageUnreadCount: (count: number) => void;
 }
 
 const NotificationsContext = createContext<NotificationsContextValue | null>(null);
@@ -43,27 +33,20 @@ const NotificationsContext = createContext<NotificationsContextValue | null>(nul
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
-  const [messageUnreadCount, setMessageUnreadCount] = useState(0);
   const [notification, setNotification] = useState<FrontendNotification | null>(null);
-  const [latestMessage, setLatestMessage] = useState<FrontendMessage | null>(null);
+  const [latestMessage, setLatestMessage] = useState<ConversationMessage | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [socketError, setSocketError] = useState<string | null>(null);
 
-  // Fetch initial unread counts via REST immediately on login
+  // Fetch initial unread count via REST immediately on login
   useEffect(() => {
     if (!user) {
       setUnreadCount(0);
-      setMessageUnreadCount(0);
       setNotification(null);
-      setLatestMessage(null);
       return;
     }
     api.get("/notifications/unread-count")
       .then((res) => setUnreadCount(res.data.data.count ?? 0))
-      .catch(() => {});
-
-    api.get("/messages/unread-count")
-      .then((res) => setMessageUnreadCount(res.data.data.count ?? 0))
       .catch(() => {});
   }, [user]);
 
@@ -105,19 +88,12 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       setUnreadCount((prev) => prev + 1);
     });
 
+    socket.on("message:new", (msg: ConversationMessage) => {
+      setLatestMessage(msg);
+    });
+
     socket.on("notification:unread-count", (data: { count: number }) => {
       setUnreadCount(data.count);
-    });
-
-    socket.on("message:new", (message: FrontendMessage) => {
-      setLatestMessage(message);
-      if (message.sender_id !== user.id) {
-        setMessageUnreadCount((prev) => prev + 1);
-      }
-    });
-
-    socket.on("message:unread-count", (data: { count: number }) => {
-      setMessageUnreadCount(data.count);
     });
 
     socket.on("error", (err: string) => {
@@ -130,19 +106,16 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const updateUnreadCount = useCallback((count: number) => setUnreadCount(count), []);
-  const handleSetMessageUnreadCount = useCallback((count: number) => setMessageUnreadCount(count), []);
 
   return (
     <NotificationsContext.Provider
       value={{
         unreadCount,
-        messageUnreadCount,
         notification,
         latestMessage,
         isConnected,
         socketError,
         updateUnreadCount,
-        setMessageUnreadCount: handleSetMessageUnreadCount,
       }}
     >
       {children}

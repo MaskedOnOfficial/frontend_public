@@ -10,6 +10,7 @@ export interface AuthContextType {
     username: string,
     password: string,
     displayName: string,
+    dateOfBirth: string,
     acceptedTerms: boolean,
     acceptedPrivacy: boolean
   ) => Promise<void>;

@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../lib/api";
 import type { Notification } from "../types";
@@ -7,10 +7,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Bell, CheckCheck, PartyPopper, UserPlus, Star, Heart,
   MessageCircle, Loader2, Trash2, X, ChevronRight,
-  Ticket, Users, AlertCircle, Sparkles, RefreshCw, BellOff,
+  Ticket, Users, AlertCircle, RefreshCw, BellOff,
 } from "lucide-react";
 
-// ─── Types ─────────────────────────────────────────────────────────────────
+// --- Types -----------------------------------------------------------------
 
 type FilterTab = "all" | "requests" | "social" | "parties";
 
@@ -23,7 +23,7 @@ interface NotifConfig {
   label: string;
 }
 
-// ─── Notification type config ───────────────────────────────────────────────
+// --- Notification type config -----------------------------------------------
 
 const TYPE_CONFIG: Record<string, NotifConfig> = {
   join_request: {
@@ -132,7 +132,7 @@ const TAB_TYPES: Record<FilterTab, string[]> = {
   parties: ["payment_confirmed", "announcement"],
 };
 
-// ─── Helpers ───────────────────────────────────────────────────────────────
+// --- Helpers ---------------------------------------------------------------
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -176,7 +176,7 @@ function getNotifLink(n: Notification): string | null {
   return null;
 }
 
-// ─── Single Notification Card ───────────────────────────────────────────────
+// --- Single Notification Card -----------------------------------------------
 
 interface NotifCardProps {
   n: Notification;
@@ -278,7 +278,7 @@ function NotifCard({ n, onRead, onDelete, deleting, navigate }: NotifCardProps) 
   );
 }
 
-// ─── Main Page ──────────────────────────────────────────────────────────────
+// --- Main Page --------------------------------------------------------------
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
@@ -299,7 +299,7 @@ export default function NotificationsPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const limit = 20;
 
-  // ── Fetch ─────────────────────────────────────────────────────────────
+  // -- Fetch -------------------------------------------------------------
   const fetchPage = useCallback(async (pageNum: number, replace = false) => {
     if (pageNum === 1) replace = true;
     setFetchError("");
@@ -323,7 +323,7 @@ export default function NotificationsPage() {
 
   useEffect(() => { fetchPage(1); }, [fetchPage]);
 
-  // ── Infinite scroll ────────────────────────────────────────────────────
+  // -- Infinite scroll ----------------------------------------------------
   useEffect(() => {
     if (!bottomRef.current || !hasMore || loadingMore) return;
     const observer = new IntersectionObserver(
@@ -340,14 +340,14 @@ export default function NotificationsPage() {
     return () => observer.disconnect();
   }, [hasMore, loadingMore, page, fetchPage]);
 
-  // ── Filter ────────────────────────────────────────────────────────────
+  // -- Filter ------------------------------------------------------------
   const filtered = useMemo(() => {
     if (activeTab === "all") return notifications;
     const types = TAB_TYPES[activeTab];
     return notifications.filter((n) => types.includes(n.type));
   }, [notifications, activeTab]);
 
-  // ── Group by time ─────────────────────────────────────────────────────
+  // -- Group by time -----------------------------------------------------
   const grouped = useMemo(() => {
     const map: Record<string, Notification[]> = {};
     for (const n of filtered) {
@@ -361,7 +361,7 @@ export default function NotificationsPage() {
     }));
   }, [filtered]);
 
-  // ── Tab counts ────────────────────────────────────────────────────────
+  // -- Tab counts --------------------------------------------------------
   const tabCounts = useMemo(() => ({
     all: notifications.length,
     requests: notifications.filter((n) => TAB_TYPES.requests.includes(n.type)).length,
@@ -374,7 +374,7 @@ export default function NotificationsPage() {
     return tab.filter((n) => !n.is_read).length;
   }, [notifications, activeTab]);
 
-  // ── Mark read ─────────────────────────────────────────────────────────
+  // -- Mark read ---------------------------------------------------------
   function markRead(id: string) {
     const n = notifications.find((n) => n.id === id);
     if (!n || n.is_read) return;
@@ -403,7 +403,7 @@ export default function NotificationsPage() {
     }
   }
 
-  // ── Delete ────────────────────────────────────────────────────────────
+  // -- Delete ------------------------------------------------------------
   async function deleteOne(id: string) {
     setDeletingIds((s) => new Set(s).add(id));
     const prevNotifs = [...notifications];
@@ -448,7 +448,7 @@ export default function NotificationsPage() {
     fetchPage(1, true);
   }
 
-  // ── Loading skeleton ───────────────────────────────────────────────────
+  // -- Loading skeleton ---------------------------------------------------
   if (loading) {
     return (
       <div className="min-h-screen bg-bg pb-28 md:pb-12">
@@ -473,7 +473,7 @@ export default function NotificationsPage() {
     <div className="min-h-screen bg-bg pb-28 md:pb-12 premium-shell">
       <div className="max-w-2xl mx-auto px-4 py-6 md:py-8">
 
-        {/* ── Header ── */}
+        {/* -- Header -- */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -551,7 +551,7 @@ export default function NotificationsPage() {
           </div>
         </motion.div>
 
-        {/* ── Unread action banner ── */}
+        {/* -- Unread action banner -- */}
         <AnimatePresence>
           {unreadInTab > 0 && (
             <motion.div
@@ -583,7 +583,7 @@ export default function NotificationsPage() {
           )}
         </AnimatePresence>
 
-        {/* ── Error ── */}
+        {/* -- Error -- */}
         {fetchError && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -598,7 +598,7 @@ export default function NotificationsPage() {
           </motion.div>
         )}
 
-        {/* ── Filter Tabs ── */}
+        {/* -- Filter Tabs -- */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -638,7 +638,7 @@ export default function NotificationsPage() {
           })}
         </motion.div>
 
-        {/* ── Content ── */}
+        {/* -- Content -- */}
         <AnimatePresence mode="wait">
           {filtered.length === 0 ? (
             <motion.div
@@ -667,12 +667,7 @@ export default function NotificationsPage() {
                   ? "You'll be notified about party updates, requests, and more."
                   : `${activeTab === "requests" ? "Request activity" : activeTab === "social" ? "Social interactions" : "Party activity"} will appear here.`}
               </p>
-              {activeTab === "all" && (
-                <div className="mt-5 flex items-center justify-center gap-2 text-text-dim text-xs">
-                  <Sparkles className="w-3.5 h-3.5 text-primary" />
-                  Discover parties to get started
-                </div>
-              )}
+              {activeTab === "all" && <div className="mt-5 text-text-dim text-xs">Discover parties to get started</div>}
             </motion.div>
           ) : (
             <motion.div

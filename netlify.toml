@@ -14,6 +14,19 @@
     Cache-Control = "no-cache, no-store, must-revalidate"
     Access-Control-Allow-Origin = "*"
 
+# Force HTTPS — redirect all HTTP traffic to HTTPS
+[[redirects]]
+  from = "http://maskedon.com/*"
+  to = "https://maskedon.com/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "http://www.maskedon.com/*"
+  to = "https://maskedon.com/:splat"
+  status = 301
+  force = true
+
 # SPA fallback — must be LAST so static files (incl. .well-known/) take priority
 [[redirects]]
   from = "/*"

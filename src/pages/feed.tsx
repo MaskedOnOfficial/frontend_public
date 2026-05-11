@@ -7,9 +7,9 @@ import { getApiErrorMessage } from "../lib/errors";
 import { hapticsMedium } from "../lib/haptics";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Heart, MessageCircle, Sparkles, Users, PartyPopper,
+  Heart, MessageCircle, Users, PartyPopper,
   Loader2, MapPin, Calendar, TrendingUp,
-  Flame, Eye, ChevronRight, Zap, Trophy, Globe,
+  Flame, Eye, ChevronRight, Zap, Trophy, Globe, Bookmark,
 } from "lucide-react";
 
 // --- Types ---
@@ -334,9 +334,11 @@ function UpcomingPartiesStrip({ parties }: { parties: UpcomingParty[] }) {
 interface PostCardProps {
   post: FeedPost;
   onLikeToggle: (postId: string, currentLiked: boolean) => void;
+  savedSet: Set<string>;
+  onSaveToggle: (postId: string) => void;
 }
 
-function PostCard({ post, onLikeToggle }: PostCardProps) {
+function PostCard({ post, onLikeToggle, savedSet, onSaveToggle }: PostCardProps) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const [showCommentSheet, setShowCommentSheet] = useState(false);
   const [commentCount, setCommentCount] = useState(post.comment_count ?? 0);
@@ -425,7 +427,7 @@ function PostCard({ post, onLikeToggle }: PostCardProps) {
             <span>{timeAgo(post.created_at)}</span>
             {post.party_id && (
               <>
-                <span className="text-border">·</span>
+                <span className="text-border">Â·</span>
                 <span className="text-primary/70 flex items-center gap-0.5">
                   <PartyPopper className="w-2.5 h-2.5" />
                   Party
@@ -493,13 +495,26 @@ function PostCard({ post, onLikeToggle }: PostCardProps) {
               <MessageCircle className="w-[24px] h-[24px]" />
             </button>
           </div>
-          {/* Engagement indicator */}
-          {engagementLevel && (
-            <div className={`feed-engagement-badge ${engagementLevel === "hot" ? "feed-badge-hot" : "feed-badge-warm"}`}>
-              {engagementLevel === "hot" ? <Flame className="w-3 h-3" /> : <TrendingUp className="w-3 h-3" />}
-              <span>{engagementLevel === "hot" ? "Popular" : "Rising"}</span>
-            </div>
-          )}
+          <div className="flex items-center gap-3">
+            {/* Engagement indicator */}
+            {engagementLevel && (
+              <div className={`feed-engagement-badge ${engagementLevel === "hot" ? "feed-badge-hot" : "feed-badge-warm"}`}>
+                {engagementLevel === "hot" ? <Flame className="w-3 h-3" /> : <TrendingUp className="w-3 h-3" />}
+                <span>{engagementLevel === "hot" ? "Popular" : "Rising"}</span>
+              </div>
+            )}
+            {/* Save/Bookmark */}
+            <button
+              onClick={() => onSaveToggle(post.id)}
+              aria-label={savedSet.has(post.id) ? "Remove from saved" : "Save post"}
+              title={savedSet.has(post.id) ? "Remove from saved" : "Save post"}
+              className={`transition-all duration-200 active:scale-75 ${
+                savedSet.has(post.id) ? "text-primary" : "text-text-muted hover:text-text"
+              }`}
+            >
+              <Bookmark className={`w-[22px] h-[22px] ${savedSet.has(post.id) ? "fill-current" : ""}`} />
+            </button>
+          </div>
         </div>
 
         {/* Stats row */}
@@ -557,9 +572,6 @@ function EmptyFeed() {
       animate={{ opacity: 1, scale: 1 }}
       className="flex flex-col items-center justify-center py-24 text-center px-4"
     >
-      <div className="feed-empty-icon mb-5">
-        <Sparkles className="w-8 h-8 text-primary/60" />
-      </div>
       <h2 className="text-text text-xl font-bold mb-2">Your feed is empty</h2>
       <p className="text-text-muted text-sm max-w-xs mb-6 leading-relaxed">
         Connect with friends and discover parties to start seeing their moments here.
@@ -704,6 +716,33 @@ export default function FeedPage() {
     });
   }
 
+  // Save toggle with optimistic update
+  const [savedSet, setSavedSet] = useState<Set<string>>(new Set());
+  const saveInFlightRef = useRef<Set<string>>(new Set());
+  function handleSaveToggle(postId: string) {
+    if (saveInFlightRef.current.has(postId)) return;
+    saveInFlightRef.current.add(postId);
+    const wasSaved = savedSet.has(postId);
+    setSavedSet((prev) => {
+      const next = new Set(prev);
+      if (wasSaved) next.delete(postId);
+      else next.add(postId);
+      return next;
+    });
+    const endpoint = `/photos/${postId}/save`;
+    const method = wasSaved ? "delete" : "post";
+    api[method](endpoint).catch(() => {
+      setSavedSet((prev) => {
+        const next = new Set(prev);
+        if (wasSaved) next.add(postId);
+        else next.delete(postId);
+        return next;
+      });
+    }).finally(() => {
+      saveInFlightRef.current.delete(postId);
+    });
+  }
+
   const [refreshing, setRefreshing] = useState(false);
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -838,12 +877,14 @@ export default function FeedPage() {
               </div>
             )}
 
-            {/* Feed posts — inject discovery post after position 3, achievement cards after position 0 */}
+            {/* Feed posts â€” inject discovery post after position 3, achievement cards after position 0 */}
             {posts.map((post, index) => (
               <React.Fragment key={post.id}>
                 <PostCard
                   post={post}
                   onLikeToggle={handleLikeToggle}
+                  savedSet={savedSet}
+                  onSaveToggle={handleSaveToggle}
                 />
                 {/* Achievement cards injected after first post */}
                 {index === 0 && achievementUpdates.length > 0 && achievementUpdates.map((update) => (
@@ -897,6 +938,8 @@ export default function FeedPage() {
                     <PostCard
                       post={discoveryPost}
                       onLikeToggle={handleLikeToggle}
+                      savedSet={savedSet}
+                      onSaveToggle={handleSaveToggle}
                     />
                   </motion.div>
                 )}
@@ -923,8 +966,7 @@ export default function FeedPage() {
                 animate={{ opacity: 1 }}
                 className="text-center py-8"
               >
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-surface border border-border/50">
-                  <Sparkles className="w-4 h-4 text-primary" />
+                <div className="inline-flex items-center px-4 py-2 rounded-full bg-surface border border-border/50">
                   <p className="text-text-dim text-sm font-medium">You're all caught up!</p>
                 </div>
               </motion.div>

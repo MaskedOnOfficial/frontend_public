@@ -2,18 +2,21 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import api from "../lib/api";
 import { useAuth } from "../context/auth-hook";
-import type { Party, Attendee } from "../types";
+import type { Party, Attendee, FeeBreakdown } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
 import { motion } from "framer-motion";
 import { parseTags } from "../lib/parse-tags";
 import { getTrustLevel } from "../lib/trust-levels";
-import { ArrowLeft, MapPin, Calendar, Clock, Users, Star, Tag, Camera, Share2, Ticket, Shield, CheckCircle, Loader2, Send, PartyPopper, Edit3, MoreVertical, Flag, X, Lock, Copy, Leaf, Wine, Cigarette, AlertTriangle, EyeOff, MessageCircle, Megaphone } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar, Clock, Users, Star, Tag, Camera, Share2, Ticket, Shield, CheckCircle, Loader2, Send, PartyPopper, Edit3, MoreVertical, Flag, X, Lock, Copy, Leaf, Wine, Cigarette, AlertTriangle, EyeOff, Megaphone } from "lucide-react";
 import ReportModal from "../components/ReportModal";
 import type { PartyAnnouncement } from "../types";
 
 interface PartyDetailPayload {
   party: Party;
   attendees: Attendee[];
+  friends_attending: { user_id: string; display_name: string; avatar_url: string | null }[];
+  host_stats?: { pending_count: number; approved_not_joined_count: number };
+  fee_breakdown?: FeeBreakdown | null;
   viewer?: {
     request_status: string | null;
     request_id: string | null;
@@ -39,12 +42,17 @@ export default function PartyDetailPage() {
   const [requesting, setRequesting] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
   const [paying, setPaying] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [cancelResult, setCancelResult] = useState<{ message: string; refund_percent: number; refunded_amount: number } | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [announcementBody, setAnnouncementBody] = useState("");
   const [announcements, setAnnouncements] = useState<PartyAnnouncement[]>([]);
   const [announcementSending, setAnnouncementSending] = useState(false);
-  const [conversationStarting, setConversationStarting] = useState(false);
+  const [friendsAttending, setFriendsAttending] = useState<{ user_id: string; display_name: string; avatar_url: string | null }[]>([]);
+  const [hostStats, setHostStats] = useState<{ pending_count: number; approved_not_joined_count: number } | null>(null);
+  const [feeBreakdown, setFeeBreakdown] = useState<FeeBreakdown | null>(null);
 
   const isHost = party && user && party.host_id === user.id;
 
@@ -55,6 +63,9 @@ export default function PartyDetailPage() {
 
       setParty(data.party);
       setAttendees(data.attendees || []);
+      setFriendsAttending(data.friends_attending ?? []);
+      setHostStats(data.host_stats ?? null);
+      setFeeBreakdown(data.fee_breakdown ?? null);
       setRequestStatus(data.viewer?.request_status ?? null);
       setRequestId(data.viewer?.request_id ?? null);
     } catch (loadError: unknown) {
@@ -103,6 +114,17 @@ export default function PartyDetailPage() {
     }
   }
 
+  async function handleMessageHost() {
+    if (!party) return;
+    try {
+      const res = await api.post("/messages/conversations", { party_id: party.id });
+      const convId = res.data.data.conversation?.id;
+      if (convId) navigate(`/messages/${convId}`);
+    } catch {
+      navigate("/messages");
+    }
+  }
+
   async function handleWithdraw() {
     if (!requestId) return;
     setWithdrawing(true);
@@ -115,6 +137,24 @@ export default function PartyDetailPage() {
       setError(getApiErrorMessage(withdrawError, "Failed to withdraw request"));
     } finally {
       setWithdrawing(false);
+    }
+  }
+
+  async function handleCancelTicket() {
+    if (!partyId) return;
+    setCancelling(true);
+    setError("");
+    try {
+      const res = await api.delete(`/parties/${partyId}/attend`);
+      const result = res.data.data as { message: string; refund_percent: number; refunded_amount: number };
+      setCancelResult(result);
+      setShowCancelConfirm(false);
+      loadParty();
+    } catch (cancelError: unknown) {
+      setError(getApiErrorMessage(cancelError, "Failed to cancel ticket"));
+      setShowCancelConfirm(false);
+    } finally {
+      setCancelling(false);
     }
   }
 
@@ -200,20 +240,6 @@ export default function PartyDetailPage() {
     }
   }
 
-  async function handleMessageHost() {
-    if (!partyId) return;
-    setConversationStarting(true);
-    setError("");
-    try {
-      const res = await api.post("/messages/conversations", { party_id: partyId });
-      navigate(`/messages/${res.data.data.conversation.id}`);
-    } catch (messageError: unknown) {
-      setError(getApiErrorMessage(messageError, "Unable to open message thread"));
-    } finally {
-      setConversationStarting(false);
-    }
-  }
-
   async function handlePostAnnouncement() {
     if (!partyId || !announcementBody.trim()) return;
     setAnnouncementSending(true);
@@ -290,9 +316,7 @@ export default function PartyDetailPage() {
   const alreadyAttending = attendees.some((a) => a.user_id === user?.id);
   const isPartyPast = new Date(party.end_time ?? party.date_time) < new Date();
   const canRate = isPartyPast && (isHost || alreadyAttending);
-  const isFull = party.current_attendees >= party.max_capacity;
   const canRequestToJoin = party.status === "upcoming";
-  const capacityPercent = Math.min(100, Math.round((party.current_attendees / party.max_capacity) * 100));
 
   function getStatusClasses(status: string) {
     switch (status) {
@@ -368,15 +392,24 @@ export default function PartyDetailPage() {
                 {party.status}
               </span>
             </div>
-            {/* #32 — Accessibility on capacity bar */}
-            <div className="flex items-center gap-3 mt-3">
-              <div className="flex-1 h-1.5 bg-surface-light rounded-full overflow-hidden" role="progressbar" aria-label={`${party.current_attendees} of ${party.max_capacity} spots filled`} aria-valuenow={capacityPercent} aria-valuemin={0} aria-valuemax={100}>
-                <div className="h-full rounded-full bg-gradient-to-r from-primary via-accent to-hot transition-all duration-500" style={{ width: `${capacityPercent}%` }} />
+            {/* Host stats panel */}
+            {isHost && (
+              <div className="flex items-center gap-4 mt-3 flex-wrap">
+                <span className="text-text-muted text-xs font-semibold whitespace-nowrap">
+                  <span className="text-success font-bold">{party.current_attendees ?? 0}</span> joined
+                </span>
+                {hostStats && (
+                  <>
+                    <span className="text-text-muted text-xs font-semibold whitespace-nowrap">
+                      <span className="text-warning font-bold">{hostStats.pending_count}</span> pending
+                    </span>
+                    <span className="text-text-muted text-xs font-semibold whitespace-nowrap">
+                      <span className="text-accent font-bold">{hostStats.approved_not_joined_count}</span> invited, not joined
+                    </span>
+                  </>
+                )}
               </div>
-              <span className="text-text-muted text-xs font-semibold whitespace-nowrap">
-                {party.current_attendees}/{party.max_capacity} attending
-              </span>
-            </div>
+            )}
           </div>
 
           {/* Key details */}
@@ -665,8 +698,8 @@ export default function PartyDetailPage() {
             </div>
           )}
 
-          {/* Attendees */}
-          {attendees.length > 0 && (
+          {/* Attendees (host only) */}
+          {isHost && attendees.length > 0 && (
             <div className="mb-8">
               <h3 className="text-[11px] font-bold text-text-dim uppercase tracking-[0.15em] mb-3 flex items-center gap-2">
                 <Users className="w-3.5 h-3.5" />
@@ -698,6 +731,34 @@ export default function PartyDetailPage() {
             </div>
           )}
 
+          {/* Friends attending (guests only) */}
+          {!isHost && friendsAttending.length > 0 && (
+            <div className="mb-8">
+              <h3 className="text-[11px] font-bold text-text-dim uppercase tracking-[0.15em] mb-3 flex items-center gap-2">
+                <Users className="w-3.5 h-3.5 text-accent" />
+                Friends Going ({friendsAttending.length})
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {friendsAttending.map((f) => (
+                  <Link
+                    key={f.user_id}
+                    to={`/profile/${f.user_id}`}
+                    className="w-10 h-10 rounded-full bg-gradient-to-br from-accent to-primary p-[1.5px] hover:shadow-lg hover:shadow-accent/20 transition-shadow"
+                    title={f.display_name}
+                  >
+                    <div className="w-full h-full rounded-full bg-bg overflow-hidden flex items-center justify-center text-text text-xs font-bold">
+                      {f.avatar_url ? (
+                        <img src={f.avatar_url} alt={f.display_name} className="w-full h-full object-cover" />
+                      ) : (
+                        f.display_name.charAt(0).toUpperCase()
+                      )}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Action buttons */}
           <div className="space-y-3">
             {/* Share toast */}
@@ -717,30 +778,102 @@ export default function PartyDetailPage() {
                 {error && <p className="text-error text-sm bg-error/10 border border-error/20 px-4 py-3 rounded-xl">{error}</p>}
 
                 {alreadyAttending || requestStatus === "paid" ? (
-                  <div className="glass-panel rounded-2xl p-5 border-success/20 border">
+                  <div className="glass-panel rounded-2xl p-5 border-success/20 border space-y-3">
                     <p className="text-success font-bold text-center flex items-center justify-center gap-2">
                       <CheckCircle className="w-5 h-5" />
                       You're on the guest list!
                     </p>
+                    {cancelResult ? (
+                      <p className="text-xs text-text-muted text-center">{cancelResult.message}</p>
+                    ) : party.status === "upcoming" && (
+                      <>
+                        {(() => {
+                          const hoursUntil = (new Date(party.date_time).getTime() - Date.now()) / 3_600_000;
+                          const refundLabel =
+                            hoursUntil >= 48 ? "Full refund if cancelled now" :
+                            hoursUntil >= 12 ? "50% refund if cancelled now" :
+                            "No refund — party is within 12 hours";
+                          return (
+                            <p className="text-[11px] text-text-dim text-center">{refundLabel}</p>
+                          );
+                        })()}
+                        {!showCancelConfirm ? (
+                          <button
+                            onClick={() => setShowCancelConfirm(true)}
+                            className="w-full text-error text-sm font-semibold py-2 rounded-xl border border-error/20 hover:bg-error/10 transition tap-active flex items-center justify-center gap-1.5"
+                          >
+                            <X className="w-3.5 h-3.5" /> Cancel My Ticket
+                          </button>
+                        ) : (
+                          <div className="space-y-2">
+                            <p className="text-xs text-text-muted text-center font-semibold">Are you sure? This cannot be undone.</p>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setShowCancelConfirm(false)}
+                                className="flex-1 text-text-muted text-sm font-semibold py-2 rounded-xl border border-border hover:bg-surface transition tap-active"
+                              >
+                                Keep Ticket
+                              </button>
+                              <button
+                                onClick={handleCancelTicket}
+                                disabled={cancelling}
+                                className="flex-1 text-error text-sm font-bold py-2 rounded-xl border border-error/20 bg-error/10 hover:bg-error/20 transition disabled:opacity-50 tap-active flex items-center justify-center gap-1.5"
+                              >
+                                {cancelling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                                {cancelling ? "Cancelling…" : "Yes, Cancel"}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 ) : requestStatus === "approved" && party.ticket_price > 0 ? (
-                  <button onClick={handlePay} disabled={paying} className="btn-primary-luxe w-full px-4 py-4 rounded-2xl font-bold disabled:opacity-50 flex items-center justify-center gap-2">
-                    {paying ? <><Loader2 className="w-4 h-4 animate-spin" />Processing...</> : <><Ticket className="w-4 h-4" />Buy Ticket · {formatPrice(party.ticket_price)}</>}
-                  </button>
+                  <div className="space-y-3">
+                    {/* Fee breakdown card */}
+                    {feeBreakdown && (
+                      <div className="rounded-2xl bg-surface/60 border border-primary/15 p-4 space-y-2">
+                        <p className="text-xs font-semibold text-text-dim uppercase tracking-widest mb-3">Price Breakdown</p>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-text-dim">Ticket</span>
+                          <span className="text-text font-medium">₹{(feeBreakdown.ticket_price / 100).toLocaleString("en-IN")}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-text-dim">Platform fee ({feeBreakdown.platform_fee_rate_percent}%)</span>
+                          <span className="text-text font-medium">₹{(feeBreakdown.platform_fee / 100).toLocaleString("en-IN")}</span>
+                        </div>
+                        <div className="border-t border-border/30 pt-2 flex items-center justify-between">
+                          <span className="text-sm font-bold text-text">Total charged</span>
+                          <span className="text-sm font-bold text-primary">₹{(feeBreakdown.user_total / 100).toLocaleString("en-IN")}</span>
+                        </div>
+                      </div>
+                    )}
+                    <button onClick={handlePay} disabled={paying} className="btn-primary-luxe w-full px-4 py-4 rounded-2xl font-bold disabled:opacity-50 flex items-center justify-center gap-2">
+                      {paying ? <><Loader2 className="w-4 h-4 animate-spin" />Processing...</> : <><Ticket className="w-4 h-4" />Buy Ticket · {feeBreakdown ? `₹${(feeBreakdown.user_total / 100).toLocaleString("en-IN")}` : formatPrice(party.ticket_price)}</>}
+                    </button>
+                  </div>
                 ) : requestStatus === "approved" ? (
-                  <div className="glass-panel rounded-2xl p-5 border-success/20 border">
+                  <div className="glass-panel rounded-2xl p-5 border-success/20 border space-y-3">
                     <p className="text-success font-bold text-center flex items-center justify-center gap-2"><CheckCircle className="w-5 h-5" />Invite Accepted</p>
+                    <button onClick={handleMessageHost} className="w-full btn-secondary-luxe px-4 py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-2">
+                      <Send className="w-4 h-4" />Message Host
+                    </button>
                   </div>
                 ) : requestStatus === "pending" ? (
                   <div className="glass-panel rounded-2xl p-5 border-warning/20 border">
                     <p className="text-warning font-bold text-center flex items-center justify-center gap-2 mb-3"><Clock className="w-5 h-5" />Awaiting host approval</p>
-                    <button
-                      onClick={handleWithdraw}
-                      disabled={withdrawing}
-                      className="w-full text-error text-sm font-semibold py-2 rounded-xl border border-error/20 hover:bg-error/10 transition disabled:opacity-50 tap-active flex items-center justify-center gap-1.5"
-                    >
-                      {withdrawing ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Withdrawing…</> : <><X className="w-3.5 h-3.5" />Withdraw Request</>}
-                    </button>
+                    <div className="flex gap-2">
+                      <button onClick={handleMessageHost} className="flex-1 btn-secondary-luxe px-3 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5">
+                        <Send className="w-3.5 h-3.5" />Message
+                      </button>
+                      <button
+                        onClick={handleWithdraw}
+                        disabled={withdrawing}
+                        className="flex-1 text-error text-sm font-semibold py-2 rounded-xl border border-error/20 hover:bg-error/10 transition disabled:opacity-50 tap-active flex items-center justify-center gap-1.5"
+                      >
+                        {withdrawing ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Withdrawing…</> : <><X className="w-3.5 h-3.5" />Withdraw</>}
+                      </button>
+                    </div>
                   </div>
                 ) : !canRequestToJoin ? (
                   <div className="glass-panel rounded-2xl p-5 border-text-dim/10 border">
@@ -759,24 +892,13 @@ export default function PartyDetailPage() {
                     />
                     <button
                       onClick={handleJoinRequest}
-                      disabled={requesting || isFull}
+                      disabled={requesting}
                       className="btn-primary-luxe w-full px-4 py-4 rounded-2xl font-bold disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                       {requesting ? <><Loader2 className="w-4 h-4 animate-spin" />Sending...</> 
-                        : isFull ? "Event is Full"
                         : requestStatus === "rejected" || requestStatus === "withdrawn" ? <><Send className="w-4 h-4" />Request Again</>
                         : <><Send className="w-4 h-4" />Send Invite Request</>}
                     </button>
-                    {user && !isHost && requestStatus && requestStatus !== "withdrawn" && (
-                      <button
-                        onClick={handleMessageHost}
-                        disabled={conversationStarting}
-                        className="btn-secondary-luxe w-full px-4 py-4 rounded-2xl font-bold disabled:opacity-50 flex items-center justify-center gap-2"
-                      >
-                        {conversationStarting ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageCircle className="w-4 h-4" />}
-                        Message Host
-                      </button>
-                    )}
                   </div>
                 )}
               </>
