@@ -109,7 +109,7 @@ export default function LoginPage() {
             transition={{ delay: 0.2 }}
             className="flex justify-center"
           >
-            <img src={theme === "light" ? "/name_lighttheme.png" : "/name.png"} alt="maskedOn" className="h-10 w-auto object-contain" />
+            <img src={theme === "light" ? "/name_lighttheme.png" : "/name.png"} alt="MaskedOn" className="h-10 w-auto object-contain" />
           </motion.div>
           <motion.p
             initial={{ opacity: 0 }}
@@ -226,7 +226,7 @@ export default function LoginPage() {
         {/* Register link */}
         <div className="text-text-muted text-sm text-center mt-8 space-y-3">
           <p>
-            New to maskedOn?{" "}
+            New to MaskedOn?{" "}
             <Link
               to="/auth/register"
               className="text-primary font-semibold hover:text-accent transition inline-flex items-center gap-1"

@@ -260,7 +260,7 @@ export default function LandingPage() {
           â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       <section id="features" className="px-4 py-20 max-w-5xl mx-auto">
         <FadeUp className="text-center mb-12">
-          <p className="text-primary text-xs font-bold uppercase tracking-[0.2em] mb-3">Why maskedOn</p>
+          <p className="text-primary text-xs font-bold uppercase tracking-[0.2em] mb-3">Why MaskedOn</p>
           <h2 className="text-3xl md:text-4xl font-black text-text tracking-tight" style={{ fontFamily: "Outfit, sans-serif" }}>
             Your social life, <span className="brand-gradient-text">upgraded</span>
           </h2>
@@ -553,7 +553,7 @@ export default function LandingPage() {
                 <span className="brand-gradient-text">guest list?</span>
               </h2>
               <p className="text-text-muted text-sm mb-8 max-w-sm mx-auto leading-relaxed">
-                Join maskedOn for free. Build your reputation, discover parties, and connect with people who know how to have a good time.
+                Join MaskedOn for free. Build your reputation, discover parties, and connect with people who know how to have a good time.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Link
@@ -586,7 +586,7 @@ export default function LandingPage() {
               masked<span className="text-primary">On</span>
             </span>
           </div>
-          <p className="text-text-dim text-xs">Â© {new Date().getFullYear()} maskedOn. All rights reserved.</p>
+          <p className="text-text-dim text-xs">Â© {new Date().getFullYear()} MaskedOn. All rights reserved.</p>
           <div className="flex items-center gap-5 text-xs text-text-dim">
             <Link to="/auth/login" className="hover:text-text-muted transition">Sign in</Link>
             <Link to="/auth/register" className="hover:text-text-muted transition">Register</Link>

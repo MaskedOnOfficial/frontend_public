@@ -30,7 +30,7 @@ export default function ContactPage() {
     const body = encodeURIComponent(
       `Name: ${name}\nEmail: ${email}\n\nSubject: ${subject}\n\n${message}`,
     );
-    window.location.href = `mailto:team@maskedon.com?subject=${encodeURIComponent(`[maskedOn] ${subject}`)}&body=${body}`;
+    window.location.href = `mailto:team@maskedon.com?subject=${encodeURIComponent(`[MaskedOn] ${subject}`)}&body=${body}`;
     setSent(true);
   }
 

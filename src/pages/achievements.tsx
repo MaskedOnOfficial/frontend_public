@@ -431,7 +431,7 @@ export default function AchievementsPage() {
                 <p className="text-text-dim text-sm mt-1">
                   {filter === "unlocked"
                     ? "Start attending parties and connecting with people."
-                    : "Incredible â€” you're a maskedOn legend."}
+                    : "Incredible â you're a MaskedOn legend."}
                 </p>
                 {filter === "unlocked" && (
                   <Link to="/parties" className="btn-primary-luxe inline-flex items-center gap-2 mt-4 px-5 py-2.5 rounded-xl text-sm font-bold">

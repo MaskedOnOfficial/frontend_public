@@ -127,7 +127,7 @@ export default function BugReportPage() {
               </div>
               <h2 className="text-text font-bold text-lg mb-2">Report submitted!</h2>
               <p className="text-text-muted text-sm mb-6 max-w-xs mx-auto">
-                We've received your bug report. Thank you for helping make maskedOn better!
+                We've received your bug report. Thank you for helping make MaskedOn better!
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <button

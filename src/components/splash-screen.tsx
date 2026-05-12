@@ -199,7 +199,7 @@ export default function SplashScreen({ onComplete }: Props) {
         {/* Brand name */}
         <motion.img
           src={theme === "light" ? nameLightImg : nameImg}
-          alt="maskedOn"
+          alt="MaskedOn"
           className="object-contain"
           style={{ width: 200, filter: palette.nameShadow }}
           initial={{ opacity: 0, y: 14 }}

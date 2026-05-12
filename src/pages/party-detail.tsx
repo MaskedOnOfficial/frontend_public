@@ -193,7 +193,7 @@ export default function PartyDetailPage() {
           key: key_id,
           amount,
           currency,
-          name: "maskOn",
+          name: "MaskedOn",
           description: party?.title ?? "Party Ticket",
           order_id,
           prefill,
@@ -283,7 +283,7 @@ export default function PartyDetailPage() {
     const appUrl = (import.meta.env.VITE_APP_URL as string) || "https://maskedon.com";
     const url = `${appUrl}/parties/${partyId}`;
     if (navigator.share) {
-      navigator.share({ title: party?.title || "maskedOn Party", url }).catch(() => {});
+      navigator.share({ title: party?.title || "MaskedOn Party", url }).catch(() => {});
     } else {
       navigator.clipboard.writeText(url).then(() => {
         setShareToast("Link copied!");

@@ -21,7 +21,7 @@ const STEPS: Step[] = [
     Icon: PartyPopper,
     iconColor: "text-hot",
     iconBg: "bg-gradient-to-br from-hot/20 to-primary/20",
-    title: "Welcome to maskedOn",
+    title: "Welcome to MaskedOn",
     subtitle: "The social platform for party lovers",
     body: "Discover exclusive events, connect with your crew, and build your nightlife reputation â€” all in one place.",
   },

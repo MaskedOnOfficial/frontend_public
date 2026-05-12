@@ -41,7 +41,7 @@ function UpdateScreen({ versionData }: { versionData: VersionData }) {
           Update Required
         </h1>
         <p className="text-text-muted text-sm leading-relaxed mb-2">
-          A new version of maskOn is available with important improvements and
+          A new version of MaskedOn is available with important improvements and
           bug fixes.
         </p>
         <p className="text-text-dim text-xs mb-10">

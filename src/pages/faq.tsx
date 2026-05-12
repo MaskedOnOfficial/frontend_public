@@ -25,16 +25,16 @@ const FAQ_GROUPS: FAQGroup[] = [
     color: "text-primary",
     items: [
       {
-        q: "What is maskedOn?",
-        a: "maskedOn is a social party-hosting platform where hosts create private events and hand-pick their guest list. Guests discover parties, request entry, and build a social reputation that helps them get approved faster at future events.",
+        q: "What is MaskedOn?",
+        a: "MaskedOn is a social party-hosting platform where hosts create private events and hand-pick their guest list. Guests discover parties, request entry, and build a social reputation that helps them get approved faster at future events.",
       },
       {
-        q: "Is maskedOn free to use?",
-        a: "Yes — maskedOn is completely free for guests. Hosts can list events for free. Ticket pricing is set by the host, and a mock payment system is used for demonstration. Real money payments are not processed at this time.",
+        q: "Is MaskedOn free to use?",
+        a: "Yes — MaskedOn is completely free for guests. Hosts can list events for free. Ticket pricing is set by the host, and a mock payment system is used for demonstration. Real money payments are not processed at this time.",
       },
       {
-        q: "Which cities is maskedOn available in?",
-        a: "maskedOn is currently in early access across major Indian cities. Discovery is location-based, so parties nearest to you will appear first in the feed.",
+        q: "Which cities is MaskedOn available in?",
+        a: "MaskedOn is currently in early access across major Indian cities. Discovery is location-based, so parties nearest to you will appear first in the feed.",
       },
       {
         q: "Do I need to verify my email?",
@@ -132,7 +132,7 @@ const FAQ_GROUPS: FAQGroup[] = [
     items: [
       {
         q: "Who can see my profile?",
-        a: "Any registered maskedOn user can view your public profile, including your display name, photos, and social rating. Your email address is never visible to other users.",
+        a: "Any registered MaskedOn user can view your public profile, including your display name, photos, and social rating. Your email address is never visible to other users.",
       },
       {
         q: "How do push notifications work?",
@@ -165,8 +165,8 @@ const FAQ_GROUPS: FAQGroup[] = [
         ),
       },
       {
-        q: "Is maskedOn available as a mobile app?",
-        a: "maskedOn is a Progressive Web App (PWA) that works in any browser. Native Android and iOS apps are in development — stay tuned for announcements.",
+        q: "Is MaskedOn available as a mobile app?",
+        a: "MaskedOn is a Progressive Web App (PWA) that works in any browser. Native Android and iOS apps are in development — stay tuned for announcements.",
       },
     ],
   },

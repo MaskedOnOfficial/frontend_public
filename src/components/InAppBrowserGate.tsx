@@ -15,7 +15,7 @@
  * Detection strategy:
  *  - `wv` in Android user-agent = explicitly marked as a WebView build
  *  - Known in-app browser UA strings (Gmail, Facebook, Instagram, etc.)
- *  - We EXCLUDE the maskOn Capacitor native app, which also runs in a WebView
+ *  - We EXCLUDE the MaskedOn Capacitor native app, which also runs in a WebView
  *    but has `window.Capacitor.isNativePlatform() === true`.
  */
 
@@ -27,7 +27,7 @@ import { ExternalLink, Copy, Check, Smartphone } from "lucide-react";
 const AUTH_SENSITIVE_PATHS = ["/reset-password", "/verify-email"];
 
 function detectInAppBrowser(): { isInApp: boolean; platform: "android" | "ios" | "other" } {
-  // Skip detection when running inside the maskOn native Capacitor app
+  // Skip detection when running inside the MaskedOn native Capacitor app
   if (Capacitor.isNativePlatform()) {
     return { isInApp: false, platform: "other" };
   }

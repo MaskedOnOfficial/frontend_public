@@ -86,7 +86,7 @@ export default function Navbar() {
 
         {/* Logo */}
         <Link to="/" className="flex items-center gap-1.5 shrink-0 group">
-          <img src={theme === "light" ? "/name_lighttheme.png" : "/name.png"} alt="maskedOn" className="h-6 md:h-7 w-auto object-contain" />
+          <img src={theme === "light" ? "/name_lighttheme.png" : "/name.png"} alt="MaskedOn" className="h-6 md:h-7 w-auto object-contain" />
         </Link>
 
         {/* Search bar — visible only when logged in */}

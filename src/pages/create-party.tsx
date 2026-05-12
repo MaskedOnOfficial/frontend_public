@@ -532,7 +532,7 @@ export default function CreatePartyPage() {
           amount,
           currency,
           order_id,
-          name: "maskOn",
+          name: "MaskedOn",
           description: "Refundable host security deposit",
           theme: { color: "#6C63FF" },
           handler: async (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => {
