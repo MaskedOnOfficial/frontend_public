@@ -2,7 +2,7 @@ import { useState, useEffect, type ReactNode } from "react";
 import axios from "axios";
 import { Capacitor } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
-import api, { clearStoredAuthTokens, ensureBackendAwake, getStoredRefreshToken, persistAuthTokens } from "../lib/api";
+import api, { clearStoredAuthTokens, getStoredAccessToken, getStoredRefreshToken, persistAuthTokens } from "../lib/api";
 import { getApiErrorMessage } from "../lib/errors";
 import { AuthContext } from "./auth-context-base";
 import type { AuthTokens, User } from "../types";
@@ -17,8 +17,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     const bootstrapAuth = async () => {
+      // No stored credentials at all — user is not logged in, skip network entirely.
+      if (!getStoredAccessToken() && !getStoredRefreshToken()) {
+        if (!cancelled) { setUser(null); setLoading(false); }
+        return;
+      }
+
       try {
-        const res = await api.get("/users/me");
+        // Use a short timeout so the UI is never blocked for more than 8 seconds.
+        // If the backend is cold-starting, the login page handles the wake-up UX.
+        const res = await api.get("/users/me", { timeout: 8000 });
         if (!cancelled) setUser(res.data.data.user);
         return;
       } catch (error) {
@@ -33,19 +41,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           return;
         }
-
-        if (axios.isAxiosError(error) && !error.response) {
-          try {
-            await ensureBackendAwake(65000);
-            const retryRes = await api.get("/users/me");
-            if (!cancelled) setUser(retryRes.data.data.user);
-            return;
-          } catch (retryError) {
-            console.error("Failed to bootstrap auth user:", getApiErrorMessage(retryError, "Unknown auth error"));
-          }
-        } else {
-          console.error("Failed to bootstrap auth user:", getApiErrorMessage(error, "Unknown auth error"));
-        }
+        // Network error / cold start: unblock loading immediately so the user sees
+        // the login page (which has its own wake-up UX with visible feedback).
+        // Do NOT await ensureBackendAwake here — it holds loading=true for up to 65s.
+        console.error("Failed to bootstrap auth user:", getApiErrorMessage(error, "Unknown auth error"));
       } finally {
         if (!cancelled) setLoading(false);
       }

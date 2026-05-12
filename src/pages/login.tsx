@@ -24,6 +24,7 @@ export default function LoginPage() {
   );
   const [submitting, setSubmitting] = useState(false);
   const [wakingUp, setWakingUp] = useState(false);
+  const [backendPinging, setBackendPinging] = useState(true);
   const backendReadyRef = useRef(false);
   const wakePromiseRef = useRef<Promise<void> | null>(null);
 
@@ -42,7 +43,10 @@ export default function LoginPage() {
   }
 
   useEffect(() => {
-    void ensureBackendReady().catch(() => {});
+    setBackendPinging(true);
+    void ensureBackendReady()
+      .catch(() => {})
+      .finally(() => setBackendPinging(false));
   }, []);
 
   async function handleSubmit(e: FormEvent) {
@@ -143,16 +147,20 @@ export default function LoginPage() {
             </motion.div>
           )}
 
-          {/* Error */}
+          {/* Error / waking-up info */}
           {error && (
             <motion.div
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
-              role="alert"
+              role={wakingUp ? "status" : "alert"}
               aria-live="polite"
-              className="bg-error/10 border border-error/20 rounded-xl px-4 py-3 mb-6 text-error text-sm flex items-start gap-2"
+              className={`rounded-xl px-4 py-3 mb-6 text-sm flex items-start gap-2 ${
+                wakingUp
+                  ? "bg-primary/10 border border-primary/20 text-primary"
+                  : "bg-error/10 border border-error/20 text-error"
+              }`}
             >
-              <span className="mt-0.5">⚠️</span>
+              <span className="mt-0.5">{wakingUp ? "⏳" : "⚠️"}</span>
               <span>{error}</span>
             </motion.div>
           )}
@@ -205,10 +213,15 @@ export default function LoginPage() {
             {/* Submit */}
             <button
               type="submit"
-              disabled={submitting || !email.trim() || !password.trim()}
+              disabled={submitting || backendPinging || !email.trim() || !password.trim()}
               className="btn-primary-luxe relative w-full overflow-hidden font-bold py-4 rounded-xl transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed mt-3 flex items-center justify-center gap-2"
             >
-              {submitting ? (
+              {backendPinging && !submitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Connecting...
+                </>
+              ) : submitting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
                   {wakingUp ? "Waking server..." : "Signing in..."}

@@ -101,6 +101,7 @@ export async function ensureBackendAwake(maxWaitMs = 65000): Promise<void> {
 const api = axios.create({
   baseURL: apiBaseUrl,
   withCredentials: true,
+  timeout: 15000,
   headers: { "Content-Type": "application/json" },
 });
 
