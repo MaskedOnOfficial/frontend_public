@@ -66,8 +66,10 @@ export default function LoginPage() {
           await login(email, password);
           navigate("/", { replace: true });
           return;
-        } catch (retryError: unknown) {
-          setError(getApiErrorMessage(retryError, "Server is still waking up. Please try again in a few seconds."));
+        } catch {
+          // We're already in the server-wake-up path; any failure here is a server
+          // connectivity issue — never blame the user's internet connection.
+          setError("Server is still starting up. Please wait a moment and try signing in again.");
         } finally {
           setWakingUp(false);
         }

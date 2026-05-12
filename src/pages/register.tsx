@@ -130,8 +130,9 @@ export default function RegisterPage() {
             },
           });
           return;
-        } catch (retryError: unknown) {
-          setError(getApiErrorMessage(retryError, "Server is still waking up. Please try again in a few seconds."));
+        } catch {
+          // Already in the server-wake-up path — any failure is a server issue, not internet.
+          setError("Server is still starting up. Please wait a moment and try again.");
         } finally {
           setWakingUp(false);
         }

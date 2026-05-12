@@ -2,9 +2,13 @@ import axios from "axios";
 
 export function getApiErrorMessage(error: unknown, fallback: string): string {
   if (axios.isAxiosError(error)) {
-    // No response = network/connection problem
+    // No response: could be server unreachable (cold start, down) or truly offline.
+    // Avoid blaming internet since the server being asleep on a free tier is common.
     if (!error.response) {
-      return "No internet connection. Please check your connection and try again.";
+      if (error.code === "ECONNABORTED" || error.message?.toLowerCase().includes("timeout")) {
+        return "Server is taking too long to respond. Please try again in a moment.";
+      }
+      return "Unable to reach the server. Please check your connection or try again shortly.";
     }
 
     const status = error.response.status;
