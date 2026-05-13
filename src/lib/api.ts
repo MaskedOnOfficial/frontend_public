@@ -15,7 +15,7 @@ const PROD_API_BASE_URL = "https://maskedon-backend.onrender.com/api/v1";
 const isNativeApp = Capacitor.isNativePlatform();
 const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim();
 const apiBaseUrl = isNativeApp
-  ? PROD_API_BASE_URL
+  ? (configuredApiBaseUrl || PROD_API_BASE_URL)
   : (configuredApiBaseUrl || (import.meta.env.PROD ? PROD_API_BASE_URL : "/api/v1"));
 const wakeUrl = `${apiBaseUrl}/app/version`;
 let wakePromise: Promise<void> | null = null;

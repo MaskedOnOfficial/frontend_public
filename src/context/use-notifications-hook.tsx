@@ -10,7 +10,7 @@ const PROD_WS_URL = "https://maskedon-backend.onrender.com";
 const isNativeApp = Capacitor.isNativePlatform();
 const configuredWsUrl = (import.meta.env.VITE_WS_URL as string | undefined)?.trim();
 const WS_URL = isNativeApp
-  ? PROD_WS_URL
+  ? (configuredWsUrl || PROD_WS_URL)
   : (configuredWsUrl || (import.meta.env.PROD ? PROD_WS_URL : undefined));
 
 interface FrontendNotification {
