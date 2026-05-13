@@ -9,7 +9,10 @@ import {
 } from "./api-cache";
 import type { AuthTokens } from "../types";
 
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim() || "/api/v1";
+const PROD_API_BASE_URL = "https://maskedon-backend.onrender.com/api/v1";
+const apiBaseUrl =
+  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim() ||
+  (import.meta.env.PROD ? PROD_API_BASE_URL : "/api/v1");
 const healthUrl = `${apiBaseUrl}/health`;
 let wakePromise: Promise<void> | null = null;
 let tokenRefreshPromise: Promise<void> | null = null;

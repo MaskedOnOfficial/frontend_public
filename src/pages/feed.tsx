@@ -628,7 +628,8 @@ export default function FeedPage() {
     try {
       const res = await api.get(`/feed?page=${pageNum}&limit=${LIMIT}`);
       const data = res.data.data;
-      setPosts((prev) => (append ? [...prev, ...data.posts] : data.posts));
+      const nextPosts = Array.isArray(data.posts) ? data.posts : [];
+      setPosts((prev) => (append ? [...prev, ...nextPosts] : nextPosts));
       setHasMore(data.hasMore);
 
       // First page enrichment

@@ -4,7 +4,10 @@ import io from "socket.io-client";
 import api from "../lib/api";
 import type { ConversationMessage } from "../types";
 
-const WS_URL = (import.meta.env.VITE_WS_URL as string | undefined)?.trim();
+const PROD_WS_URL = "https://maskedon-backend.onrender.com";
+const WS_URL =
+  (import.meta.env.VITE_WS_URL as string | undefined)?.trim() ||
+  (import.meta.env.PROD ? PROD_WS_URL : undefined);
 
 interface FrontendNotification {
   id: string;
