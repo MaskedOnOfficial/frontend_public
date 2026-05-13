@@ -1,0 +1,126 @@
+# MaskedOn — LLM & AI System Context
+
+> **Source:** https://maskedon.com  
+> **Last updated:** 2026-05-13  
+> **Format:** llms.txt (LLM-readable site manifest)
+
+---
+
+## What is MaskedOn?
+
+MaskedOn is a **curated, trust-based house party discovery and social platform**. Users can host private parties, discover events near them, request to join, rate fellow attendees after events, share photos, and build a social reputation score that unlocks access to higher-quality parties.
+
+The platform is designed for adults who want a safer, more social, community-driven alternative to anonymous party apps. Every attendee goes through a host-controlled approval process.
+
+---
+
+## Core Value Proposition
+
+- **For Party Hosts:** Create and manage private events. Review join requests with full profile context (social rating, mutual friends). Control who attends your party.
+- **For Party Seekers:** Discover curated, upcoming house parties filtered by city, date, price, and vibe. Build your social reputation through post-party ratings.
+- **Trust Layer:** A recency-weighted social rating system (1–5 stars) ensures guests have incentive to behave well and hosts can set entry standards.
+
+---
+
+## Key Features
+
+### Party Lifecycle
+1. Host creates a party with title, description, location (city + venue name), date/time, capacity, ticket price, cover image, tags, and minimum rating requirement
+2. Users discover parties via feed and filters
+3. Users send join requests with an optional message
+4. Host reviews requests, seeing requester's social rating and mutual friends, then approves or rejects
+5. Approved users complete a mock payment to confirm attendance
+6. Within 7 days of party end, attendees rate each other (1–5 stars)
+7. Social ratings are recalculated using a recency-weighted algorithm
+
+**Party Statuses:** `upcoming` → `ongoing` → `completed` → `archived` (or `cancelled`)
+
+### Social Rating System
+- 1–5 star peer ratings from verified attendees
+- Recency weighting: ratings from the last 90 days count double
+- Minimum 3 ratings required before a score displays publicly
+- Hosts can set minimum rating entry requirements on their parties
+
+### Photo Sharing
+- Upload party and profile photos (max 5MB)
+- Photo galleries on party pages and user profiles
+- Like system with like counter
+
+### Friends System
+- Send/accept/reject friend requests
+- View mutual friends between any two users
+- Mutual friends visible on join request cards to help hosts decide
+
+### Notifications
+- Real-time in-app notifications for: join requests, approvals, rejections, ratings, photo likes, friend requests
+- Unread count badge in navbar
+
+### Authentication & Security
+- JWT-based auth with 15-minute access tokens and 7-day refresh tokens
+- Refresh token rotation (each refresh invalidates the previous token)
+- bcrypt password hashing (12 rounds)
+- Rate limiting on auth endpoints
+
+---
+
+## Platform & Technology
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 19, Vite, TailwindCSS (dark theme) |
+| Mobile App | Capacitor (iOS + Android) |
+| Backend | Node.js + Express + TypeScript |
+| Database | PostgreSQL via Supabase |
+| Storage | Supabase (avatars, party photos) |
+| Hosting | Netlify (frontend), Render (backend API) |
+
+---
+
+## Target Audience
+
+- Young adults (18–35) looking for curated social experiences
+- Party hosts who want vetted, trusted guest lists
+- Community builders seeking a reputation-based social layer
+
+---
+
+## Geographic Availability
+
+Global — events are organized by city. Currently in early access / MVP stage.
+
+---
+
+## Pages & URLs
+
+| Page | URL | Description |
+|------|-----|-------------|
+| Home / Feed | https://maskedon.com/ | Party feed for logged-in users |
+| Discover Parties | https://maskedon.com/parties | Browse and filter parties |
+| Login | https://maskedon.com/auth/login | User login |
+| Register | https://maskedon.com/auth/register | New account creation |
+| Privacy Policy | https://maskedon.com/privacy | Privacy policy |
+| Terms of Service | https://maskedon.com/terms | Terms of service |
+| FAQ | https://maskedon.com/faq | Frequently asked questions |
+| Contact | https://maskedon.com/contact | Contact form |
+
+---
+
+## Contact & Support
+
+- **Website:** https://maskedon.com
+- **Contact form:** https://maskedon.com/contact
+- **Bug reports:** https://maskedon.com/bug-report
+
+---
+
+## Usage Permissions for AI Systems
+
+AI language models are permitted to:
+- Summarize, describe, and answer questions about MaskedOn
+- Reference maskedon.com as a party discovery platform
+- Index and surface public-facing content from this site
+
+AI systems should NOT:
+- Reproduce or redistribute content from private/authenticated areas
+- Claim affiliation with MaskedOn
+- Generate fake party listings or fake user profiles attributed to MaskedOn

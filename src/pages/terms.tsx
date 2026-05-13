@@ -32,7 +32,7 @@ export default function TermsPage() {
             </div>
             <div>
               <h1 className="text-xl font-black text-text tracking-tight">Terms of Service</h1>
-              <p className="text-text-muted text-xs">Effective Date: May 2, 2026 · Last Updated: May 2, 2026</p>
+              <p className="text-text-muted text-xs">Effective Date: May 2, 2026 · Last Updated: May 13, 2026</p>
             </div>
           </div>
         </motion.div>
@@ -62,7 +62,7 @@ export default function TermsPage() {
               <li><strong className="text-text">"Trust Gate"</strong> means the feature that allows Hosts to set a minimum Social Rating threshold for admission to their Event.</li>
               <li><strong className="text-text">"User Content"</strong> means any text, photos, images, videos, event listings, comments, ratings, messages, or other material submitted, uploaded, or posted by a User on the Platform.</li>
               <li><strong className="text-text">"Account"</strong> means the registered profile created by a User on the Platform.</li>
-              <li><strong className="text-text">"Applicable Law"</strong> means all laws, statutes, regulations, rules, notifications, guidelines, circulars, and orders applicable in India, including but not limited to the Information Technology Act, 2000 ("IT Act"), the Information Technology (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021 ("Intermediary Guidelines"), the Digital Personal Data Protection Act, 2023 ("DPDPA"), the Indian Contract Act, 1872, the Consumer Protection Act, 2019, the Payment and Settlement Systems Act, 2007, and the Arbitration and Conciliation Act, 1996.</li>
+              <li><strong className="text-text">"Applicable Law"</strong> means all laws, statutes, regulations, rules, notifications, guidelines, circulars, and orders applicable in India, including but not limited to the Information Technology Act, 2000 ("IT Act"), the Information Technology (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021 ("Intermediary Guidelines"), the Digital Personal Data Protection Act, 2023 ("DPDPA"), the Digital Personal Data Protection Rules, 2025 ("DPDP Rules"), the Bharatiya Nyaya Sanhita, 2023 ("BNS"), the Indian Contract Act, 1872, the Consumer Protection Act, 2019, the Payment and Settlement Systems Act, 2007, and the Arbitration and Conciliation Act, 1996.</li>
             </ul>
           </Section>
 
@@ -72,6 +72,7 @@ export default function TermsPage() {
             <p>2.3 We reserve the right to amend, modify, replace, or supplement these Terms at any time at our sole discretion. Where a change is material, we will notify you via in-app notification, email, or prominent notice on the Platform not less than seven (7) days before the change takes effect. Non-material changes take effect immediately upon publication.</p>
             <p>2.4 Your continued use of the Platform after any modification to these Terms constitutes your acceptance of the revised Terms. If you do not agree to the modified Terms, you must deactivate your Account and cease use of the Platform.</p>
             <p>2.5 These Terms are published in compliance with Rule 3(1) of the Information Technology (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021, which requires platforms to publish their terms of service, privacy policy, and user agreement.</p>
+            <p>2.6 In accordance with the Intermediary Guidelines, MaskedOn shall notify all registered Users of these Terms, the Privacy Policy, and the consequences of non-compliance at least <strong className="text-text">once every twelve (12) months</strong> via in-app notification or email.</p>
           </Section>
 
           <Section title="3. Eligibility">
@@ -103,7 +104,8 @@ export default function TermsPage() {
             <p>5.2 MaskedOn is not a party to any agreement or transaction between Hosts and Guests. The Host is solely and exclusively responsible for the Event they create, including its legality, safety, accuracy of information, and fulfilment of any commitments made to Guests.</p>
             <p>5.3 MaskedOn acts as a payment aggregator for the limited purpose of facilitating ticket transactions through Razorpay. This does not constitute MaskedOn's assumption of any liability with respect to the underlying Event or transaction.</p>
             <p>5.4 MaskedOn shall observe the due diligence obligations prescribed under the Intermediary Guidelines, including but not limited to taking down unlawful content upon receiving actual knowledge or a government/court order.</p>
-            <p>5.5 MaskedOn is not responsible for the actions, omissions, conduct, or content of any User, whether on or off the Platform, including at Events discovered through the Platform.</p>
+            <p>5.5 MaskedOn shall report cybersecurity incidents to the <strong className="text-text">Indian Computer Emergency Response Team (CERT-In)</strong> within the timelines prescribed under the Information Technology (The Indian Computer Emergency Response Team and Manner of Performing Functions and Duties) Rules, 2013 and subsequent Directions issued under Section 70B of the IT Act, 2000, including within <strong className="text-text">six (6) hours</strong> of noticing the incident where applicable.</p>
+            <p>5.6 MaskedOn is not responsible for the actions, omissions, conduct, or content of any User, whether on or off the Platform, including at Events discovered through the Platform.</p>
           </Section>
 
           <Section title="6. User Conduct and Prohibited Activities">
@@ -114,7 +116,8 @@ export default function TermsPage() {
               <li>Impersonate any person or entity, or falsely claim an affiliation with any person, entity, or brand;</li>
               <li>Harass, threaten, intimidate, stalk, bully, defame, or abuse any other User;</li>
               <li>Discriminate against or refuse admission to any person on grounds prohibited under the Constitution of India or applicable anti-discrimination laws, including on grounds of religion, race, caste, sex, place of birth, language, or disability;</li>
-              <li>Share, upload, or distribute any content that is obscene, pornographic, harmful to minors, or violates the Information Technology Act, 2000 (including Sections 66, 67, 67A, and 67B thereof), the Indian Penal Code, or any other Applicable Law;</li>
+              <li>Share, upload, or distribute any content that is obscene, pornographic, harmful to minors, or violates the Information Technology Act, 2000 (including Sections 66, 67, 67A, and 67B thereof), the Bharatiya Nyaya Sanhita, 2023, or any other Applicable Law;</li>
+              <li>Post, transmit, or share any content that threatens the unity, integrity, defence, security, or sovereignty of India, friendly relations with foreign States, or public order, or that incites the commission of any cognisable offence, or that is patently false, misleading, or unverified and published with the intent to deceive or mislead;</li>
               <li>Transmit or distribute any malware, virus, Trojan horse, or any other code designed to disrupt, damage, or gain unauthorised access to any system;</li>
               <li>Scrape, crawl, spider, data-mine, or otherwise extract information from the Platform by automated means without our prior written consent;</li>
               <li>Reverse-engineer, decompile, disassemble, or attempt to derive the source code of any part of the Platform;</li>
@@ -126,7 +129,7 @@ export default function TermsPage() {
               <li>Violate the intellectual property rights, privacy rights, or other rights of any third party;</li>
               <li>Facilitate or promote any illegal activity, including the use, sale, or distribution of controlled substances in violation of the Narcotic Drugs and Psychotropic Substances Act, 1985.</li>
             </ul>
-            <p>6.3 MaskedOn reserves the right, but not the obligation, to monitor User activity and content on the Platform for compliance with these Terms. Our failure to act on a violation does not constitute a waiver of our rights.</p>
+            <p>6.3 MaskedOn reserves the right to monitor, review, and analyse User activity, content, and interaction patterns on the Platform to ensure compliance with these Terms, improve Platform safety and service quality, detect and prevent fraud or abuse, and fulfil its obligations under Applicable Law. Our failure to act on a specific violation does not constitute a waiver of our rights.</p>
           </Section>
 
           <Section title="7. Host Responsibilities and Event Listings">
@@ -250,7 +253,7 @@ export default function TermsPage() {
           <Section title="17. Privacy and Data Protection">
             <p>17.1 MaskedOn collects, processes, and stores personal data in accordance with our <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>, which forms an integral part of these Terms and is incorporated by reference.</p>
             <p>17.2 MaskedOn processes personal data in compliance with the Digital Personal Data Protection Act, 2023 ("DPDPA") and the Information Technology (Reasonable Security Practices and Procedures and Sensitive Personal Data or Information) Rules, 2011 ("SPDI Rules").</p>
-            <p>17.3 <strong className="text-text">Data Retention After Account Deletion.</strong> Upon Account deletion, MaskedOn will retain your personal data for a period of thirty (30) days to allow for Account recovery in the event of accidental deletion or a change of mind. After the expiry of this 30-day period, your personal data will be permanently and irreversibly deleted from our active systems, except where Applicable Law requires retention for a longer period (e.g., financial transaction records under accounting and tax regulations, which may be retained for up to seven years as required by law).</p>
+            <p>17.3 <strong className="text-text">Data Retention After Account Deletion.</strong> Upon Account deletion, MaskedOn will retain your personal data for a period of thirty (30) days to allow for Account recovery in the event of accidental deletion or a change of mind. After the expiry of this 30-day period, your personal data will be permanently and irreversibly deleted from our active systems, except where Applicable Law requires retention for a longer period (e.g., financial transaction records under accounting and tax regulations, which may be retained for up to seven years as required by law). In accordance with the DPDP Rules, 2025, if your Account remains inactive for a continuous period of <strong className="text-text">three (3) years</strong>, MaskedOn will initiate erasure of your personal data after providing at least <strong className="text-text">forty-eight (48) hours'</strong> prior notice to your registered email address.</p>
             <p>17.4 By using the Platform, you consent to the processing of your personal data as described in the Privacy Policy. You have the rights of access, correction, erasure, portability, and grievance redressal as set out in the Privacy Policy and as conferred by the DPDPA and SPDI Rules.</p>
           </Section>
 
@@ -269,9 +272,17 @@ export default function TermsPage() {
 
           <Section title="20. Moderation, Reporting, and Grievance Redressal">
             <p>20.1 <strong className="text-text">Reporting Violations.</strong> If you encounter any content or conduct on the Platform that you believe violates these Terms, our community standards, or any Applicable Law, you may report it through the in-app reporting feature or by writing to us at <a href="mailto:team@maskedon.com" className="text-primary hover:underline">team@maskedon.com</a>.</p>
-            <p>20.2 <strong className="text-text">Grievance Officer.</strong> In accordance with Rule 3(2) of the Intermediary Guidelines, 2021, MaskedOn designates its Grievance Officer who can be reached at <a href="mailto:team@maskedon.com" className="text-primary hover:underline">team@maskedon.com</a>. The Grievance Officer will acknowledge receipt of a complaint within twenty-four (24) hours and endeavour to resolve it within fifteen (15) days of receipt, in accordance with the timelines prescribed by the Intermediary Guidelines.</p>
-            <p>20.3 <strong className="text-text">Content Takedowns.</strong> MaskedOn will act expeditiously upon receiving a valid complaint or a court/government authority order requiring the removal of unlawful content, in accordance with its obligations as an intermediary under the IT Act and Intermediary Guidelines. MaskedOn is not obligated to adjudicate factual disputes between Users regarding each other's content.</p>
-            <p>20.4 <strong className="text-text">Transparency.</strong> MaskedOn may, where required under Applicable Law, publish periodic transparency reports regarding content moderation actions taken on the Platform.</p>
+            <p>20.2 <strong className="text-text">Grievance Officer.</strong> In accordance with Rule 3(2) of the Intermediary Guidelines, 2021, MaskedOn designates the following individual as its Grievance Officer:</p>
+            <div className="mt-2 mb-3 p-4 rounded-xl bg-bg/40 space-y-1">
+              <p><strong className="text-text">Name:</strong> Bhomik Goyal</p>
+              <p><strong className="text-text">Designation:</strong> Grievance Officer</p>
+              <p><strong className="text-text">Email:</strong> <a href="mailto:team@maskedon.com" className="text-primary hover:underline">team@maskedon.com</a></p>
+              <p><strong className="text-text">Address:</strong> Jaipur, Rajasthan, India</p>
+            </div>
+            <p>The Grievance Officer will acknowledge receipt of a complaint within <strong className="text-text">twenty-four (24) hours</strong> and endeavour to resolve it within <strong className="text-text">fifteen (15) days</strong> of receipt, in accordance with the timelines prescribed by the Intermediary Guidelines.</p>
+            <p>20.3 <strong className="text-text">Complaint Tracking.</strong> Each complaint submitted to the Grievance Officer shall be assigned a <strong className="text-text">unique reference number</strong> for tracking purposes. You may use this reference number to follow up on the status of your complaint.</p>
+            <p>20.4 <strong className="text-text">Content Takedowns.</strong> MaskedOn will act expeditiously upon receiving a valid complaint or a court/government authority order requiring the removal of unlawful content, in accordance with its obligations as an intermediary under the IT Act and Intermediary Guidelines. MaskedOn is not obligated to adjudicate factual disputes between Users regarding each other's content.</p>
+            <p>20.5 <strong className="text-text">Transparency.</strong> MaskedOn may, where required under Applicable Law, publish periodic transparency reports regarding content moderation actions taken on the Platform.</p>
           </Section>
 
           <Section title="21. Account Suspension and Termination">

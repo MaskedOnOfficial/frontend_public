@@ -17,7 +17,7 @@ const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | unde
 const apiBaseUrl = isNativeApp
   ? PROD_API_BASE_URL
   : (configuredApiBaseUrl || (import.meta.env.PROD ? PROD_API_BASE_URL : "/api/v1"));
-const healthUrl = `${apiBaseUrl}/health`;
+const wakeUrl = `${apiBaseUrl}/app/version`;
 let wakePromise: Promise<void> | null = null;
 let tokenRefreshPromise: Promise<void> | null = null;
 const ACCESS_TOKEN_STORAGE_KEY = "access_token";
@@ -87,7 +87,7 @@ export async function ensureBackendAwake(maxWaitMs = 65000): Promise<void> {
 
     while (Date.now() - startedAt < maxWaitMs) {
       try {
-        await axios.get(healthUrl, { timeout: 9000 });
+        await axios.get(wakeUrl, { timeout: 9000 });
         return;
       } catch (error) {
         lastError = error;

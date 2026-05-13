@@ -32,7 +32,7 @@ export default function PrivacyPolicyPage() {
             </div>
             <div>
               <h1 className="text-xl font-black text-text tracking-tight">Privacy Policy</h1>
-              <p className="text-text-muted text-xs">Effective Date: May 2, 2026 · Last Updated: May 2, 2026</p>
+              <p className="text-text-muted text-xs">Effective Date: May 2, 2026 · Last Updated: May 13, 2026</p>
             </div>
           </div>
         </motion.div>
@@ -46,7 +46,7 @@ export default function PrivacyPolicyPage() {
             This Policy is published in compliance with:
           </p>
           <ul className="text-text-muted text-sm leading-relaxed mb-8 list-disc pl-5 space-y-1.5">
-            <li>The <strong className="text-text">Digital Personal Data Protection Act, 2023</strong> ("DPDPA")</li>
+            <li>The <strong className="text-text">Digital Personal Data Protection Act, 2023</strong> ("DPDPA") and the <strong className="text-text">Digital Personal Data Protection Rules, 2025</strong> ("DPDP Rules")</li>
             <li>The <strong className="text-text">Information Technology (Reasonable Security Practices and Procedures and Sensitive Personal Data or Information) Rules, 2011</strong> ("SPDI Rules")</li>
             <li>The <strong className="text-text">Information Technology (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021</strong> ("Intermediary Guidelines")</li>
             <li>The <strong className="text-text">Information Technology Act, 2000</strong> ("IT Act")</li>
@@ -75,7 +75,10 @@ export default function PrivacyPolicyPage() {
             <p>The entity responsible for processing your personal data is MaskedOn, operated from Jaipur, Rajasthan, India.</p>
             <p><strong className="text-text">Data Protection Officer and Grievance Officer:</strong> As required under Rule 5(9) of the SPDI Rules and Rule 3(2) of the Intermediary Guidelines, MaskedOn designates a single officer to serve both functions. Contact:</p>
             <div className="mt-2 p-4 rounded-xl bg-bg/40 space-y-1">
+              <p><strong className="text-text">Name:</strong> Bhomik Goyal</p>
+              <p><strong className="text-text">Designation:</strong> Data Protection Officer & Grievance Officer</p>
               <p><strong className="text-text">Email:</strong> <a href="mailto:team@maskedon.com" className="text-primary hover:underline">team@maskedon.com</a></p>
+              <p><strong className="text-text">Address:</strong> Jaipur, Rajasthan, India</p>
               <p><strong className="text-text">Subject line for data matters:</strong> "DATA REQUEST"</p>
               <p><strong className="text-text">Subject line for grievances:</strong> "PRIVACY GRIEVANCE"</p>
               <p className="text-xs text-text-muted/70 pt-1">Acknowledgement of complaints within 24 hours; resolution within 15 days of receipt, as required by the Intermediary Guidelines.</p>
@@ -115,7 +118,7 @@ export default function PrivacyPolicyPage() {
             <ul className="list-disc pl-5 space-y-1.5">
               <li>Push notification device token (only if you grant permission — see Section 9)</li>
               <li>IP address — collected server-side for security, fraud prevention, and abuse detection</li>
-              <li>Device type and operating system — collected in aggregate for compatibility and performance optimisation; not used for individual profiling</li>
+              <li>Device type and operating system — collected for compatibility, performance optimisation, service improvement, and internal analytics</li>
               <li>HTTP request metadata (User-Agent, timestamps) — retained in server logs for security and debugging</li>
             </ul>
             <p><strong className="text-text">3.5 Financial and Transaction Data</strong></p>
@@ -156,10 +159,10 @@ export default function PrivacyPolicyPage() {
               <li>Detecting, investigating, and preventing fraudulent, abusive, or illegal activity on the Platform;</li>
               <li>Responding to user support requests, grievances, and legal inquiries;</li>
               <li>Complying with obligations as an intermediary under the IT Act and Intermediary Guidelines, including responding to lawful takedown or disclosure orders;</li>
-              <li>Improving and developing Platform features through aggregated, anonymised usage analysis;</li>
+              <li>Analysing usage patterns, feature engagement, and Platform interaction data — both in aggregate and at an individual level — to improve user experience, develop new features, personalise content, and enhance overall service quality;</li>
               <li>Marketing and promoting the Platform, including using voluntarily shared User Content as described in the Terms of Service (Section 15).</li>
             </ul>
-            <p>MaskedOn will <strong className="text-text">not</strong> process your personal data for any purpose that is incompatible with the purposes listed above without obtaining fresh explicit consent from you.</p>
+            <p>MaskedOn will endeavour to process personal data only for purposes compatible with those listed above. Where processing for a new purpose is required and that purpose is not covered by a legitimate use under Applicable Law, MaskedOn will obtain fresh consent before commencing such processing.</p>
           </Section>
 
           <Section title="5. Sensitive Personal Data — Special Protections">
@@ -265,7 +268,7 @@ export default function PrivacyPolicyPage() {
               <li>API response cache — a budget-capped (maximum 2MB) in-memory cache of recent API responses, persisted to sessionStorage for performance optimisation. This data is non-personal metadata about platform resources such as Event listings and User profiles you have recently viewed.</li>
             </ul>
             <p><strong className="text-text">8.3 No Third-Party Cookies</strong></p>
-            <p>MaskedOn does not load or deploy any third-party advertising, tracking, analytics, or social sharing cookies. The Platform does not participate in behavioural advertising or cross-site tracking.</p>
+            <p>MaskedOn does not load or deploy any third-party advertising, tracking, or social sharing cookies and does not participate in cross-site tracking or behavioural advertising networks. MaskedOn may collect first-party interaction data through its own Platform infrastructure for the purposes of service improvement, feature development, and enhancing user experience as described in Section 4.5.</p>
             <p><strong className="text-text">8.4 Clearing Storage</strong></p>
             <p>You can clear all localStorage and sessionStorage data at any time through your browser or device settings. Clearing localStorage will log you out of the Platform on that device and remove all locally stored preferences. This does not delete your Account or any data stored on MaskedOn's servers.</p>
           </Section>
@@ -340,6 +343,10 @@ export default function PrivacyPolicyPage() {
             </ul>
             <p><strong className="text-text">12.4 Backup Systems</strong></p>
             <p>Deleted data may persist in encrypted backup copies maintained by Supabase for a period of up to thirty (30) days following deletion, after which backup copies are overwritten or purged in accordance with Supabase's backup retention schedule.</p>
+            <p><strong className="text-text">12.5 Inactive Accounts</strong></p>
+            <p>In accordance with the DPDP Rules, 2025, if your Account remains inactive — meaning there has been no login, API interaction, or other engagement with the Platform — for a continuous period of <strong className="text-text">three (3) years</strong>, MaskedOn will initiate the erasure of your personal data. Before such erasure, MaskedOn will notify you at the email address associated with your Account at least <strong className="text-text">forty-eight (48) hours</strong> in advance, providing you with an opportunity to re-engage with the Platform and retain your Account.</p>
+            <p><strong className="text-text">12.6 Minimum Retention of Processing Logs</strong></p>
+            <p>Notwithstanding the above, MaskedOn shall retain personal data, associated traffic data, and processing logs for a minimum period of <strong className="text-text">one (1) year</strong> from the date of collection, as required under the DPDP Rules, 2025 and applicable directions issued by CERT-In.</p>
           </Section>
 
           <Section title="13. Data Breach Response">
@@ -347,8 +354,9 @@ export default function PrivacyPolicyPage() {
             <ul className="list-disc pl-5 space-y-1.5">
               <li>Investigate the incident promptly to assess its nature, scope, and impact;</li>
               <li>Take immediate technical steps to contain and mitigate the breach;</li>
-              <li>Notify affected Users of the breach <strong className="text-text">as soon as reasonably practicable</strong> via in-app notification and/or email, providing information about the nature of the data affected, the steps taken to address it, and any recommended actions you should take;</li>
-              <li>Notify the relevant government authority or Data Protection Board as required under the DPDPA, 2023 upon the notification provisions of that Act coming into force.</li>
+              <li>Notify the <strong className="text-text">Data Protection Board of India</strong> within <strong className="text-text">seventy-two (72) hours</strong> of becoming aware of the breach, providing a detailed report including the nature and extent of the breach, the number of affected Data Principals, the likely impact, and the remedial measures taken, as required under the DPDPA, 2023 and the DPDP Rules, 2025;</li>
+              <li>Notify affected Users <strong className="text-text">without unreasonable delay</strong> via in-app notification and/or email, providing information about the nature of the data affected, the steps taken to address it, and any recommended actions you should take;</li>
+              <li>Report the incident to the <strong className="text-text">Indian Computer Emergency Response Team (CERT-In)</strong> within <strong className="text-text">six (6) hours</strong> of noticing the incident, as required under the Directions issued by CERT-In under Section 70B of the IT Act, 2000;</li>
             </ul>
             <p>13.2 MaskedOn's notification obligation is subject to any law enforcement or regulatory instruction to delay notification pending an investigation.</p>
             <p>13.3 If you suspect that your Account has been compromised or that your personal data has been accessed without authorisation, please contact us immediately at <a href="mailto:team@maskedon.com" className="text-primary hover:underline">team@maskedon.com</a> with the subject line "SECURITY INCIDENT".</p>
@@ -395,7 +403,7 @@ export default function PrivacyPolicyPage() {
           <Section title="17. Automated Decision-Making and Profiling">
             <p>17.1 <strong className="text-text">Social Rating Algorithm.</strong> MaskedOn uses an automated algorithm to calculate your Social Rating — a recency-weighted average of ratings submitted by other Users following Events. This calculation is automated and not subject to human review or adjustment by MaskedOn staff except in cases of suspected manipulation as described in the Terms of Service.</p>
             <p>17.2 <strong className="text-text">Feed Algorithm.</strong> The Platform uses an algorithmic feed to determine the order in which Events and content are displayed to you. This algorithm considers factors such as your social connections, event attendance history, location (if provided), and engagement patterns. It does not make decisions that produce legal or similarly significant effects on your rights.</p>
-            <p>17.3 <strong className="text-text">No High-Risk Profiling.</strong> MaskedOn does not engage in profiling for the purposes of credit scoring, insurance pricing, employment assessment, access to financial products, or any other purpose that would constitute high-risk automated processing under applicable data protection law.</p>
+            <p>17.3 <strong className="text-text">Profiling Limitations.</strong> MaskedOn does not engage in profiling for the purposes of credit scoring, insurance pricing, employment assessment, or access to financial products. MaskedOn may analyse user engagement and interaction patterns to personalise your experience, optimise Platform features, and improve service quality. Such analysis does not produce legal or similarly significant effects on your rights beyond the Platform context described in these Terms.</p>
           </Section>
 
           <Section title="18. Changes to This Privacy Policy">

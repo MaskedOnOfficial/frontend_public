@@ -1,0 +1,108 @@
+# ======================================================
+# robots.txt — maskedon.com
+# House party discovery & social platform
+# ======================================================
+
+# ── Google ──────────────────────────────────────────
+User-agent: Googlebot
+Allow: /
+Disallow: /auth/
+Disallow: /dashboard/
+Disallow: /settings
+Disallow: /onboarding
+Disallow: /my-requests
+Disallow: /my-ratings
+Disallow: /payment-history
+Disallow: /blocked-users
+Disallow: /notifications
+Disallow: /create-post
+Disallow: /parties/create
+
+User-agent: Googlebot-Image
+Allow: /
+
+# ── Bing ────────────────────────────────────────────
+User-agent: Bingbot
+Allow: /
+Disallow: /auth/
+Disallow: /dashboard/
+Disallow: /settings
+Disallow: /onboarding
+
+# ── Apple ───────────────────────────────────────────
+User-agent: Applebot
+Allow: /
+
+# ── Social Media Crawlers ───────────────────────────
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
+
+# ── AI / LLM Crawlers ───────────────────────────────
+# OpenAI GPTBot
+User-agent: GPTBot
+Allow: /
+Disallow: /auth/
+Disallow: /dashboard/
+Disallow: /settings
+Disallow: /my-requests
+Disallow: /my-ratings
+
+# Anthropic Claude
+User-agent: Claude-Web
+Allow: /
+Disallow: /auth/
+Disallow: /dashboard/
+
+User-agent: anthropic-ai
+Allow: /
+Disallow: /auth/
+Disallow: /dashboard/
+
+# Google Gemini / Bard
+User-agent: Google-Extended
+Allow: /
+Disallow: /auth/
+Disallow: /dashboard/
+
+# Perplexity AI
+User-agent: PerplexityBot
+Allow: /
+Disallow: /auth/
+Disallow: /dashboard/
+
+# Meta AI
+User-agent: meta-externalagent
+Allow: /
+Disallow: /auth/
+Disallow: /dashboard/
+
+# Common Web Scrapers / Research Bots
+User-agent: CCBot
+Disallow: /
+
+User-agent: ia_archiver
+Allow: /
+
+# ── Default: Allow all other bots ───────────────────
+User-agent: *
+Allow: /
+Disallow: /auth/
+Disallow: /dashboard/
+Disallow: /settings
+Disallow: /onboarding
+Disallow: /my-requests
+Disallow: /my-ratings
+Disallow: /payment-history
+Disallow: /blocked-users
+Disallow: /notifications
+Disallow: /create-post
+Disallow: /parties/create
+
+# ── Sitemaps ─────────────────────────────────────────
+Sitemap: https://maskedon.com/sitemap.xml
