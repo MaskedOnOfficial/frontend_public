@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
+import { Capacitor } from "@capacitor/core";
 import { useAuth } from "./auth-hook";
 import io from "socket.io-client";
 import api from "../lib/api";
@@ -6,18 +7,11 @@ import type { ConversationMessage } from "../types";
 
 const PROD_WS_URL = "https://maskedon-backend.onrender.com";
 
-// For APK: ensure we always use the Render backend
-const isCapacitorApp = () => {
-  try {
-    return typeof window !== 'undefined' && window.location.protocol === 'capacitor:';
-  } catch {
-    return false;
-  }
-};
-
-const WS_URL =
-  (import.meta.env.VITE_WS_URL as string | undefined)?.trim() ||
-  (isCapacitorApp() ? PROD_WS_URL : (import.meta.env.PROD ? PROD_WS_URL : undefined));
+const isNativeApp = Capacitor.isNativePlatform();
+const configuredWsUrl = (import.meta.env.VITE_WS_URL as string | undefined)?.trim();
+const WS_URL = isNativeApp
+  ? PROD_WS_URL
+  : (configuredWsUrl || (import.meta.env.PROD ? PROD_WS_URL : undefined));
 
 interface FrontendNotification {
   id: string;

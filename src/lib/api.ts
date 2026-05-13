@@ -1,4 +1,5 @@
 import axios from "axios";
+import { Capacitor } from "@capacitor/core";
 import {
   isCacheable,
   getFromCache,
@@ -11,20 +12,11 @@ import type { AuthTokens } from "../types";
 
 const PROD_API_BASE_URL = "https://maskedon-backend.onrender.com/api/v1";
 
-// For APK: ensure we never try relative /api/v1 since Capacitor WebView
-// doesn't support it. Always fall back to Render backend.
-// Detect if running in Capacitor WebView by checking for capacitor:// scheme support
-const isCapacitorApp = () => {
-  try {
-    return typeof window !== 'undefined' && window.location.protocol === 'capacitor:';
-  } catch {
-    return false;
-  }
-};
-
-const apiBaseUrl =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim() ||
-  (isCapacitorApp() ? PROD_API_BASE_URL : (import.meta.env.PROD ? PROD_API_BASE_URL : "/api/v1"));
+const isNativeApp = Capacitor.isNativePlatform();
+const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim();
+const apiBaseUrl = isNativeApp
+  ? PROD_API_BASE_URL
+  : (configuredApiBaseUrl || (import.meta.env.PROD ? PROD_API_BASE_URL : "/api/v1"));
 const healthUrl = `${apiBaseUrl}/health`;
 let wakePromise: Promise<void> | null = null;
 let tokenRefreshPromise: Promise<void> | null = null;
@@ -116,7 +108,7 @@ export async function ensureBackendAwake(maxWaitMs = 65000): Promise<void> {
 const api = axios.create({
   baseURL: apiBaseUrl,
   withCredentials: true,
-  timeout: 15000,
+  timeout: 30000,
   headers: { "Content-Type": "application/json" },
 });
 

@@ -22,7 +22,6 @@ export default function RegisterPage() {
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [wakingUp, setWakingUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const mountedRef = useRef(true);
@@ -109,8 +108,6 @@ export default function RegisterPage() {
       });
     } catch (error: unknown) {
       if (axios.isAxiosError(error) && !error.response) {
-        setWakingUp(true);
-        setError("Server is waking up. Retrying registration in a moment...");
         try {
           await ensureBackendReady();
           const trimmedEmail = email.trim();
@@ -131,10 +128,7 @@ export default function RegisterPage() {
           });
           return;
         } catch {
-          // Already in the server-wake-up path — any failure is a server issue, not internet.
-          setError("Server is still starting up. Please wait a moment and try again.");
-        } finally {
-          setWakingUp(false);
+          setError("Unable to register right now. Please try again in a moment.");
         }
       } else {
         setError(getApiErrorMessage(error, "Registration failed"));
@@ -350,7 +344,7 @@ export default function RegisterPage() {
               {submitting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  {wakingUp ? "Waking server..." : "Creating account..."}
+                  Creating account...
                 </>
               ) : (
                 <>

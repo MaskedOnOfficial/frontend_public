@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useNavigate, Link } from "react-router-dom";
+import { BrowserRouter, HashRouter, Routes, Route, Navigate, Outlet, useLocation, useNavigate, Link } from "react-router-dom";
 import { useState, useEffect, useRef, Component, type ReactNode } from "react";
 import { AnimatePresence } from "framer-motion";
 import SplashScreen from "./components/splash-screen";
@@ -95,7 +95,14 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
             <h1 className="text-xl font-bold text-text mb-2">Something went wrong</h1>
             <p className="text-text-muted text-sm mb-6">Something unexpected happened. Please go back and try again.</p>
             <button
-              onClick={() => { this.setState({ hasError: false, error: null }); window.location.href = "/"; }}
+              onClick={() => {
+                this.setState({ hasError: false, error: null });
+                if (Capacitor.isNativePlatform()) {
+                  window.location.assign("/#/");
+                } else {
+                  window.location.assign("/");
+                }
+              }}
               className="btn-primary-luxe font-bold px-6 py-3 rounded-xl"
             >
               Back to Home
@@ -379,9 +386,10 @@ function AppShell() {
 
 function App() {
   const [splashDone, setSplashDone] = useState(false);
+  const Router = Capacitor.isNativePlatform() ? HashRouter : BrowserRouter;
 
   return (
-    <BrowserRouter>
+    <Router>
       <ThemeProvider>
         <AuthProvider>
           <NotificationsProvider>
@@ -399,7 +407,7 @@ function App() {
             <InAppBrowserGate />
           </ErrorBoundary>          </NotificationsProvider>        </AuthProvider>
       </ThemeProvider>
-    </BrowserRouter>
+    </Router>
   );
 }
 

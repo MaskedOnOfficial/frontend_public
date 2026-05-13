@@ -1,7 +1,9 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
+import axios from "axios";
 import { Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import api from "../lib/api";
+import { ensureBackendAwake } from "../lib/api";
 import { getApiErrorMessage } from "../lib/errors";
 
 export default function ForgotPasswordPage() {
@@ -9,6 +11,22 @@ export default function ForgotPasswordPage() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const backendReadyRef = useRef(false);
+  const wakePromiseRef = useRef<Promise<void> | null>(null);
+
+  function ensureBackendReady(): Promise<void> {
+    if (backendReadyRef.current) return Promise.resolve();
+    if (!wakePromiseRef.current) {
+      wakePromiseRef.current = ensureBackendAwake(45000)
+        .then(() => {
+          backendReadyRef.current = true;
+        })
+        .finally(() => {
+          wakePromiseRef.current = null;
+        });
+    }
+    return wakePromiseRef.current;
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -22,10 +40,29 @@ export default function ForgotPasswordPage() {
 
     setSubmitting(true);
     try {
-      const res = await api.post("/auth/forgot-password", { email: email.trim() });
+      const res = await api.post(
+        "/auth/forgot-password",
+        { email: email.trim() },
+        { timeout: 65000 }
+      );
       setMessage(res.data?.data?.message || "If this email exists, a reset link has been sent.");
     } catch (err: unknown) {
-      setError(getApiErrorMessage(err, "Could not request password reset."));
+      if (axios.isAxiosError(err) && !err.response) {
+        try {
+          await ensureBackendReady();
+          const retryRes = await api.post(
+            "/auth/forgot-password",
+            { email: email.trim() },
+            { timeout: 65000 }
+          );
+          setMessage(retryRes.data?.data?.message || "If this email exists, a reset link has been sent.");
+          setError("");
+        } catch (retryErr: unknown) {
+          setError(getApiErrorMessage(retryErr, "Could not request password reset."));
+        }
+      } else {
+        setError(getApiErrorMessage(err, "Could not request password reset."));
+      }
     } finally {
       setSubmitting(false);
     }
@@ -65,7 +102,7 @@ export default function ForgotPasswordPage() {
             className="btn-primary-luxe w-full font-bold py-3.5 rounded-xl disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-            {submitting ? "Sending…" : "Send reset link"}
+            {submitting ? "Sending..." : "Send reset link"}
           </button>
         </form>
 

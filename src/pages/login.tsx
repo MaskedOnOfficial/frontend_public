@@ -23,7 +23,6 @@ export default function LoginPage() {
       : ""
   );
   const [submitting, setSubmitting] = useState(false);
-  const [wakingUp, setWakingUp] = useState(false);
   const backendReadyRef = useRef(false);
   const wakePromiseRef = useRef<Promise<void> | null>(null);
 
@@ -51,19 +50,13 @@ export default function LoginPage() {
       navigate("/", { replace: true });
     } catch (error: unknown) {
       if (axios.isAxiosError(error) && !error.response) {
-        setWakingUp(true);
-        setError("Server is waking up. Retrying sign-in in a moment...");
         try {
           await ensureBackendReady();
           await login(email, password);
           navigate("/", { replace: true });
           return;
         } catch {
-          // We're already in the server-wake-up path; any failure here is a server
-          // connectivity issue — never blame the user's internet connection.
-          setError("Server is still starting up. Please wait a moment and try signing in again.");
-        } finally {
-          setWakingUp(false);
+          setError("Unable to sign in right now. Please try again in a moment.");
         }
       } else {
         const errorCode = axios.isAxiosError(error)
@@ -146,15 +139,11 @@ export default function LoginPage() {
             <motion.div
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
-              role={wakingUp ? "status" : "alert"}
+              role="alert"
               aria-live="polite"
-              className={`rounded-xl px-4 py-3 mb-6 text-sm flex items-start gap-2 ${
-                wakingUp
-                  ? "bg-primary/10 border border-primary/20 text-primary"
-                  : "bg-error/10 border border-error/20 text-error"
-              }`}
+              className="rounded-xl px-4 py-3 mb-6 text-sm flex items-start gap-2 bg-error/10 border border-error/20 text-error"
             >
-              <span className="mt-0.5">{wakingUp ? "⏳" : "⚠️"}</span>
+              <span className="mt-0.5">⚠️</span>
               <span>{error}</span>
             </motion.div>
           )}
@@ -213,7 +202,7 @@ export default function LoginPage() {
               {submitting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  {wakingUp ? "Waking server..." : "Signing in..."}
+                  Signing in...
                 </>
               ) : (
                 <>
