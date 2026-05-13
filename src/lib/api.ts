@@ -10,9 +10,21 @@ import {
 import type { AuthTokens } from "../types";
 
 const PROD_API_BASE_URL = "https://maskedon-backend.onrender.com/api/v1";
+
+// For APK: ensure we never try relative /api/v1 since Capacitor WebView
+// doesn't support it. Always fall back to Render backend.
+// Detect if running in Capacitor WebView by checking for capacitor:// scheme support
+const isCapacitorApp = () => {
+  try {
+    return typeof window !== 'undefined' && window.location.protocol === 'capacitor:';
+  } catch {
+    return false;
+  }
+};
+
 const apiBaseUrl =
   (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim() ||
-  (import.meta.env.PROD ? PROD_API_BASE_URL : "/api/v1");
+  (isCapacitorApp() ? PROD_API_BASE_URL : (import.meta.env.PROD ? PROD_API_BASE_URL : "/api/v1"));
 const healthUrl = `${apiBaseUrl}/health`;
 let wakePromise: Promise<void> | null = null;
 let tokenRefreshPromise: Promise<void> | null = null;
