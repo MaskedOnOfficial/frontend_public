@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import axios from "axios";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/auth-hook";
@@ -24,7 +24,6 @@ export default function LoginPage() {
   );
   const [submitting, setSubmitting] = useState(false);
   const [wakingUp, setWakingUp] = useState(false);
-  const [backendPinging, setBackendPinging] = useState(true);
   const backendReadyRef = useRef(false);
   const wakePromiseRef = useRef<Promise<void> | null>(null);
 
@@ -41,13 +40,6 @@ export default function LoginPage() {
     }
     return wakePromiseRef.current;
   }
-
-  useEffect(() => {
-    setBackendPinging(true);
-    void ensureBackendReady()
-      .catch(() => {})
-      .finally(() => setBackendPinging(false));
-  }, []);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -215,15 +207,10 @@ export default function LoginPage() {
             {/* Submit */}
             <button
               type="submit"
-              disabled={submitting || backendPinging || !email.trim() || !password.trim()}
+              disabled={submitting || !email.trim() || !password.trim()}
               className="btn-primary-luxe relative w-full overflow-hidden font-bold py-4 rounded-xl transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed mt-3 flex items-center justify-center gap-2"
             >
-              {backendPinging && !submitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Connecting...
-                </>
-              ) : submitting ? (
+              {submitting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
                   {wakingUp ? "Waking server..." : "Signing in..."}

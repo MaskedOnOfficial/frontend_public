@@ -5,9 +5,10 @@ const config: CapacitorConfig = {
   appName: 'MaskedOn',
   webDir: 'dist',
   server: {
-    // Allow mixed content and navigation to any origin
-    androidScheme: 'https',
-    iosScheme: 'https',
+    // Keep native WebView origin as capacitor://localhost so backend CORS
+    // allowlist can reliably distinguish mobile app traffic.
+    androidScheme: 'capacitor',
+    iosScheme: 'capacitor',
   },
   plugins: {
     SplashScreen: {
