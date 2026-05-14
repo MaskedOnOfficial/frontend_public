@@ -9,9 +9,28 @@ const PROD_WS_URL = "https://maskedon-backend.onrender.com";
 
 const isNativeApp = Capacitor.isNativePlatform();
 const configuredWsUrl = (import.meta.env.VITE_WS_URL as string | undefined)?.trim();
-const WS_URL = isNativeApp
-  ? (configuredWsUrl || PROD_WS_URL)
-  : (configuredWsUrl || (import.meta.env.PROD ? PROD_WS_URL : undefined));
+
+function isLocalhostUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1" || parsed.hostname === "[::1]";
+  } catch {
+    return true;
+  }
+}
+
+const shouldUseConfiguredWsUrl = Boolean(
+  configuredWsUrl &&
+    (
+      import.meta.env.DEV ||
+      (!isNativeApp && import.meta.env.PROD) ||
+      (isNativeApp && !isLocalhostUrl(configuredWsUrl))
+    )
+);
+
+const WS_URL = shouldUseConfiguredWsUrl
+  ? configuredWsUrl!
+  : (import.meta.env.PROD || isNativeApp ? PROD_WS_URL : undefined);
 
 interface FrontendNotification {
   id: string;

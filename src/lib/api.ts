@@ -14,9 +14,28 @@ const PROD_API_BASE_URL = "https://maskedon-backend.onrender.com/api/v1";
 
 const isNativeApp = Capacitor.isNativePlatform();
 const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim();
-const apiBaseUrl = isNativeApp
-  ? (configuredApiBaseUrl || PROD_API_BASE_URL)
-  : (configuredApiBaseUrl || (import.meta.env.PROD ? PROD_API_BASE_URL : "/api/v1"));
+
+function isLocalhostUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1" || parsed.hostname === "[::1]";
+  } catch {
+    return true;
+  }
+}
+
+const shouldUseConfiguredBase = Boolean(
+  configuredApiBaseUrl &&
+    (
+      import.meta.env.DEV ||
+      (!isNativeApp && import.meta.env.PROD) ||
+      (isNativeApp && !isLocalhostUrl(configuredApiBaseUrl))
+    )
+);
+
+const apiBaseUrl = shouldUseConfiguredBase
+  ? configuredApiBaseUrl!
+  : (import.meta.env.PROD || isNativeApp ? PROD_API_BASE_URL : "/api/v1");
 const wakeUrl = `${apiBaseUrl}/app/version`;
 let wakePromise: Promise<void> | null = null;
 let tokenRefreshPromise: Promise<void> | null = null;
