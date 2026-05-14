@@ -17,6 +17,7 @@ function formatDate(iso: string) {
     day: "numeric",
     month: "short",
     year: "numeric",
+    
   });
 }
 
