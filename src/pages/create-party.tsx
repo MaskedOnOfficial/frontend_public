@@ -10,6 +10,7 @@ import { useUploadQueue } from "../context/upload-queue";
 import { COUNTRIES, getStatesForCountry, getDistrictsForState } from "../lib/location-data";
 import { motion, AnimatePresence } from "framer-motion";
 import MapPicker from "../components/MapPicker";
+import TierManager from "../components/TierManager";
 import {
   MapPin, Clock, Ticket, Shield, Loader2, X,
   ChevronLeft, Camera, Upload, Calendar, Zap, Crown, PartyPopper,
@@ -228,6 +229,8 @@ export default function CreatePartyPage() {
   const [dir, setDir] = useState(1);
   const [showDraft, setShowDraft] = useState(false);
   const [priceTier, setPriceTier] = useState(0);
+  const [pricingMode, setPricingMode] = useState<"free" | "single" | "multi">("free");
+  const [tiers, setTiers] = useState<import("../components/TierManager").TierDraft[]>([]);
 
 
   const [form, setForm] = useState<FormState>({ ...EMPTY_FORM });
@@ -428,7 +431,21 @@ export default function CreatePartyPage() {
         if (formSnap.longitude !== null) fd.append("longitude", String(formSnap.longitude));
         fd.append("date_time", new Date(formSnap.date_time).toISOString());
         fd.append("end_time", new Date(formSnap.end_time).toISOString());
-        fd.append("ticket_price", String(Math.round(Number(formSnap.ticket_price) * 100)));
+        fd.append("ticket_price", String(
+          pricingMode === "free" ? 0
+            : pricingMode === "multi" ? (tiers.length > 0 ? Math.min(...tiers.map((t) => t.price)) : 0)
+            : Math.round(Number(formSnap.ticket_price) * 100)
+        ));
+        if (pricingMode === "multi" && tiers.length > 0) {
+          fd.append("tiers", JSON.stringify(tiers.map((t, idx) => ({
+            name: t.name,
+            description: t.description || undefined,
+            price: t.price,
+            slots: t.slots,
+            max_quantity: t.max_quantity ? Number(t.max_quantity) : null,
+            sort_order: idx,
+          }))));
+        }
         if (formSnap.tags.length > 0) fd.append("tags", JSON.stringify(formSnap.tags));
         if (formSnap.min_rating > 0) fd.append("min_rating", String(formSnap.min_rating));
         fd.append("is_private", String(formSnap.is_private));
@@ -468,7 +485,7 @@ export default function CreatePartyPage() {
     navigate("/", { replace: true });
   }
 
-  const isFree = Number(form.ticket_price) === 0;
+  const isFree = pricingMode === "free" || (pricingMode === "single" && Number(form.ticket_price) === 0);
 
   const slide = {
     enter: (d: number) => ({ x: d > 0 ? 80 : -80, opacity: 0 }),
@@ -890,37 +907,70 @@ export default function CreatePartyPage() {
                     </div>
                     Pricing
                   </h2>
-                  <div className="grid grid-cols-2 gap-2">
-                    {PRICE_PRESETS.map((p, i) => {
-                      const active = priceTier === i;
-                      return (
-                        <button key={p.label} type="button"
-                          onClick={() => { setPriceTier(i); if (p.value >= 0) setForm((prev) => ({ ...prev, ticket_price: p.value })); hapticsMedium(); }}
-                          className={`flex flex-col items-center gap-1 p-3 rounded-xl transition-all duration-200 tap-active
-                            ${active ? "host-price-active" : "host-price-idle"}`}>
-                          <p.icon className={`w-5 h-5 ${active ? "text-warning" : "text-text-dim"}`} />
-                          <span className="text-xs font-bold">{p.label}</span>
-                          <span className="text-[9px] text-text-dim">{p.desc}</span>
-                        </button>
-                      );
-                    })}
+
+                  {/* Pricing mode selector */}
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { mode: "free" as const, label: "Free", icon: PartyPopper, desc: "No entry fee" },
+                      { mode: "single" as const, label: "Single", icon: Ticket, desc: "One price" },
+                      { mode: "multi" as const, label: "Multi-tier", icon: Crown, desc: "Multiple types" },
+                    ].map(({ mode, label, icon: Icon, desc }) => (
+                      <button key={mode} type="button"
+                        onClick={() => { setPricingMode(mode); hapticsMedium(); }}
+                        className={`flex flex-col items-center gap-1 p-3 rounded-xl transition-all duration-200 tap-active
+                          ${pricingMode === mode ? "host-price-active" : "host-price-idle"}`}>
+                        <Icon className={`w-5 h-5 ${pricingMode === mode ? "text-warning" : "text-text-dim"}`} />
+                        <span className="text-xs font-bold">{label}</span>
+                        <span className="text-[9px] text-text-dim">{desc}</span>
+                      </button>
+                    ))}
                   </div>
+
+                  {/* Single price */}
                   <AnimatePresence>
-                    {priceTier === 3 && (
-                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-                        <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Price (₹)</label>
-                        <input
-                          type="number"
-                          value={form.ticket_price}
-                          onChange={(e) => setForm({ ...form, ticket_price: Math.max(0, Number(e.target.value)) })}
-                          min={0}
-                          placeholder="Enter custom price"
-                          className="input-luxe w-full rounded-xl px-4 py-3.5"
-                        />
+                    {pricingMode === "single" && (
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden space-y-3">
+                        <div className="grid grid-cols-2 gap-2">
+                          {PRICE_PRESETS.filter((p) => p.value >= 0).map((p, i) => {
+                            const active = priceTier === i && pricingMode === "single";
+                            return (
+                              <button key={p.label} type="button"
+                                onClick={() => { setPriceTier(i); setForm((prev) => ({ ...prev, ticket_price: p.value })); hapticsMedium(); }}
+                                className={`flex flex-col items-center gap-1 p-3 rounded-xl transition-all duration-200 tap-active
+                                  ${active ? "host-price-active" : "host-price-idle"}`}>
+                                <p.icon className={`w-5 h-5 ${active ? "text-warning" : "text-text-dim"}`} />
+                                <span className="text-xs font-bold">{p.label}</span>
+                                <span className="text-[9px] text-text-dim">{p.desc}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {/* Custom price input */}
+                        <div>
+                          <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Custom price (₹)</label>
+                          <input
+                            type="number"
+                            value={form.ticket_price || ""}
+                            onChange={(e) => { setPriceTier(-1); setForm({ ...form, ticket_price: Math.max(0, Number(e.target.value)) }); }}
+                            min={0}
+                            placeholder="Enter price in ₹"
+                            className="input-luxe w-full rounded-xl px-4 py-3.5"
+                          />
+                        </div>
                       </motion.div>
                     )}
                   </AnimatePresence>
-                  {!isFree && (
+
+                  {/* Multi-tier manager */}
+                  <AnimatePresence>
+                    {pricingMode === "multi" && (
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                        <TierManager tiers={tiers} onChange={setTiers} />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {pricingMode !== "free" && (
                     <div className="flex items-start gap-2 text-[11px] text-text-dim bg-primary/5 rounded-xl px-3 py-2.5 border border-primary/10">
                       <Info className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
                       Map location is only revealed to guests after payment.
@@ -1099,7 +1149,12 @@ export default function CreatePartyPage() {
                     </div>
                     <div className="flex items-center gap-2 text-text-muted">
                       <Ticket className="w-3.5 h-3.5 text-warning shrink-0" />
-                      <span>{isFree ? "Free" : `₹${form.ticket_price}`}</span>
+                      <span>{
+                        isFree ? "Free"
+                        : pricingMode === "multi"
+                          ? `${tiers.length} tier${tiers.length !== 1 ? "s" : ""}`
+                          : `₹${form.ticket_price}`
+                      }</span>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-1.5 pt-1">

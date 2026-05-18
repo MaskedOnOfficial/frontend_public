@@ -156,12 +156,13 @@ function HomeRoute() {
     );
   }
 
-  // Mobile (Capacitor) users: skip the marketing landing page entirely
+  // On native (Android/iOS), guests must log in first
   if (Capacitor.isNativePlatform() && !user) {
     return <Navigate to="/auth/login" replace />;
   }
 
-  return user ? <FeedPage /> : <Navigate to="/auth/login" replace />;
+  // Web guests land on the events page
+  return user ? <FeedPage /> : <Navigate to="/parties" replace />;
 }
 
 // ─── Auth Guards ────────────────────────────────────────────────────────────────
@@ -304,6 +305,14 @@ function AppShell() {
     location.pathname === "/onboarding" ||
     (location.pathname === "/" && !user);
 
+  // Public browsing pages — show nav even for guests
+  const isPublicBrowsingPage =
+    location.pathname.startsWith("/parties") ||
+    location.pathname === "/";
+
+  // Show bottom tab for logged-in users OR guests browsing public pages
+  const showBottomTab = (user || isPublicBrowsingPage) && !isAuthPage && !showRatingGate;
+
   // Show rating gate if user has pending crowd ratings
   const showRatingGate = user && pendingChecked && pendingRatings.length > 0;
 
@@ -322,7 +331,7 @@ function AppShell() {
           onAllRated={() => { setPendingRatings([]); }}
         />
       )}
-      <main role="main" className={`relative z-10 ${!isAuthPage && user ? "pb-24 md:pb-0" : ""} ${showRatingGate ? "hidden" : ""}`}>
+        <main role="main" className={`relative z-10 ${!isAuthPage && user ? "pb-24 md:pb-0" : ""} ${!isAuthPage && !user && isPublicBrowsingPage ? "pb-24 md:pb-0" : ""} ${showRatingGate ? "hidden" : ""}`}>
         <Routes>
         {/* ── Home: Landing (guest) or Feed (logged in) ── */}
         <Route path="/"                               element={<HomeRoute />} />
@@ -343,11 +352,13 @@ function AppShell() {
           <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
         </Route>
 
+        {/* ── Public: Events browsing (guests + logged in) ── */}
+        <Route path="/parties"                        element={<DiscoverPage />} />
+        <Route path="/parties/:partyId"               element={<PartyDetailPage />} />
+
         {/* ── Protected (requires login) ── */}
         <Route element={<ProtectedRoute />}>
-          <Route path="/parties"                        element={<DiscoverPage />} />
           <Route path="/parties/create"                 element={<CreatePartyPage />} />
-          <Route path="/parties/:partyId"               element={<PartyDetailPage />} />
           <Route path="/parties/:partyId/edit"            element={<EditPartyPage />} />
           <Route path="/parties/:partyId/rate"          element={<RateCrowdPage />} />
           <Route path="/parties/:partyId/photos"        element={<PartyPhotosPage />} />
@@ -380,7 +391,7 @@ function AppShell() {
         <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>
-      {user && !isAuthPage && !showRatingGate && <BottomTabNav />}
+      {showBottomTab && <BottomTabNav />}
       <UploadProgressToast />
     </div>
   );

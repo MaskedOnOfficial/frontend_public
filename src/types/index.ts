@@ -80,6 +80,7 @@ export interface PartyRequest {
   user_id: string;
   status: "pending" | "approved" | "rejected" | "withdrawn";
   message: string | null;
+  tier_id: string | null;
   requested_at: string;
   responded_at: string | null;
   // Joined user fields
@@ -101,6 +102,32 @@ export interface PartyRequest {
   party_tags?: string | null;
 }
 
+export interface TicketTier {
+  id: string;
+  party_id: string;
+  name: string;
+  description: string | null;
+  price: number;         // in paisa
+  slots: number;         // people per unit
+  max_quantity: number | null;
+  sold_count: number;
+  sort_order: number;
+  is_active: boolean;
+}
+
+export interface GroupSlot {
+  attendee_id: string;
+  slot_index: number;
+  group_size: number;
+  qr_token: string;
+  checked_in: boolean;
+  checked_in_at: string | null;
+  user_id: string | null;
+  username: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+}
+
 export interface Ticket {
   attendee_id: string;
   party_id: string;
@@ -109,6 +136,14 @@ export interface Ticket {
   checked_in: boolean;
   checked_in_at: string | null;
   joined_at: string;
+  // Tier / group fields (migration 027)
+  tier_id: string | null;
+  tier_name: string | null;
+  tier_price: number | null;
+  group_id: string | null;
+  group_size: number;
+  slot_index: number;
+  // Party fields
   party_title: string;
   party_date_time: string;
   party_end_time: string | null;

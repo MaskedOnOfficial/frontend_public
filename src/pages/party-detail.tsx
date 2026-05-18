@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import api from "../lib/api";
 import { useAuth } from "../context/auth-hook";
-import type { Party, Attendee, FeeBreakdown } from "../types";
+import type { Party, Attendee, FeeBreakdown, TicketTier } from "../types";
 import { getApiErrorMessage } from "../lib/errors";
 import { motion } from "framer-motion";
 import { parseTags } from "../lib/parse-tags";
@@ -53,6 +53,8 @@ export default function PartyDetailPage() {
   const [friendsAttending, setFriendsAttending] = useState<{ user_id: string; display_name: string; avatar_url: string | null }[]>([]);
   const [hostStats, setHostStats] = useState<{ pending_count: number; approved_not_joined_count: number } | null>(null);
   const [feeBreakdown, setFeeBreakdown] = useState<FeeBreakdown | null>(null);
+  const [tiers, setTiers] = useState<TicketTier[]>([]);
+  const [selectedTierId, setSelectedTierId] = useState<string | null>(null);
 
   const isHost = party && user && party.host_id === user.id;
 
@@ -68,6 +70,19 @@ export default function PartyDetailPage() {
       setFeeBreakdown(data.fee_breakdown ?? null);
       setRequestStatus(data.viewer?.request_status ?? null);
       setRequestId(data.viewer?.request_id ?? null);
+
+      // Fetch ticket tiers (non-fatal)
+      try {
+        const tiersRes = await api.get(`/parties/${partyId}/tiers`);
+        const fetchedTiers: TicketTier[] = tiersRes.data.data.tiers ?? [];
+        setTiers(fetchedTiers);
+        // Pre-select the first tier if tiers exist
+        if (fetchedTiers.length > 0 && !selectedTierId) {
+          setSelectedTierId(fetchedTiers[0].id);
+        }
+      } catch {
+        // tiers are optional; continue
+      }
     } catch (loadError: unknown) {
       setError(getApiErrorMessage(loadError, "Party not found"));
     } finally {
@@ -102,7 +117,10 @@ export default function PartyDetailPage() {
     setRequesting(true);
     setError(""); // #31
     try {
-      const res = await api.post(`/parties/${partyId}/requests`, { message: message || undefined });
+      const res = await api.post(`/parties/${partyId}/requests`, {
+        message: message || undefined,
+        tier_id: tiers.length > 0 ? selectedTierId : undefined,
+      });
       setRequestStatus("pending");
       setRequestId(res.data.data.request?.id ?? null);
       setMessage("");
@@ -417,7 +435,7 @@ export default function PartyDetailPage() {
             {[
               { icon: Calendar, label: "Date", value: new Date(party.date_time).toLocaleDateString("en-IN", { weekday: "short", month: "short", day: "numeric" }), sub: new Date(party.date_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }), color: "text-primary" },
               { icon: MapPin, label: "Location", value: party.location_city, sub: party.location_name, color: "text-accent" },
-              { icon: Ticket, label: "Entry", value: formatPrice(party.ticket_price), sub: party.ticket_price === 0 ? "No cover charge" : "Per person", color: "text-hot" },
+              { icon: Ticket, label: "Entry", value: tiers.length > 0 ? `${tiers.length} tier${tiers.length !== 1 ? "s" : ""}` : formatPrice(party.ticket_price), sub: tiers.length > 0 ? `From ${formatPrice(Math.min(...tiers.map((t) => t.price)))}` : party.ticket_price === 0 ? "No cover charge" : "Per person", color: "text-hot" },
               { icon: Shield, label: "Trust Gate", value: party.min_rating > 0 ? getTrustLevel(Number(party.min_rating), 1).name + "+" : "Open", sub: party.min_rating > 0 ? `${Number(party.min_rating).toFixed(1)}+ required` : "No restriction", color: "text-warning" },
             ].map((item) => (
               <div key={item.label} className="glass-panel rounded-2xl p-4">
@@ -781,6 +799,23 @@ export default function PartyDetailPage() {
               </motion.div>
             )}
 
+            {/* Guest (not logged in): prompt to login/register to join */}
+            {!user && canRequestToJoin && (
+              <div className="glass-panel rounded-2xl p-6 border border-primary/20 space-y-4 text-center">
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
+                  <Ticket className="w-6 h-6 text-primary" />
+                </div>
+                <div className="space-y-1">
+                  <p className="font-bold text-text">Want to join this event?</p>
+                  <p className="text-sm text-text-muted">Create an account or log in to request an invite</p>
+                </div>
+                <div className="flex gap-3">
+                  <Link to="/auth/login" className="flex-1 btn-primary-luxe py-3 rounded-2xl font-bold text-sm text-center">Log In</Link>
+                  <Link to="/auth/register" className="flex-1 btn-secondary-luxe py-3 rounded-2xl font-bold text-sm text-center">Sign Up</Link>
+                </div>
+              </div>
+            )}
+
             {user && !isHost && (
               <>
                 {error && <p className="text-error text-sm bg-error/10 border border-error/20 px-4 py-3 rounded-xl">{error}</p>}
@@ -889,6 +924,44 @@ export default function PartyDetailPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
+                    {/* Tier picker — only shown when tiers exist */}
+                    {tiers.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-[11px] font-bold text-text-muted uppercase tracking-[0.12em]">Select Entry Type</p>
+                        <div className="space-y-2">
+                          {tiers.map((tier) => {
+                            const isSoldOut = tier.max_quantity !== null && tier.sold_count >= tier.max_quantity;
+                            return (
+                              <button
+                                key={tier.id}
+                                type="button"
+                                disabled={isSoldOut}
+                                onClick={() => setSelectedTierId(tier.id)}
+                                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all duration-200 tap-active text-left
+                                  ${selectedTierId === tier.id
+                                    ? "border-primary/60 bg-primary/10"
+                                    : isSoldOut
+                                      ? "border-border/30 bg-surface/30 opacity-50 cursor-not-allowed"
+                                      : "border-border/40 bg-surface/50 hover:border-primary/30"}`}
+                              >
+                                <div>
+                                  <p className="text-sm font-bold text-text">{tier.name}</p>
+                                  {tier.description && <p className="text-[11px] text-text-muted mt-0.5">{tier.description}</p>}
+                                  {tier.slots > 1 && <p className="text-[10px] text-accent mt-0.5">{tier.slots} slots (group entry)</p>}
+                                  {isSoldOut && <p className="text-[10px] text-error mt-0.5">Sold out</p>}
+                                </div>
+                                <div className="text-right shrink-0 ml-3">
+                                  <p className="text-sm font-bold text-warning">{formatPrice(tier.price)}</p>
+                                  {tier.max_quantity !== null && !isSoldOut && (
+                                    <p className="text-[10px] text-text-dim">{tier.max_quantity - tier.sold_count} left</p>
+                                  )}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                     <textarea
                       placeholder="Write a message to the host..."
                       value={message}

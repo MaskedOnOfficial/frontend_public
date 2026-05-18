@@ -8,9 +8,9 @@ import { QRCodeSVG } from "qrcode.react";
 import {
   ArrowLeft, Calendar, MapPin, Ticket, CheckCircle2, Clock,
   AlertCircle, Star, Users, Tag, Hash, Loader2, IndianRupee,
-  ScanLine,
+  ScanLine, UserPlus, X, Check,
 } from "lucide-react";
-import type { Ticket as TicketType } from "../types";
+import type { Ticket as TicketType, GroupSlot } from "../types";
 
 // --- Helpers ---
 
@@ -43,8 +43,13 @@ export default function DigitalTicketPage() {
   const navigate = useNavigate();
 
   const [ticket, setTicket] = useState<TicketType | null>(null);
+  const [groupSlots, setGroupSlots] = useState<GroupSlot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [assigningSlotId, setAssigningSlotId] = useState<string | null>(null);
+  const [assignUsername, setAssignUsername] = useState("");
+  const [assigning, setAssigning] = useState(false);
+  const [assignError, setAssignError] = useState("");
 
   const fetchTicket = useCallback(async () => {
     setLoading(true);
@@ -52,6 +57,7 @@ export default function DigitalTicketPage() {
     try {
       const res = await api.get(`/parties/${partyId}/my-ticket`);
       setTicket(res.data.data.ticket as TicketType);
+      setGroupSlots(res.data.data.group_slots ?? []);
     } catch (err) {
       setError(getApiErrorMessage(err, "Failed to load ticket"));
     } finally {
@@ -82,6 +88,23 @@ export default function DigitalTicketPage() {
         </button>
       </div>
     );
+  }
+
+  async function handleAssignSlot(attendeeId: string) {
+    setAssigning(true);
+    setAssignError("");
+    try {
+      await api.post(`/parties/${partyId}/attendees/${attendeeId}/assign`, { username: assignUsername.trim() });
+      setAssigningSlotId(null);
+      setAssignUsername("");
+      // Refresh slots
+      const res = await api.get(`/parties/${partyId}/my-ticket`);
+      setGroupSlots(res.data.data.group_slots ?? []);
+    } catch (err) {
+      setAssignError(getApiErrorMessage(err, "Failed to assign slot"));
+    } finally {
+      setAssigning(false);
+    }
   }
 
   const isUpcoming = ticket.party_date_time ? new Date(ticket.party_date_time) > new Date() : false;
@@ -131,6 +154,13 @@ export default function DigitalTicketPage() {
                 <div className="flex-1 min-w-0">
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-1">Digital Ticket</p>
                   <h1 className="text-xl font-black text-text leading-tight">{ticket.party_title}</h1>
+                  {ticket.tier_name && (
+                    <p className="text-[10px] font-bold text-warning/90 mt-1 flex items-center gap-1">
+                      <Ticket className="w-3 h-3" />
+                      {ticket.tier_name}
+                      {ticket.group_size > 1 && <span className="text-text-dim"> · Slot {ticket.slot_index} of {ticket.group_size}</span>}
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-col items-end gap-1">
                   {ticket.checked_in ? (
@@ -279,6 +309,87 @@ export default function DigitalTicketPage() {
 
           <div className="h-3 bg-surface border-x border-b border-border rounded-b-3xl" />
         </motion.div>
+
+        {/* Group slots (multi-person tickets) */}
+        {groupSlots.length > 1 && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="mt-4 space-y-3">
+            <p className="text-[11px] font-bold text-text-dim uppercase tracking-[0.15em] flex items-center gap-2">
+              <Users className="w-3.5 h-3.5" />
+              Group Slots
+            </p>
+            {groupSlots.map((slot) => (
+              <div key={slot.attendee_id} className="glass-panel rounded-2xl p-4 border border-border">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-bold text-text-dim uppercase tracking-wider mb-1">Slot {slot.slot_index} of {slot.group_size}</p>
+                    {slot.user_id ? (
+                      <div className="flex items-center gap-2">
+                        {slot.avatar_url ? (
+                          <img src={slot.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover border border-border shrink-0" />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-[11px] font-bold text-primary shrink-0">
+                            {(slot.display_name ?? slot.username ?? "?").charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-sm font-bold text-text">{slot.display_name}</p>
+                          <p className="text-[10px] text-text-dim">@{slot.username}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-text-dim italic">Unassigned</p>
+                    )}
+                  </div>
+                  {slot.checked_in ? (
+                    <div className="flex items-center gap-1 text-success text-[10px] font-bold shrink-0">
+                      <Check className="w-3.5 h-3.5" /> Checked in
+                    </div>
+                  ) : !slot.user_id && slot.slot_index !== 1 ? (
+                    assigningSlotId === slot.attendee_id ? null : (
+                      <button
+                        onClick={() => { setAssigningSlotId(slot.attendee_id); setAssignUsername(""); setAssignError(""); }}
+                        className="btn-secondary-luxe flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold shrink-0"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" /> Assign
+                      </button>
+                    )
+                  ) : null}
+                </div>
+
+                {/* Assign form */}
+                {assigningSlotId === slot.attendee_id && (
+                  <div className="mt-3 space-y-2">
+                    <input
+                      type="text"
+                      placeholder="Enter username (without @)"
+                      value={assignUsername}
+                      onChange={(e) => setAssignUsername(e.target.value.replace(/^@/, ""))}
+                      className="input-luxe w-full rounded-xl px-3 py-2.5 text-sm"
+                      autoFocus
+                    />
+                    {assignError && <p className="text-xs text-error">{assignError}</p>}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleAssignSlot(slot.attendee_id)}
+                        disabled={assigning || !assignUsername.trim()}
+                        className="flex-1 btn-primary-luxe px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-50"
+                      >
+                        {assigning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                        Confirm
+                      </button>
+                      <button
+                        onClick={() => { setAssigningSlotId(null); setAssignUsername(""); setAssignError(""); }}
+                        className="px-3 py-2 rounded-xl border border-border text-xs font-bold text-text-dim hover:bg-surface-light transition"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </motion.div>
+        )}
 
         {/* Actions */}
         <motion.div

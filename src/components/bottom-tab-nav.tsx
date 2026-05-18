@@ -1,19 +1,22 @@
-import { NavLink, useLocation } from "react-router-dom";
-import { motion } from "framer-motion";
-import { Home, Compass, SquarePen, Inbox, User } from "lucide-react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { Home, Compass, SquarePen, Inbox, User, LogIn, UserPlus, X } from "lucide-react";
 import { useAuth } from "../context/auth-hook";
+import { useState } from "react";
 
 const tabs = [
-  { to: "/",            label: "Feed",     icon: Home,      end: true  },
-  { to: "/post",        label: "Post",     icon: SquarePen, end: false },
-  { to: "/parties",     label: "Events",   icon: Compass,   end: false, special: true },
-  { to: "/my-requests", label: "Requests", icon: Inbox,     end: false },
-  { to: "/profile/me",  label: "Profile",  icon: User,      end: false },
+  { to: "/",            label: "Feed",     icon: Home,      end: true,  requiresAuth: true  },
+  { to: "/post",        label: "Post",     icon: SquarePen, end: false, requiresAuth: true  },
+  { to: "/parties",     label: "Events",   icon: Compass,   end: false, special: true, requiresAuth: false },
+  { to: "/my-requests", label: "Requests", icon: Inbox,     end: false, requiresAuth: true  },
+  { to: "/profile/me",  label: "Profile",  icon: User,      end: false, requiresAuth: true  },
 ] as const;
 
 export default function BottomTabNav() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user } = useAuth();
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
 
   // Highlight Profile tab for /profile/me and /settings
   function isProfileActive() {
@@ -42,8 +45,23 @@ export default function BottomTabNav() {
             const isProfileTab = tab.to === "/profile/me";
             const isEventsTab  = tab.to === "/parties";
             const isPostTab    = tab.to === "/post";
+            const needsAuth = !user && tab.requiresAuth;
             return (
               <li key={tab.to}>
+                {needsAuth ? (
+                  // Guest: intercept click and show auth prompt
+                  <button
+                    type="button"
+                    aria-label={tab.label}
+                    onClick={() => setShowAuthPrompt(true)}
+                    className={`w-full flex flex-col items-center justify-center py-1.5 text-[10px] font-semibold text-text-dim tap-active`}
+                  >
+                    <div className="relative p-1.5">
+                      <Icon className="relative z-10 w-[22px] h-[22px]" strokeWidth={1.7} />
+                    </div>
+                    <span className="leading-none tracking-wide mt-0.5">{tab.label}</span>
+                  </button>
+                ) : (
                 <NavLink
                   to={tab.to}
                   end={tab.end}
@@ -113,11 +131,71 @@ export default function BottomTabNav() {
                     </>
                   )}}
                 </NavLink>
+                )}
               </li>
             );
           })}
         </ul>
       </div>
     </nav>
+
+    {/* Auth prompt modal — shown when guest taps a protected tab */}
+    <AnimatePresence>
+      {showAuthPrompt && (
+        <motion.div
+          key="auth-prompt-backdrop"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[200] flex items-end justify-center bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowAuthPrompt(false)}
+        >
+          <motion.div
+            key="auth-prompt-sheet"
+            initial={{ y: 80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 80, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 400, damping: 35 }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm mx-4 mb-24 glass-panel rounded-3xl p-6 space-y-4 border border-border"
+          >
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <p className="text-lg font-black text-text">Join MaskedOn</p>
+                <p className="text-sm text-text-muted">Log in or create an account to access this feature</p>
+              </div>
+              <button
+                onClick={() => setShowAuthPrompt(false)}
+                className="p-1 rounded-lg text-text-dim hover:text-text tap-active"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <button
+              onClick={() => { setShowAuthPrompt(false); navigate("/auth/login"); }}
+              className="btn-primary-luxe w-full py-3 rounded-2xl font-bold flex items-center justify-center gap-2"
+            >
+              <LogIn className="w-4 h-4" />
+              Log In
+            </button>
+            <button
+              onClick={() => { setShowAuthPrompt(false); navigate("/auth/register"); }}
+              className="btn-secondary-luxe w-full py-3 rounded-2xl font-bold flex items-center justify-center gap-2"
+            >
+              <UserPlus className="w-4 h-4" />
+              Create Account
+            </button>
+            <button
+              onClick={() => setShowAuthPrompt(false)}
+              className="w-full text-text-dim text-sm font-semibold py-1"
+            >
+              Maybe later
+            </button>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
+
