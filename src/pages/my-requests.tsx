@@ -215,7 +215,7 @@ function RequestCard({ req, index, onWithdraw, withdrawingId }: CardProps) {
         {req.status === "approved" && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-3">
             <Link
-              to={`/my-requests/${req.id}/ticket`}
+              to={`/parties/${req.party_id}/ticket`}
               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-r from-primary/15 to-accent/10 border border-primary/25 text-primary font-bold text-sm hover:from-primary/25 hover:to-accent/20 transition"
             >
               <Ticket className="w-4 h-4" />

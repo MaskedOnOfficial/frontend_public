@@ -101,6 +101,31 @@ export interface PartyRequest {
   party_tags?: string | null;
 }
 
+export interface Ticket {
+  attendee_id: string;
+  party_id: string;
+  user_id: string;
+  qr_token: string;
+  checked_in: boolean;
+  checked_in_at: string | null;
+  joined_at: string;
+  party_title: string;
+  party_date_time: string;
+  party_end_time: string | null;
+  party_location_name: string;
+  party_location_city: string;
+  party_cover_image_url: string | null;
+  party_ticket_price: number;
+  party_max_capacity: number | null;
+  party_current_attendees: number;
+  party_tags: string | null;
+  party_host_id: string;
+  guest_username: string;
+  guest_display_name: string;
+  guest_avatar_url: string | null;
+  guest_social_rating: number;
+}
+
 export interface FeeBreakdown {
   ticket_price: number;
   platform_fee: number;

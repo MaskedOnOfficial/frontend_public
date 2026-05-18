@@ -40,6 +40,7 @@ import FriendsPage from "./pages/friends";
 import AchievementsPage from "./pages/achievements";
 import AttendeesPage from "./pages/attendees";
 import DigitalTicketPage from "./pages/digital-ticket";
+import ScanTicketPage from "./pages/scan-ticket";
 import MyRatingsPage from "./pages/my-ratings";
 import BlockedUsersPage from "./pages/blocked-users";
 import PaymentHistoryPage from "./pages/payment-history";
@@ -351,7 +352,8 @@ function AppShell() {
           <Route path="/parties/:partyId/rate"          element={<RateCrowdPage />} />
           <Route path="/parties/:partyId/photos"        element={<PartyPhotosPage />} />
           <Route path="/my-requests"                    element={<MyRequestsPage />} />
-          <Route path="/my-requests/:requestId/ticket" element={<DigitalTicketPage />} />
+          <Route path="/parties/:partyId/ticket" element={<DigitalTicketPage />} />
+          <Route path="/parties/:partyId/scan-ticket" element={<ScanTicketPage />} />
           <Route path="/my-ratings"                    element={<MyRatingsPage />} />
           <Route path="/blocked-users"                 element={<BlockedUsersPage />} />
           <Route path="/payment-history"               element={<PaymentHistoryPage />} />

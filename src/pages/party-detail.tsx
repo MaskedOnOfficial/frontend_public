@@ -678,7 +678,7 @@ export default function PartyDetailPage() {
                 </div>
               </div>
               {isHost && (
-                <div className="flex gap-2 mt-4">
+                <div className="flex gap-2 mt-4 flex-wrap">
                   {party.status === "upcoming" && (
                     <button
                       onClick={() => navigate(`/parties/${party.id}/edit`)}
@@ -693,6 +693,14 @@ export default function PartyDetailPage() {
                   >
                     Manage Requests
                   </button>
+                  {(party.status === "upcoming" || party.status === "ongoing") && attendees.length > 0 && (
+                    <Link
+                      to={`/parties/${party.id}/scan-ticket`}
+                      className="btn-primary-luxe w-full py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 mt-1"
+                    >
+                      Scan Guest Tickets
+                    </Link>
+                  )}
                 </div>
               )}
             </div>
