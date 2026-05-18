@@ -33,9 +33,9 @@ function PreviewCard({ form, isFree }: { form: PreviewForm; isFree: boolean }) {
       <h3 className="text-lg font-bold text-text mb-5 tracking-tight">{form.title.trim() || "Untitled Experience"}</h3>
       <div className="space-y-3.5 text-sm">
         {[
-          { icon: MapPin, label: "City", value: form.location_city || "â€”", color: "text-accent" },
-          { icon: Clock, label: "When", value: form.date_time ? new Date(form.date_time).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "â€”", color: "text-primary" },
-          { icon: Ticket, label: "Entry", value: isFree ? "Free" : `â‚¹${Number(form.ticket_price || 0)}`, color: "text-hot" },
+          { icon: MapPin, label: "City", value: form.location_city || "—", color: "text-accent" },
+          { icon: Clock, label: "When", value: form.date_time ? new Date(form.date_time).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "—", color: "text-primary" },
+          { icon: Ticket, label: "Entry", value: isFree ? "Free" : `₹${Number(form.ticket_price || 0)}`, color: "text-hot" },
           { icon: Shield, label: "Trust gate", value: Number(form.min_rating) > 0 ? getTrustLevel(Number(form.min_rating), 1).name + "+" : "Open", color: "text-warning" },
         ].map((item) => (
           <div key={item.label} className="flex items-center justify-between">
@@ -270,7 +270,7 @@ export default function EditPartyPage() {
               <div>
                 <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Tags</label>
                 <input name="tags" value={form.tags} onChange={handleChange} placeholder="rooftop, afro-house, intimate" maxLength={500} className="input-luxe w-full rounded-xl px-4 py-3.5" />
-                <p className="text-text-dim text-xs mt-1.5">{tagCount} tag{tagCount === 1 ? "" : "s"} Â· Separate with commas</p>
+                <p className="text-text-dim text-xs mt-1.5">{tagCount} tag{tagCount === 1 ? "" : "s"} · Separate with commas</p>
               </div>
             </section>
 
@@ -331,7 +331,7 @@ export default function EditPartyPage() {
               <h2 className="text-base font-bold text-text flex items-center gap-2"><Ticket className="w-4 h-4 text-warning" />Pricing &amp; Trust</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Ticket Price (â‚¹)</label>
+                  <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Ticket Price (₹)</label>
                   <input type="number" name="ticket_price" value={form.ticket_price} onChange={(e) => setForm({ ...form, ticket_price: Math.max(0, Number(e.target.value)) })} min={0} step="1" className="input-luxe w-full rounded-xl px-4 py-3.5" aria-label="Ticket price in rupees" />
                   <span className="text-text-dim text-xs mt-1.5 block">0 = Free entry</span>
                 </div>

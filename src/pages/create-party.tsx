@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/auth-hook";
 import { compressAndStripMetadata } from "../lib/image-utils";
 import api from "../lib/api";
-import { getApiErrorMessage } from "../lib/errors";
 import { isNative } from "../lib/capacitor";
 import { takePhoto } from "../lib/native-camera";
 import { hapticsMedium } from "../lib/haptics";
@@ -27,8 +26,8 @@ const DRAFT_KEY = "maskedon_party_draft_v2";
 
 const PRICE_PRESETS = [
   { label: "Free", value: 0, icon: PartyPopper, desc: "Open to all" },
-  { label: "?500", value: 300, icon: Ticket, desc: "Budget friendly" },
-  { label: "?1000", value: 1000, icon: Crown, desc: "Premium vibes" },
+  { label: "₹500", value: 300, icon: Ticket, desc: "Budget friendly" },
+  { label: "₹1000", value: 1000, icon: Crown, desc: "Premium vibes" },
   { label: "Custom", value: -1, icon: Zap, desc: "Set your own" },
 ];
 
@@ -229,10 +228,7 @@ export default function CreatePartyPage() {
   const [dir, setDir] = useState(1);
   const [showDraft, setShowDraft] = useState(false);
   const [priceTier, setPriceTier] = useState(0);
-  // Deposit flow
-  const [depositModal, setDepositModal] = useState<{ partyId: string; depositAmount: number } | null>(null);
-  const [depositPaying, setDepositPaying] = useState(false);
-  const [depositError, setDepositError] = useState("");
+
 
   const [form, setForm] = useState<FormState>({ ...EMPTY_FORM });
   const [coverFile, setCoverFile] = useState<File | null>(null);
@@ -468,106 +464,8 @@ export default function CreatePartyPage() {
       },
     });
 
-    // For paid events: do NOT navigate away — wait for deposit modal
-    if (Number(formSnap.ticket_price) > 0) {
-      // Submit directly (not as background job) to capture response
-      setLoading(true);
-      try {
-        const fd2 = new FormData();
-        fd2.append("title", formSnap.title);
-        if (formSnap.description) fd2.append("description", formSnap.description);
-        fd2.append("location_name", formSnap.location_name);
-        fd2.append("location_city", formSnap.location_district || formSnap.location_city);
-        fd2.append("location_country", formSnap.location_country);
-        fd2.append("location_state", formSnap.location_state);
-        fd2.append("location_district", formSnap.location_district);
-        if (formSnap.latitude !== null) fd2.append("latitude", String(formSnap.latitude));
-        if (formSnap.longitude !== null) fd2.append("longitude", String(formSnap.longitude));
-        fd2.append("date_time", new Date(formSnap.date_time).toISOString());
-        fd2.append("end_time", new Date(formSnap.end_time).toISOString());
-        fd2.append("ticket_price", String(Math.round(Number(formSnap.ticket_price) * 100)));
-        if (formSnap.tags.length > 0) fd2.append("tags", JSON.stringify(formSnap.tags));
-        if (formSnap.min_rating > 0) fd2.append("min_rating", String(formSnap.min_rating));
-        fd2.append("is_private", String(formSnap.is_private));
-        fd2.append("allow_photos", String(formSnap.allow_photos));
-        if (formSnap.food_type) fd2.append("food_type", formSnap.food_type);
-        fd2.append("allows_alcohol", String(formSnap.allows_alcohol));
-        fd2.append("allows_smoking", String(formSnap.allows_smoking));
-        fd2.append("allows_other_substances", String(formSnap.allows_other_substances));
-        if (coverFileSnap) {
-          const compressed = await compressAndStripMetadata(coverFileSnap, { maxSizeMB: 1, maxWidthOrHeight: 1920 });
-          fd2.append("cover_image", compressed);
-        }
-        const directRes = await api.post("/parties", fd2, { headers: { "Content-Type": "multipart/form-data" } });
-        clearDraft(draftKeySnap);
-        const { party, deposit_required, deposit_amount } = directRes.data.data;
-        if (deposit_required && deposit_amount > 0) {
-          setDepositModal({ partyId: party.id, depositAmount: deposit_amount });
-        } else {
-          navigate(`/parties/${party.id}`, { replace: true });
-        }
-      } catch (err) {
-        setError(getApiErrorMessage(err, "Failed to create event"));
-      } finally {
-        setLoading(false);
-      }
-      return;
-    }
-
-    // Navigate immediately — the progress toast handles the rest (free events only).
+    // Navigate immediately — the upload queue handles the rest.
     navigate("/", { replace: true });
-  }
-
-  async function handleDepositPay() {
-    if (!depositModal) return;
-    setDepositPaying(true);
-    setDepositError("");
-    try {
-      const initRes = await api.post(`/parties/${depositModal.partyId}/deposit/initiate`);
-      const { order_id, amount, currency, key_id } = initRes.data.data;
-
-      await new Promise<void>((resolve, reject) => {
-        const rzp = new (window as unknown as { Razorpay: new (opts: unknown) => { open(): void } }).Razorpay({
-          key: key_id,
-          amount,
-          currency,
-          order_id,
-          name: "MaskedOn",
-          description: "Refundable host security deposit",
-          theme: { color: "#6C63FF" },
-          handler: async (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => {
-            try {
-              await api.post(`/parties/${depositModal.partyId}/deposit/verify`, {
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_signature: response.razorpay_signature,
-              });
-              resolve();
-            } catch (e) {
-              reject(e);
-            }
-          },
-          modal: { ondismiss: () => reject(new Error("Payment dismissed")) },
-        });
-        rzp.open();
-      });
-
-      navigate(`/parties/${depositModal.partyId}`, { replace: true });
-    } catch (err) {
-      const msg = (err as Error).message;
-      if (msg === "Payment dismissed") {
-        setDepositError("Payment cancelled. You can pay the deposit from the event page.");
-      } else {
-        setDepositError(getApiErrorMessage(err, "Deposit payment failed. Please try again."));
-      }
-    } finally {
-      setDepositPaying(false);
-    }
-  }
-
-  function handleDepositSkip() {
-    if (!depositModal) return;
-    navigate(`/parties/${depositModal.partyId}`, { replace: true });
   }
 
   const isFree = Number(form.ticket_price) === 0;
@@ -1010,7 +908,7 @@ export default function CreatePartyPage() {
                   <AnimatePresence>
                     {priceTier === 3 && (
                       <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-                        <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Price (?)</label>
+                        <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Price (₹)</label>
                         <input
                           type="number"
                           value={form.ticket_price}
@@ -1113,16 +1011,16 @@ export default function CreatePartyPage() {
                   <div className="grid grid-cols-3 gap-2">
                     {(
                       [
-                        { value: "veg", label: "Veg", emoji: "??", color: "text-success" },
-                        { value: "non_veg", label: "Non-Veg", emoji: "??", color: "text-error" },
-                        { value: "vegan", label: "Vegan", emoji: "??", color: "text-accent" },
-                      ] as { value: "veg" | "non_veg" | "vegan"; label: string; emoji: string; color: string }[]
+                        { value: "veg", label: "Veg", icon: Leaf, color: "text-success" },
+                        { value: "non_veg", label: "Non-Veg", icon: UtensilsCrossed, color: "text-error" },
+                        { value: "vegan", label: "Vegan", icon: Leaf, color: "text-accent" },
+                      ] as { value: "veg" | "non_veg" | "vegan"; label: string; icon: React.ComponentType<{ className?: string }>; color: string }[]
                     ).map((f) => (
                       <button key={f.value} type="button"
                         onClick={() => { setForm((p) => ({ ...p, food_type: p.food_type === f.value ? "" : f.value })); hapticsMedium(); }}
                         className={`flex flex-col items-center gap-1.5 p-3.5 rounded-xl transition-all duration-200 tap-active border
                           ${form.food_type === f.value ? "bg-surface-light border-primary/30 shadow-sm" : "bg-surface border-border hover:border-border-light"}`}>
-                        <span className="text-2xl">{f.emoji}</span>
+                        <f.icon className={`w-6 h-6 ${form.food_type === f.value ? f.color : "text-text-dim"}`} />
                         <span className={`text-xs font-bold ${form.food_type === f.value ? f.color : "text-text-muted"}`}>{f.label}</span>
                         {form.food_type === f.value && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
                       </button>
@@ -1201,7 +1099,7 @@ export default function CreatePartyPage() {
                     </div>
                     <div className="flex items-center gap-2 text-text-muted">
                       <Ticket className="w-3.5 h-3.5 text-warning shrink-0" />
-                      <span>{isFree ? "Free" : `?${form.ticket_price}`}</span>
+                      <span>{isFree ? "Free" : `₹${form.ticket_price}`}</span>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-1.5 pt-1">
@@ -1264,79 +1162,6 @@ export default function CreatePartyPage() {
       </div>
     </div>
 
-    {/* Deposit Payment Modal */}
-    <AnimatePresence>
-      {depositModal && (
-        <motion.div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        >
-          <motion.div
-            className="w-full max-w-md mx-auto glass-panel rounded-t-3xl sm:rounded-3xl p-6 pb-8"
-            initial={{ y: 80, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 80, opacity: 0 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          >
-            {/* Icon */}
-            <div className="flex justify-center mb-4">
-              <div className="w-14 h-14 rounded-full bg-primary/15 flex items-center justify-center">
-                <Shield className="w-7 h-7 text-primary" />
-              </div>
-            </div>
-
-            <h2 className="text-xl font-bold text-text text-center mb-1">Security Deposit Required</h2>
-            <p className="text-sm text-text-dim text-center mb-5">
-              Your event has been created! To activate it, a refundable security deposit is required.
-            </p>
-
-            {/* Deposit amount card */}
-            <div className="rounded-2xl bg-primary/8 border border-primary/20 p-4 mb-5">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm text-text-dim">Security deposit</span>
-                <span className="text-lg font-bold text-primary">
-                  ?{(depositModal.depositAmount / 100).toLocaleString("en-IN")}
-                </span>
-              </div>
-              <p className="text-xs text-text-dim leading-relaxed">
-                This is 10% of your ticket price. It will be refunded to your account within 7–10 days after your event successfully completes.
-              </p>
-            </div>
-
-            {depositError && (
-              <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-error/10 border border-error/20 mb-4">
-                <AlertTriangle className="w-3.5 h-3.5 text-error shrink-0 mt-0.5" />
-                <p className="text-xs text-error leading-relaxed">{depositError}</p>
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={handleDepositPay}
-              disabled={depositPaying}
-              className="w-full py-3.5 rounded-2xl btn-primary-luxe font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2 tap-active mb-3"
-            >
-              {depositPaying ? (
-                <><Loader2 className="w-4 h-4 animate-spin" />Processing…</>
-              ) : (
-                <><Ticket className="w-4 h-4" />Pay ?{(depositModal.depositAmount / 100).toLocaleString("en-IN")} deposit</>
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={handleDepositSkip}
-              disabled={depositPaying}
-              className="w-full py-3 rounded-2xl btn-secondary-luxe font-semibold text-sm tap-active"
-            >
-              Skip for now (event may be inactive)
-            </button>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
     </>
   );
 }

@@ -1,9 +1,9 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, Check, PartyPopper, Users, Star, ShieldCheck } from "lucide-react";
 
-// â”€â”€â”€ Step Definitions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Step Definitions ---------------------------------------------------------
 
 interface Step {
   emoji: string;
@@ -17,16 +17,16 @@ interface Step {
 
 const STEPS: Step[] = [
   {
-    emoji: "ðŸŽ­",
+    emoji: "🎭",
     Icon: PartyPopper,
     iconColor: "text-hot",
     iconBg: "bg-gradient-to-br from-hot/20 to-primary/20",
     title: "Welcome to MaskedOn",
     subtitle: "The social platform for party lovers",
-    body: "Discover exclusive events, connect with your crew, and build your nightlife reputation â€” all in one place.",
+    body: "Discover exclusive events, connect with your crew, and build your nightlife reputation — all in one place.",
   },
   {
-    emoji: "ðŸ”",
+    emoji: "🔍",
     iconColor: "text-primary",
     iconBg: "bg-gradient-to-br from-primary/20 to-accent/20",
     title: "Find Your Vibe",
@@ -34,7 +34,7 @@ const STEPS: Step[] = [
     body: "Browse events near you, see which friends are going, and request to join with a single tap. Hosts personally review every request.",
   },
   {
-    emoji: "â­",
+    emoji: "⭐",
     Icon: Star,
     iconColor: "text-warning",
     iconBg: "bg-gradient-to-br from-warning/20 to-hot/10",
@@ -43,7 +43,7 @@ const STEPS: Step[] = [
     body: "After every event, attendees rate the crowd. Build a high social rating to unlock more exclusive parties with lower entry requirements.",
   },
   {
-    emoji: "ðŸ¤",
+    emoji: "🤝",
     Icon: Users,
     iconColor: "text-accent",
     iconBg: "bg-gradient-to-br from-accent/20 to-primary/10",
@@ -52,7 +52,7 @@ const STEPS: Step[] = [
     body: "Add friends, see where they're headed, and get personalised event picks based on who you know. Your social circle shapes your feed.",
   },
   {
-    emoji: "ðŸ›¡ï¸",
+    emoji: "🛡️",
     Icon: ShieldCheck,
     iconColor: "text-success",
     iconBg: "bg-gradient-to-br from-success/20 to-accent/10",
@@ -64,7 +64,7 @@ const STEPS: Step[] = [
 
 const SPRING = { type: "spring", stiffness: 380, damping: 32 } as const;
 
-// â”€â”€â”€ Onboarding Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Onboarding Page ----------------------------------------------------------
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
@@ -90,14 +90,14 @@ export default function OnboardingPage() {
 
   return (
     <div className="min-h-screen bg-bg flex flex-col px-6 py-safe-top">
-      {/* â”€â”€ Top Bar â”€â”€â”€ */}
+      {/* -- Top Bar --- */}
       <div className="flex items-center justify-between pt-6 mb-2">
         <button
           onClick={prev}
           aria-label="Previous step"
           className={`text-sm font-semibold text-text-muted hover:text-text transition tap-active ${step === 0 ? "invisible" : ""}`}
         >
-          â† Back
+          ← Back
         </button>
         <button
           onClick={finish}
@@ -107,7 +107,7 @@ export default function OnboardingPage() {
         </button>
       </div>
 
-      {/* â”€â”€ Progress Bar â”€â”€â”€ */}
+      {/* -- Progress Bar --- */}
       <div className="flex items-center gap-1.5 mt-3 mb-10">
         {STEPS.map((_, i) => (
           <div
@@ -120,7 +120,7 @@ export default function OnboardingPage() {
         ))}
       </div>
 
-      {/* â”€â”€ Slide Content â”€â”€â”€ */}
+      {/* -- Slide Content --- */}
       <div className="flex-1 flex flex-col items-center justify-center max-w-sm mx-auto w-full text-center">
         <AnimatePresence mode="wait">
           <motion.div
@@ -171,7 +171,7 @@ export default function OnboardingPage() {
         </AnimatePresence>
       </div>
 
-      {/* â”€â”€ Bottom Controls â”€â”€â”€ */}
+      {/* -- Bottom Controls --- */}
       <div className="max-w-sm mx-auto w-full pb-10 pt-8 flex flex-col items-center gap-5">
         {/* Dots */}
         <div className="flex items-center gap-2">

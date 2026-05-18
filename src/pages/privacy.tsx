@@ -427,7 +427,7 @@ export default function PrivacyPolicyPage() {
                 <p>Use subject line <strong>"DATA REQUEST — ACCESS/CORRECTION/ERASURE/EXPORT"</strong> for data rights requests.</p>
                 <p>Use subject line <strong>"PRIVACY GRIEVANCE"</strong> for privacy complaints.</p>
                 <p>Use subject line <strong>"SECURITY INCIDENT"</strong> to report suspected unauthorised access.</p>
-                <p>Use subject line <strong>"MINOR ACCOUNT REPORT"</strong> to report an underage User.</p>
+                <p>Use subject line <strong>"MINOR ACCOUNT REPORT"</strong> to report an underage User..</p>
                 <p className="pt-1">We acknowledge all complaints within <strong>24 hours</strong> and resolve within <strong>15 days</strong>, as required by the Intermediary Guidelines, 2021.</p>
               </div>
             </div>

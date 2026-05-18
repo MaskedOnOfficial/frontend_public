@@ -17,7 +17,7 @@ import {
   Globe,
 } from "lucide-react";
 
-// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Helpers ------------------------------------------------------------------
 
 function FadeUp({
   children,
@@ -43,7 +43,7 @@ function FadeUp({
   );
 }
 
-// â”€â”€â”€ Feature card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Feature card -------------------------------------------------------------
 
 interface FeatureProps {
   icon: React.ComponentType<{ className?: string }>;
@@ -67,7 +67,7 @@ function FeatureCard({ icon: Icon, iconColor, iconBg, title, description }: Feat
   );
 }
 
-// â”€â”€â”€ Step card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Step card ----------------------------------------------------------------
 
 function StepCard({
   num,
@@ -104,7 +104,7 @@ function StepCard({
   );
 }
 
-// â”€â”€â”€ Stat pill â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Stat pill ----------------------------------------------------------------
 
 function StatPill({ value, label }: { value: string; label: string }) {
   return (
@@ -115,15 +115,15 @@ function StatPill({ value, label }: { value: string; label: string }) {
   );
 }
 
-// â”€â”€â”€ Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Page ---------------------------------------------------------------------
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen overflow-x-hidden">
 
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      {/* ======================================================
           NAVBAR (minimal, landing-specific)
-          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+          ====================================================== */}
       <header className="fixed top-0 left-0 right-0 z-50 px-4 py-3">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           {/* Logo */}
@@ -158,9 +158,9 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      {/* ======================================================
           HERO
-          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+          ====================================================== */}
       <section className="relative min-h-screen flex flex-col items-center justify-center px-4 pt-24 pb-16 text-center overflow-hidden">
 
         {/* Ambient glows */}
@@ -201,7 +201,7 @@ export default function LandingPage() {
           transition={{ duration: 0.55, delay: 0.2 }}
           className="text-text-muted text-lg md:text-xl max-w-lg mx-auto mb-10 leading-relaxed"
         >
-          Discover curated house parties. Build your social reputation. Hosts pick guests they trust â€” earn your spot with a great track record.
+          Discover curated house parties. Build your social reputation. Hosts pick guests they trust — earn your spot with a great track record.
         </motion.p>
 
         {/* CTA buttons */}
@@ -216,7 +216,7 @@ export default function LandingPage() {
             className="btn-primary-luxe font-bold px-8 py-3.5 rounded-2xl text-base flex items-center justify-center gap-2"
           >
             <PartyPopper className="w-4.5 h-4.5" />
-            Get started â€” it's free
+            Get started — it's free
           </Link>
           <Link
             to="/auth/login"
@@ -235,7 +235,7 @@ export default function LandingPage() {
           className="mt-14 glass-panel rounded-2xl flex flex-wrap items-stretch divide-x divide-primary/10 max-w-xl mx-auto"
         >
           <StatPill value="500+" label="Parties hosted" />
-          <StatPill value="4.8â˜…" label="Avg. host rating" />
+          <StatPill value="4.8★" label="Avg. host rating" />
           <StatPill value="10K+" label="Attendees" />
         </motion.div>
 
@@ -255,9 +255,9 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      {/* ======================================================
           FEATURES
-          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+          ====================================================== */}
       <section id="features" className="px-4 py-20 max-w-5xl mx-auto">
         <FadeUp className="text-center mb-12">
           <p className="text-primary text-xs font-bold uppercase tracking-[0.2em] mb-3">Why MaskedOn</p>
@@ -278,7 +278,7 @@ export default function LandingPage() {
               iconBg: "bg-success/10",
               title: "Host-controlled guest lists",
               description:
-                "Hosts review every applicant's profile and social rating before approving. No randos â€” only verified, trusted guests.",
+                "Hosts review every applicant's profile and social rating before approving. No randos — only verified, trusted guests.",
             },
             {
               delay: 0.05,
@@ -287,7 +287,7 @@ export default function LandingPage() {
               iconBg: "bg-warning/10",
               title: "Social reputation system",
               description:
-                "After every party, attendees rate each other 1â€“5 stars. Your score follows you, opening doors to better events.",
+                "After every party, attendees rate each other 1–5 stars. Your score follows you, opening doors to better events.",
             },
             {
               delay: 0.1,
@@ -296,7 +296,7 @@ export default function LandingPage() {
               iconBg: "bg-accent/10",
               title: "Digital tickets",
               description:
-                "Approved? Get a unique QR code ticket for entry. No paper, no confusion â€” just tap to show at the door.",
+                "Approved? Get a unique QR code ticket for entry. No paper, no confusion — just tap to show at the door.",
             },
             {
               delay: 0.15,
@@ -323,7 +323,7 @@ export default function LandingPage() {
               iconBg: "bg-surface-light",
               title: "Block & report tools",
               description:
-                "Encounter someone problematic? Block them instantly. Reports go to moderators for swift action â€” safety first.",
+                "Encounter someone problematic? Block them instantly. Reports go to moderators for swift action — safety first.",
             },
           ].map((f) => (
             <FadeUp key={f.title} delay={f.delay}>
@@ -339,9 +339,9 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      {/* ======================================================
           HOW IT WORKS
-          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+          ====================================================== */}
       <section id="how-it-works" className="px-4 py-20 bg-surface/20">
         <div className="max-w-3xl mx-auto">
           <FadeUp className="text-center mb-14">
@@ -408,7 +408,7 @@ export default function LandingPage() {
                     num={2}
                     icon={UserCheck}
                     title="Vet your guest list"
-                    description="Review each request â€” see profiles, photos, and social ratings. Approve or decline with one tap."
+                    description="Review each request — see profiles, photos, and social ratings. Approve or decline with one tap."
                     color="var(--color-accent)"
                   />
                   <StepCard
@@ -425,9 +425,9 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      {/* ======================================================
           REPUTATION / RATINGS SECTION
-          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+          ====================================================== */}
       <section id="ratings" className="px-4 py-20 max-w-5xl mx-auto">
         <div className="grid md:grid-cols-2 gap-10 items-center">
 
@@ -440,12 +440,12 @@ export default function LandingPage() {
               <span className="brand-gradient-text">opens doors</span>
             </h2>
             <p className="text-text-muted text-sm leading-relaxed mb-6">
-              After every party, hosts and fellow guests rate each other on a 1â€“5 star scale. Ratings are recency-weighted so recent good behavior matters most. A high score makes hosts say yes faster â€” and unlocks more exclusive events.
+              After every party, hosts and fellow guests rate each other on a 1–5 star scale. Ratings are recency-weighted so recent good behavior matters most. A high score makes hosts say yes faster — and unlocks more exclusive events.
             </p>
             <ul className="space-y-3">
               {[
                 { icon: Star, text: "Stars earned after each event you attend", color: "text-warning" },
-                { icon: TrendingUp, text: "Recency-weighted â€” recent parties count more", color: "text-success" },
+                { icon: TrendingUp, text: "Recency-weighted — recent parties count more", color: "text-success" },
                 { icon: Globe, text: "Publicly visible on your profile", color: "text-accent" },
                 { icon: ShieldCheck, text: "Min. 3 ratings required to display", color: "text-primary" },
               ].map(({ icon: Icon, text, color }) => (
@@ -478,7 +478,7 @@ export default function LandingPage() {
                         className={`w-3 h-3 ${s <= 4 ? "text-warning fill-warning" : "text-text-dim"}`}
                       />
                     ))}
-                    <span className="text-text-muted text-[11px] ml-1">4.8 Â· 24 ratings</span>
+                    <span className="text-text-muted text-[11px] ml-1">4.8 · 24 ratings</span>
                   </div>
                 </div>
               </div>
@@ -533,9 +533,9 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      {/* ======================================================
           FINAL CTA
-          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+          ====================================================== */}
       <section className="px-4 py-24">
         <FadeUp>
           <div className="max-w-2xl mx-auto text-center glass-panel rounded-3xl p-10 relative overflow-hidden">
@@ -570,15 +570,15 @@ export default function LandingPage() {
                   I already have an account
                 </Link>
               </div>
-              <p className="text-text-dim text-xs mt-5">No credit card required Â· Free forever for guests</p>
+              <p className="text-text-dim text-xs mt-5">No credit card required · Free forever for guests</p>
             </div>
           </div>
         </FadeUp>
       </section>
 
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      {/* ======================================================
           FOOTER
-          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+          ====================================================== */}
       <footer className="border-t border-primary/[0.07] px-4 py-8">
         <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center">

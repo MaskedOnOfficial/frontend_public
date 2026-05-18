@@ -43,7 +43,7 @@ function getCountdown(isoDate: string): { label: string; urgent: boolean } {
 
 function formatPrice(paisa: number) {
   if (!paisa || paisa === 0) return "Free";
-  return `?${(paisa / 100).toLocaleString("en-IN")}`;
+  return `₹${(paisa / 100).toLocaleString("en-IN")}`;
 }
 
 const STATUS_CONFIG = {

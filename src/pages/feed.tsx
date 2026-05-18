@@ -427,7 +427,7 @@ function PostCard({ post, onLikeToggle, savedSet, onSaveToggle }: PostCardProps)
             <span>{timeAgo(post.created_at)}</span>
             {post.party_id && (
               <>
-                <span className="text-border">Â·</span>
+                <span className="text-border">·</span>
                 <span className="text-primary/70 flex items-center gap-0.5">
                   <PartyPopper className="w-2.5 h-2.5" />
                   Party
@@ -878,7 +878,7 @@ export default function FeedPage() {
               </div>
             )}
 
-            {/* Feed posts â€” inject discovery post after position 3, achievement cards after position 0 */}
+            {/* Feed posts — inject discovery post after position 3, achievement cards after position 0 */}
             {posts.map((post, index) => (
               <React.Fragment key={post.id}>
                 <PostCard

@@ -10,11 +10,11 @@ import {
   Send,
 } from "lucide-react";
 
-// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Types -----------------------------------------------------------------
 
 type Tab = "friends" | "requests" | "sent";
 
-// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Helpers ---------------------------------------------------------------
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -52,7 +52,7 @@ function Avatar({ src, name, size = "md" }: { src: string | null; name: string; 
   );
 }
 
-// â”€â”€â”€ Friend Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Friend Card -----------------------------------------------------------
 
 interface FriendCardProps {
   user: FriendUser;
@@ -136,7 +136,7 @@ function FriendCard({ user, onUnfriend, unfriending }: FriendCardProps) {
   );
 }
 
-// â”€â”€â”€ Request Card (incoming) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Request Card (incoming) -----------------------------------------------
 
 interface RequestCardProps {
   req: PendingFriendRequest;
@@ -197,7 +197,7 @@ function RequestCard({ req, onAccept, onReject, accepting, rejecting }: RequestC
   );
 }
 
-// â”€â”€â”€ Sent Request Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Sent Request Card -----------------------------------------------------
 
 interface SentCardProps {
   req: PendingFriendRequest;
@@ -263,7 +263,7 @@ function SentCard({ req, onCancel, cancelling }: SentCardProps) {
   );
 }
 
-// â”€â”€â”€ Suggestion Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Suggestion Card -------------------------------------------------------
 
 interface SuggestionCardProps {
   user: FriendUser;
@@ -315,7 +315,7 @@ function SuggestionCard({ user, onAdd, adding, added }: SuggestionCardProps) {
   );
 }
 
-// â”€â”€â”€ Main Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Main Page --------------------------------------------------------------
 
 export default function FriendsPage() {
   const navigate = useNavigate();
@@ -365,7 +365,7 @@ export default function FriendsPage() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  // â”€â”€ Filtered friends list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Filtered friends list ---------------------------------------------
   const filteredFriends = useMemo(() => {
     if (!search.trim()) return friends;
     const q = search.toLowerCase();
@@ -374,7 +374,7 @@ export default function FriendsPage() {
     );
   }, [friends, search]);
 
-  // â”€â”€ Actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Actions -----------------------------------------------------------
 
   async function handleUnfriend(userId: string) {
     setUnfriendingIds((s) => new Set(s).add(userId));
@@ -437,13 +437,13 @@ export default function FriendsPage() {
       setAddedIds((s) => new Set(s).add(userId));
       setSuggestions((s) => s.filter((u) => u.id !== userId));
     } catch {
-      // ignore â€” suggestion stays
+      // ignore — suggestion stays
     } finally {
       setAddingIds((s) => { const n = new Set(s); n.delete(userId); return n; });
     }
   }
 
-  // â”€â”€ Loading skeleton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Loading skeleton ---------------------------------------------------
   if (loading) {
     return (
       <div className="min-h-screen bg-bg pb-28 md:pb-12">
@@ -467,7 +467,7 @@ export default function FriendsPage() {
     <div className="min-h-screen bg-bg pb-28 md:pb-12 premium-shell">
       <div className="max-w-2xl mx-auto px-4 py-6 md:py-8">
 
-        {/* â”€â”€ Header â”€â”€ */}
+        {/* -- Header -- */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -478,7 +478,7 @@ export default function FriendsPage() {
             <h1 className="text-2xl font-bold text-text tracking-tight">Friends</h1>
             <p className="text-text-dim text-xs mt-0.5">
               {friends.length} friend{friends.length !== 1 ? "s" : ""}
-              {incoming.length > 0 && ` Â· ${incoming.length} pending request${incoming.length !== 1 ? "s" : ""}`}
+              {incoming.length > 0 && ` · ${incoming.length} pending request${incoming.length !== 1 ? "s" : ""}`}
             </p>
           </div>
           <motion.button
@@ -491,7 +491,7 @@ export default function FriendsPage() {
           </motion.button>
         </motion.div>
 
-        {/* â”€â”€ Error â”€â”€ */}
+        {/* -- Error -- */}
         {fetchError && (
           <div className="bg-error/10 border border-error/25 rounded-xl p-3.5 text-error text-sm mb-5 flex items-center justify-between gap-3">
             <span className="flex items-center gap-2">
@@ -502,7 +502,7 @@ export default function FriendsPage() {
           </div>
         )}
 
-        {/* â”€â”€ Incoming requests banner â”€â”€ */}
+        {/* -- Incoming requests banner -- */}
         <AnimatePresence>
           {incoming.length > 0 && tab !== "requests" && (
             <motion.button
@@ -528,7 +528,7 @@ export default function FriendsPage() {
           )}
         </AnimatePresence>
 
-        {/* â”€â”€ Tabs â”€â”€ */}
+        {/* -- Tabs -- */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -563,7 +563,7 @@ export default function FriendsPage() {
           })}
         </motion.div>
 
-        {/* â”€â”€ Friends Tab â”€â”€ */}
+        {/* -- Friends Tab -- */}
         <AnimatePresence mode="wait">
           {tab === "friends" && (
             <motion.div key="friends" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -576,7 +576,7 @@ export default function FriendsPage() {
                     type="search"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search friendsâ€¦"
+                    placeholder="Search friends…"
                     className="input-luxe w-full pl-10 pr-4 py-2.5 text-sm rounded-xl"
                   />
                 </div>
@@ -640,7 +640,7 @@ export default function FriendsPage() {
             </motion.div>
           )}
 
-          {/* â”€â”€ Requests Tab â”€â”€ */}
+          {/* -- Requests Tab -- */}
           {tab === "requests" && (
             <motion.div key="requests" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               {incoming.length === 0 ? (
@@ -670,7 +670,7 @@ export default function FriendsPage() {
             </motion.div>
           )}
 
-          {/* â”€â”€ Sent Tab â”€â”€ */}
+          {/* -- Sent Tab -- */}
           {tab === "sent" && (
             <motion.div key="sent" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               {sent.length === 0 ? (
