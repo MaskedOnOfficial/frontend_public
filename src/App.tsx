@@ -310,11 +310,11 @@ function AppShell() {
     location.pathname.startsWith("/parties") ||
     location.pathname === "/";
 
-  // Show bottom tab for logged-in users OR guests browsing public pages
-  const showBottomTab = (user || isPublicBrowsingPage) && !isAuthPage && !showRatingGate;
-
   // Show rating gate if user has pending crowd ratings
   const showRatingGate = user && pendingChecked && pendingRatings.length > 0;
+
+  // Show bottom tab for logged-in users OR guests browsing public pages
+  const showBottomTab = (user || isPublicBrowsingPage) && !isAuthPage && !showRatingGate;
 
   return (
     <div className="premium-shell min-h-screen text-text">

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { TicketTier } from "../types";
+import type { TicketTier } from "../types";
 
 export interface TierDraft {
   name: string;
