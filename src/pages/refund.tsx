@@ -64,7 +64,7 @@ export default function RefundPolicyPage() {
                 <span className="text-text font-semibold">After the event has taken place:</span> No refund under any circumstances.
               </li>
             </ul>
-            <p>To initiate a guest cancellation, contact us at <a href="mailto:support@maskedon.com" className="text-primary hover:underline">support@maskedon.com</a> with your registered email address and order details.</p>
+            <p>To initiate a guest cancellation, contact us at <a href="mailto:team@maskedon.com" className="text-primary hover:underline">team@maskedon.com</a> with your registered email address and order details.</p>
           </Section>
 
           <Section title="3. Host-Initiated Cancellations">
@@ -99,7 +99,7 @@ export default function RefundPolicyPage() {
           </Section>
 
           <Section title="7. Disputes & Chargebacks">
-            <p>Before initiating a chargeback with your bank, we strongly encourage you to reach out to us directly at <a href="mailto:support@maskedon.com" className="text-primary hover:underline">support@maskedon.com</a>. Most disputes are resolved within 3–5 business days.</p>
+            <p>Before initiating a chargeback with your bank, we strongly encourage you to reach out to us directly at <a href="mailto:team@maskedon.com" className="text-primary hover:underline">team@maskedon.com</a>. Most disputes are resolved within 3–5 business days.</p>
             <p>Fraudulent chargeback requests may result in permanent suspension of your MaskedOn account and may be reported to relevant authorities.</p>
           </Section>
 
@@ -121,7 +121,7 @@ export default function RefundPolicyPage() {
           <Section title="10. Contact Us">
             <p>For any refund or cancellation queries, please contact our support team:</p>
             <ul className="list-disc pl-5 space-y-2 mt-2">
-              <li>Email: <a href="mailto:support@maskedon.com" className="text-primary hover:underline">support@maskedon.com</a></li>
+              <li>Email: <a href="mailto:team@maskedon.com" className="text-primary hover:underline">team@maskedon.com</a></li>
               <li>Website: <a href="https://maskedon.com/contact" className="text-primary hover:underline">maskedon.com/contact</a></li>
             </ul>
             <p>We aim to respond to all refund requests within 2 business days.</p>
