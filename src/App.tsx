@@ -48,6 +48,7 @@ import OnboardingPage from "./pages/onboarding";
 import HostAnalyticsPage from "./pages/host-analytics";
 import PrivacyPolicyPage from "./pages/privacy";
 import TermsPage from "./pages/terms";
+import RefundPolicyPage from "./pages/refund";
 import FAQPage from "./pages/faq";
 import ContactPage from "./pages/contact";
 import BugReportPage from "./pages/bug-report";
@@ -339,6 +340,7 @@ function AppShell() {
         {/* ── Public informational pages ── */}
         <Route path="/privacy"                        element={<PrivacyPolicyPage />} />
         <Route path="/terms"                          element={<TermsPage />} />
+        <Route path="/refund"                         element={<RefundPolicyPage />} />
         <Route path="/faq"                            element={<FAQPage />} />
         <Route path="/contact"                        element={<ContactPage />} />
         <Route path="/bug-report"                     element={<BugReportPage />} />

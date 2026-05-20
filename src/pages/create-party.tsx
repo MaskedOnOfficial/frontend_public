@@ -595,7 +595,7 @@ export default function CreatePartyPage() {
 
                 <div className="glass-panel rounded-2xl p-5 space-y-4">
                   <div>
-                    <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Party Title *</label>
+                    <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Event Title *</label>
                     <input
                       name="title"
                       value={form.title}

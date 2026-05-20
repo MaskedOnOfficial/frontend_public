@@ -42,6 +42,7 @@ export default function PartyDetailPage() {
   const [requesting, setRequesting] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
   const [paying, setPaying] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelResult, setCancelResult] = useState<{ message: string; refund_percent: number; refunded_amount: number } | null>(null);
@@ -176,84 +177,19 @@ export default function PartyDetailPage() {
     }
   }
 
-  /** Dynamically loads the Razorpay checkout.js script once and resolves when ready. */
-  function loadRazorpayScript(): Promise<void> {
-    if ((window as { Razorpay?: unknown }).Razorpay) return Promise.resolve();
-    return new Promise((resolve, reject) => {
-      const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error("Failed to load payment SDK. Check your internet connection."));
-      document.body.appendChild(script);
-    });
-  }
-
   async function handlePay() {
     setPaying(true);
     setError("");
     try {
-      // Step 1: Create a Razorpay order on the backend
+      // Step 1: Create an Instamojo payment request on the backend
       const initRes = await api.post(`/parties/${partyId}/pay/initiate`);
-      const { order_id, key_id, amount, currency, prefill } = initRes.data.data as {
-        order_id: string;
-        key_id: string;
-        amount: number;
-        currency: string;
-        prefill: { name: string; email: string };
-      };
+      const { payment_url } = initRes.data.data as { payment_url: string; payment_request_id: string };
 
-      // Step 2: Load the Razorpay checkout script
-      await loadRazorpayScript();
-
-      // Step 3: Open the checkout modal and wait for the user to pay or dismiss
-      await new Promise<void>((resolve, reject) => {
-        const options = {
-          key: key_id,
-          amount,
-          currency,
-          name: "MaskedOn",
-          description: party?.title ?? "Party Ticket",
-          order_id,
-          prefill,
-          theme: { color: "#8B5CF6" },
-          modal: {
-            ondismiss: () => reject(new Error("DISMISSED")),
-          },
-          handler: async (response: {
-            razorpay_payment_id: string;
-            razorpay_order_id: string;
-            razorpay_signature: string;
-          }) => {
-            try {
-              // Step 4: Verify the payment server-side and admit the guest
-              await api.post(`/parties/${partyId}/pay/verify`, {
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_signature: response.razorpay_signature,
-              });
-              setRequestStatus("paid");
-              setError("");
-              loadParty();
-              resolve();
-            } catch (verifyError: unknown) {
-              reject(verifyError);
-            }
-          },
-        };
-
-        const rzp = new (window as unknown as { Razorpay: new (opts: unknown) => { open: () => void; on: (event: string, cb: (r: unknown) => void) => void } }).Razorpay(options);
-        rzp.on("payment.failed", (r: unknown) => {
-          const response = r as { error?: { description?: string } };
-          reject(new Error(response.error?.description ?? "Payment failed"));
-        });
-        rzp.open();
-      });
+      // Step 2: Redirect to Instamojo hosted payment page
+      // The page will leave here — don't setPaying(false), browser navigates away
+      window.location.href = payment_url;
     } catch (payError: unknown) {
-      if ((payError as Error).message !== "DISMISSED") {
-        setError(getApiErrorMessage(payError, "Payment failed"));
-      }
-      // Dismissed silently — user closed the modal, no error shown
-    } finally {
+      setError(getApiErrorMessage(payError, "Payment initiation failed"));
       setPaying(false);
     }
   }
@@ -293,6 +229,40 @@ export default function PartyDetailPage() {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  // Auto-verify payment after Instamojo redirects back to this page
+  // Instamojo appends ?payment_request_id=...&payment_id=...&payment_status=Credit to the redirect URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const prId = params.get("payment_request_id");
+    const pmId = params.get("payment_id");
+    const pmStatus = params.get("payment_status");
+    if (!prId || !pmId) return;
+
+    // Clean the URL so refreshing doesn't re-trigger verification
+    navigate(`/parties/${partyId}`, { replace: true });
+
+    if (pmStatus !== "Credit") {
+      setError("Payment was not completed. Please try again.");
+      return;
+    }
+
+    setVerifying(true);
+    api
+      .post(`/parties/${partyId}/pay/verify`, { payment_request_id: prId, payment_id: pmId })
+      .then(() => {
+        setRequestStatus("paid");
+        setMessage("Payment confirmed! You're attending. 🎉");
+        loadParty();
+      })
+      .catch((e: unknown) => {
+        setError(getApiErrorMessage(e, "Payment verification failed. Contact support if you were charged."));
+      })
+      .finally(() => {
+        setVerifying(false);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run once on mount only
 
 
 
@@ -891,8 +861,10 @@ export default function PartyDetailPage() {
                         </div>
                       </div>
                     )}
-                    <button onClick={handlePay} disabled={paying} className="btn-primary-luxe w-full px-4 py-4 rounded-2xl font-bold disabled:opacity-50 flex items-center justify-center gap-2">
-                      {paying ? <><Loader2 className="w-4 h-4 animate-spin" />Processing...</> : <><Ticket className="w-4 h-4" />Buy Ticket · {feeBreakdown ? `₹${(feeBreakdown.user_total / 100).toLocaleString("en-IN")}` : formatPrice(party.ticket_price)}</>}
+                    <button onClick={handlePay} disabled={paying || verifying} className="btn-primary-luxe w-full px-4 py-4 rounded-2xl font-bold disabled:opacity-50 flex items-center justify-center gap-2">
+                      {verifying ? <><Loader2 className="w-4 h-4 animate-spin" />Verifying payment...</>
+                        : paying ? <><Loader2 className="w-4 h-4 animate-spin" />Redirecting to payment...</>
+                        : <><Ticket className="w-4 h-4" />Buy Ticket · {feeBreakdown ? `₹${(feeBreakdown.user_total / 100).toLocaleString("en-IN")}` : formatPrice(party.ticket_price)}</>}
                     </button>
                   </div>
                 ) : requestStatus === "approved" ? (

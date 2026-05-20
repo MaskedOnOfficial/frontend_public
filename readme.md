@@ -1,6 +1,6 @@
-# maskOn Frontend
+# maskedon Frontend
 
-React + TypeScript client for maskOn.
+React + TypeScript client for maskedon.
 
 ## Stack
 

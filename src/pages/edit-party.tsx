@@ -258,7 +258,7 @@ export default function EditPartyPage() {
             <section className="glass-panel rounded-2xl p-5 space-y-5">
               <h2 className="text-base font-bold text-text flex items-center gap-2"><Tag className="w-4 h-4 text-primary" />Identity</h2>
               <div>
-                <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Party Title *</label>
+                <label className="block text-[11px] font-bold text-text-muted uppercase tracking-[0.12em] mb-2">Event Title *</label>
                 <input name="title" value={form.title} onChange={handleChange} onBlur={handleBlur} placeholder="e.g., Rooftop Vibes Vol. 3" required maxLength={100}
                   className={`input-luxe w-full rounded-xl px-4 py-3.5 ${fieldError('title', form.title) ? 'ring-2 ring-error/50' : ''}`} />
                 {fieldError('title', form.title) && <p className="text-error text-[10px] mt-1 font-semibold">Title is required</p>}
