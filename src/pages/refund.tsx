@@ -44,7 +44,7 @@ export default function RefundPolicyPage() {
           </p>
 
           <Section title="1. General">
-            <p>MaskedOn is a technology platform that connects party hosts ("Hosts") with guests ("Guests"). All payments are processed through Instamojo, a third-party payment gateway regulated by the Reserve Bank of India.</p>
+            <p>MaskedOn is a technology platform that connects party hosts ("Hosts") with guests ("Guests"). All payments are processed through Cashfree Payments, a third-party payment gateway regulated by the Reserve Bank of India.</p>
             <p>When a Guest purchases a ticket to a party listed on MaskedOn, the payment is collected on behalf of the Host. MaskedOn deducts a platform service fee from each transaction as disclosed at the time of checkout.</p>
           </Section>
 
@@ -90,7 +90,7 @@ export default function RefundPolicyPage() {
           </Section>
 
           <Section title="6. Refund Process & Timeline">
-            <p>All approved refunds are processed via Instamojo back to the original payment source (UPI, debit card, credit card, or net banking).</p>
+            <p>All approved refunds are processed via Cashfree Payments back to the original payment source (UPI, debit card, credit card, or net banking).</p>
             <ul className="list-disc pl-5 space-y-2 mt-2">
               <li><span className="text-text font-semibold">Processing time:</span> Refunds are initiated by MaskedOn within 3 business days of approval.</li>
               <li><span className="text-text font-semibold">Credit time:</span> Once initiated, refunds typically reflect in your account within 5–7 business days, depending on your bank or payment provider.</li>

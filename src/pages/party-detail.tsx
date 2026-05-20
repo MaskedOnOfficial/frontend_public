@@ -181,13 +181,15 @@ export default function PartyDetailPage() {
     setPaying(true);
     setError("");
     try {
-      // Step 1: Create an Instamojo payment request on the backend
+      // Step 1: Create a Cashfree payment order on the backend
       const initRes = await api.post(`/parties/${partyId}/pay/initiate`);
-      const { payment_url } = initRes.data.data as { payment_url: string; payment_request_id: string };
+      const { payment_session_id } = initRes.data.data as { payment_session_id: string; order_id: string };
 
-      // Step 2: Redirect to Instamojo hosted payment page
-      // The page will leave here — don't setPaying(false), browser navigates away
-      window.location.href = payment_url;
+      // Step 2: Load Cashfree SDK and open hosted checkout
+      // The page will navigate away — don't setPaying(false)
+      const { loadCashfreeSDK } = await import("../lib/cashfree");
+      const cashfree = await loadCashfreeSDK();
+      cashfree.checkout({ paymentSessionId: payment_session_id, redirectTarget: "_self" });
     } catch (payError: unknown) {
       setError(getApiErrorMessage(payError, "Payment initiation failed"));
       setPaying(false);
@@ -230,26 +232,19 @@ export default function PartyDetailPage() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Auto-verify payment after Instamojo redirects back to this page
-  // Instamojo appends ?payment_request_id=...&payment_id=...&payment_status=Credit to the redirect URL
+  // Auto-verify payment after Cashfree redirects back to this page
+  // Cashfree appends ?order_id=<order_id> to the return URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const prId = params.get("payment_request_id");
-    const pmId = params.get("payment_id");
-    const pmStatus = params.get("payment_status");
-    if (!prId || !pmId) return;
+    const orderId = params.get("order_id");
+    if (!orderId) return;
 
     // Clean the URL so refreshing doesn't re-trigger verification
     navigate(`/parties/${partyId}`, { replace: true });
 
-    if (pmStatus !== "Credit") {
-      setError("Payment was not completed. Please try again.");
-      return;
-    }
-
     setVerifying(true);
     api
-      .post(`/parties/${partyId}/pay/verify`, { payment_request_id: prId, payment_id: pmId })
+      .post(`/parties/${partyId}/pay/verify`, { order_id: orderId })
       .then(() => {
         setRequestStatus("paid");
         setMessage("Payment confirmed! You're attending. 🎉");

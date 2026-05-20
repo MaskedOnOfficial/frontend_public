@@ -46,6 +46,7 @@ import BlockedUsersPage from "./pages/blocked-users";
 import PaymentHistoryPage from "./pages/payment-history";
 import OnboardingPage from "./pages/onboarding";
 import HostAnalyticsPage from "./pages/host-analytics";
+import HostVerificationPage from "./pages/host-verification";
 import PrivacyPolicyPage from "./pages/privacy";
 import TermsPage from "./pages/terms";
 import RefundPolicyPage from "./pages/refund";
@@ -387,6 +388,7 @@ function AppShell() {
           <Route path="/post"                           element={<PostHubPage />} />
           <Route path="/onboarding"                     element={<OnboardingPage />} />
           <Route path="/dashboard/analytics"            element={<HostAnalyticsPage />} />
+          <Route path="/host-verification"              element={<HostVerificationPage />} />
         </Route>
 
         {/* ── Catch-all: 404 page ── */}
