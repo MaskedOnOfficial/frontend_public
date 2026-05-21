@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/auth-hook";
 import { useTheme } from "../context/use-theme";
 import api from "../lib/api";
@@ -11,6 +11,7 @@ export default function SettingsPage() {
   const { user, logout, refreshUser } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState("");
@@ -53,6 +54,12 @@ export default function SettingsPage() {
       setBio(user.bio || "");
     }
   }, [user]);
+
+  useEffect(() => {
+    if (searchParams.get("edit") !== "profile") return;
+    setEditing(true);
+    navigate("/settings", { replace: true });
+  }, [navigate, searchParams]);
 
   useEffect(() => {
     if (!message || messageType !== "success") return;

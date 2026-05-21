@@ -27,7 +27,7 @@ const DRAFT_KEY = "maskedon_party_draft_v2";
 
 const PRICE_PRESETS = [
   { label: "Free", value: 0, icon: PartyPopper, desc: "Open to all" },
-  { label: "₹500", value: 300, icon: Ticket, desc: "Budget friendly" },
+  { label: "₹500", value: 500, icon: Ticket, desc: "Budget friendly" },
   { label: "₹1000", value: 1000, icon: Crown, desc: "Premium vibes" },
   { label: "Custom", value: -1, icon: Zap, desc: "Set your own" },
 ];
@@ -1058,12 +1058,11 @@ export default function CreatePartyPage() {
                     Food Type
                   </h2>
                   <p className="text-[11px] text-text-muted">Let guests know what food will be served.</p>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     {(
                       [
                         { value: "veg", label: "Veg", icon: Leaf, color: "text-success" },
                         { value: "non_veg", label: "Non-Veg", icon: UtensilsCrossed, color: "text-error" },
-                        { value: "vegan", label: "Vegan", icon: Leaf, color: "text-accent" },
                       ] as { value: "veg" | "non_veg" | "vegan"; label: string; icon: React.ComponentType<{ className?: string }>; color: string }[]
                     ).map((f) => (
                       <button key={f.value} type="button"

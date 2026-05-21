@@ -647,6 +647,7 @@ export default function ProfilePage() {
   if (!user) return null;
 
   const ratingVal = Number(user.social_rating);
+  const hasAnyRatings = user.total_ratings > 0;
   const hasEnoughRatings = user.total_ratings >= 3;
   const trustLevel = getTrustLevel(ratingVal, user.total_ratings);
 
@@ -682,8 +683,9 @@ export default function ProfilePage() {
   const achievements = [
     { id: "first-party", icon: PartyPopper, name: "First Party", desc: "Attend your first party", earned: user.parties_attended >= 1, color: "#F59E0B" },
     { id: "weekend-warrior", icon: Flame, name: "Weekend Warrior", desc: "Attend 5+ parties", earned: user.parties_attended >= 5, color: "#F97316" },
-    { id: "party-animal", icon: Flame, name: "Party Animal", desc: "Attend 10+ parties", earned: user.parties_attended >= 10, color: "#EF4444" },
-    { id: "host-debut", icon: Crown, name: "Host Debut", desc: "Host your first event", earned: user.parties_hosted >= 1, color: "#D4A853" },
+    { id: "party-animal",     icon: Flame,  name: "Party Animal",     desc: "Attend 10+ parties",  earned: user.parties_attended >= 10, color: "#EF4444" },
+    { id: "nightlife-legend", icon: Crown,  name: "Nightlife Legend", desc: "Attend 25+ parties",  earned: user.parties_attended >= 25, color: "#9B6DFF" },
+    { id: "host-debut",       icon: Crown,  name: "Host Debut",       desc: "Host your first event", earned: user.parties_hosted >= 1, color: "#D4A853" },
     { id: "super-host", icon: Trophy, name: "Super Host", desc: "Host 5+ events", earned: user.parties_hosted >= 5, color: "#EC4899" },
     { id: "festival-host", icon: Award, name: "Festival Host", desc: "Host 15+ events", earned: user.parties_hosted >= 15, color: "#9B6DFF" },
     { id: "social-spark", icon: Users, name: "Social Spark", desc: "Make 5+ friends", earned: friendCountVal >= 5, color: "#9B6DFF" },
@@ -1024,7 +1026,7 @@ export default function ProfilePage() {
                 { label: "Friends", value: friendCount === null ? "…" : friendCount, icon: Users },
                 { label: "Hosted", value: user.parties_hosted, icon: Crown },
                 { label: "Joined", value: user.parties_attended, icon: PartyPopper },
-                { label: "Rating", value: hasEnoughRatings ? ratingVal.toFixed(1) : "—", icon: Star },
+                { label: "Rating", value: hasAnyRatings ? ratingVal.toFixed(1) : "—", icon: Star },
               ].map((stat, i) => (
                 <motion.div
                   key={stat.label}
@@ -1066,11 +1068,12 @@ export default function ProfilePage() {
 
         {/* -- PROFILE COMPLETION -- */}
         {profileCompletion < 100 && (
+          <Link to="/settings?edit=profile" className="block">
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 }}
-            className="glass-panel rounded-2xl p-4 mt-3 border border-primary/[0.06]"
+            className="glass-panel rounded-2xl p-4 mt-3 border border-primary/[0.06] cursor-pointer"
           >
             <div className="flex items-center gap-4">
               {/* SVG completion ring */}
@@ -1100,6 +1103,7 @@ export default function ProfilePage() {
               </div>
             </div>
           </motion.div>
+          </Link>
         )}
 
         {/* -- ACHIEVEMENTS -- */}
@@ -1109,38 +1113,43 @@ export default function ProfilePage() {
               <p className="text-[10px] uppercase tracking-[0.2em] text-text-dim font-bold flex items-center gap-1.5">
                 <Trophy className="w-3 h-3" /> Achievements
               </p>
-              <span className="text-[10px] text-text-dim font-semibold">
-                {earnedAchievements.length}/{achievements.length}
-              </span>
+              <Link
+                to="/achievements"
+                className="flex items-center gap-1 text-[10px] text-primary font-semibold hover:underline"
+              >
+                {earnedAchievements.length}/{achievements.length} · See all
+              </Link>
             </div>
             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
               {achievements.map((a) => (
-                <motion.div
+                <Link
                   key={a.id}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className={`shrink-0 flex flex-col items-center gap-1.5 transition ${
-                    a.earned ? "" : "opacity-25 grayscale"
+                  to="/achievements"
+                  title={`${a.name}: ${a.desc}`}
+                  className={`shrink-0 flex flex-col items-center gap-1.5 transition tap-active ${
+                    a.earned ? "" : "opacity-90"
                   }`}
                 >
                   <div
-                    className="w-14 h-14 rounded-2xl flex items-center justify-center relative"
+                    className={`w-14 h-14 rounded-2xl flex items-center justify-center relative border ${
+                      a.earned ? "border-transparent" : "bg-surface border-border-light"
+                    }`}
                     style={a.earned ? {
                       backgroundColor: `${a.color}15`,
                       boxShadow: `0 0 24px ${a.color}20`,
-                    } : { backgroundColor: "var(--color-surface-light)" }}
+                    } : undefined}
                   >
-                    <a.icon className="w-6 h-6" style={a.earned ? { color: a.color } : {}} />
+                    <a.icon className={`w-6 h-6 ${a.earned ? "" : "text-text-muted"}`} style={a.earned ? { color: a.color } : {}} />
                     {a.earned && (
                       <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-success flex items-center justify-center shadow-sm ring-1 ring-bg/70">
                         <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
                       </div>
                     )}
                   </div>
-                  <span className="text-[9px] font-bold text-text-dim max-w-[64px] truncate text-center">
+                  <span className={`text-[9px] font-bold max-w-[64px] truncate text-center ${a.earned ? "text-text-dim" : "text-text-muted"}`}>
                     {a.name}
                   </span>
-                </motion.div>
+                </Link>
               ))}
             </div>
           </div>
