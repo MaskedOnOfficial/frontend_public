@@ -50,6 +50,8 @@ export default function DigitalTicketPage() {
   const [assignUsername, setAssignUsername] = useState("");
   const [assigning, setAssigning] = useState(false);
   const [assignError, setAssignError] = useState("");
+  const [recovering, setRecovering] = useState(false);
+  const [recoveryError, setRecoveryError] = useState("");
 
   const fetchTicket = useCallback(async () => {
     setLoading(true);
@@ -80,9 +82,36 @@ export default function DigitalTicketPage() {
       <div className="min-h-screen bg-bg flex flex-col items-center justify-center gap-4 px-4 text-center">
         <AlertCircle className="w-10 h-10 text-error" />
         <p className="text-text font-bold">{error || "Ticket not found"}</p>
+        <p className="text-sm text-text-dim">
+          If you completed payment, use the button below to recover your ticket.
+        </p>
+        {recoveryError && (
+          <p className="text-xs text-error max-w-xs">{recoveryError}</p>
+        )}
+        <button
+          onClick={async () => {
+            setRecovering(true);
+            setRecoveryError("");
+            try {
+              await api.post(`/parties/${partyId}/payment/recover`);
+              await fetchTicket();
+            } catch (err) {
+              setRecoveryError(getApiErrorMessage(err, "Could not recover ticket. Please contact support."));
+            } finally {
+              setRecovering(false);
+            }
+          }}
+          disabled={recovering}
+          className="btn-primary-luxe px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 disabled:opacity-60"
+        >
+          {recovering
+            ? <><Loader2 className="w-4 h-4 animate-spin" /> Recovering…</>
+            : <><Ticket className="w-4 h-4" /> Recover Ticket</>
+          }
+        </button>
         <button
           onClick={() => navigate(-1)}
-          className="btn-primary-luxe px-5 py-2.5 rounded-xl text-sm font-bold"
+          className="text-sm text-text-dim underline"
         >
           Go back
         </button>
@@ -109,7 +138,9 @@ export default function DigitalTicketPage() {
 
   const isUpcoming = ticket.party_date_time ? new Date(ticket.party_date_time) > new Date() : false;
   const tags = ticket.party_tags
-    ? ticket.party_tags.split(",").map((t) => t.trim()).filter(Boolean)
+    ? (Array.isArray(ticket.party_tags)
+        ? ticket.party_tags.map((t: string) => t.trim()).filter(Boolean)
+        : ticket.party_tags.split(",").map((t: string) => t.trim()).filter(Boolean))
     : [];
 
   return (

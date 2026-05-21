@@ -99,7 +99,7 @@ export interface PartyRequest {
   party_current_attendees?: number;
   party_host_id?: string;
   party_end_time?: string | null;
-  party_tags?: string | null;
+  party_tags?: string[] | string | null;
 }
 
 export interface TicketTier {
@@ -153,7 +153,7 @@ export interface Ticket {
   party_ticket_price: number;
   party_max_capacity: number | null;
   party_current_attendees: number;
-  party_tags: string | null;
+  party_tags: string[] | string | null;
   party_host_id: string;
   guest_username: string;
   guest_display_name: string;

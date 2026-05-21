@@ -191,6 +191,12 @@ export default function PartyDetailPage() {
       const cashfree = await loadCashfreeSDK();
       cashfree.checkout({ paymentSessionId: payment_session_id, redirectTarget: "_self" });
     } catch (payError: unknown) {
+      // If the server tells us the order was already paid, navigate to the ticket
+      const axiosErr = payError as { response?: { data?: { error?: { code?: string } } } };
+      if (axiosErr?.response?.data?.error?.code === "PAYMENT_ALREADY_PROCESSED") {
+        navigate(`/parties/${partyId}/ticket`);
+        return;
+      }
       setError(getApiErrorMessage(payError, "Payment initiation failed"));
       setPaying(false);
     }
@@ -251,6 +257,14 @@ export default function PartyDetailPage() {
         loadParty();
       })
       .catch((e: unknown) => {
+        // If the backend already admitted the user during a recovery step, don't show an
+        // error — just redirect to their ticket.
+        const axiosErr = e as { response?: { data?: { error?: { code?: string } } } };
+        const code = axiosErr?.response?.data?.error?.code;
+        if (code === "PAYMENT_ALREADY_PROCESSED") {
+          navigate(`/parties/${partyId}/ticket`, { replace: true });
+          return;
+        }
         setError(getApiErrorMessage(e, "Payment verification failed. Contact support if you were charged."));
       })
       .finally(() => {
