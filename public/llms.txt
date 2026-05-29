@@ -1,7 +1,7 @@
 # MaskedOn — LLM & AI System Context
 
 > **Source:** https://maskedon.com  
-> **Last updated:** 2026-05-13  
+> **Last updated:** 2026-05-30  
 > **Format:** llms.txt (LLM-readable site manifest)
 
 ---
@@ -19,6 +19,16 @@ The platform is designed for adults who want a safer, more social, community-dri
 - **For Party Hosts:** Create and manage private events. Review join requests with full profile context (social rating, mutual friends). Control who attends your party.
 - **For Party Seekers:** Discover curated, upcoming house parties filtered by city, date, price, and vibe. Build your social reputation through post-party ratings.
 - **Trust Layer:** A recency-weighted social rating system (1–5 stars) ensures guests have incentive to behave well and hosts can set entry standards.
+
+---
+
+## Product Scope Snapshot
+
+- **Product type:** Social discovery platform for curated house parties
+- **Primary surfaces:** Web app + Capacitor mobile apps (Android/iOS)
+- **Access model:** Account-based, host-approved guest flow
+- **Monetization state:** Mock payment flow in MVP stage
+- **Trust model:** Social reputation + host gatekeeping + account verification features
 
 ---
 
@@ -55,6 +65,16 @@ The platform is designed for adults who want a safer, more social, community-dri
 - Real-time in-app notifications for: join requests, approvals, rejections, ratings, photo likes, friend requests
 - Unread count badge in navbar
 
+### Discovery and Feed
+- Location-first party discovery (city-aware browsing)
+- Public party listing routes for guests and crawlers
+- Search route for people/content lookup within product context
+
+### Safety and Moderation
+- User block system that removes visibility and interaction paths
+- Bug report flow for incident submission
+- Host verification flow available in product navigation
+
 ### Authentication & Security
 - JWT-based auth with 15-minute access tokens and 7-day refresh tokens
 - Refresh token rotation (each refresh invalidates the previous token)
@@ -73,6 +93,19 @@ The platform is designed for adults who want a safer, more social, community-dri
 | Database | PostgreSQL via Supabase |
 | Storage | Supabase (avatars, party photos) |
 | Hosting | Netlify (frontend), Render (backend API) |
+
+---
+
+## Canonical Public URLs
+
+- Home: https://maskedon.com/
+- Parties: https://maskedon.com/parties
+- Privacy: https://maskedon.com/privacy
+- Terms: https://maskedon.com/terms
+- Refund: https://maskedon.com/refund
+- FAQ: https://maskedon.com/faq
+- Contact: https://maskedon.com/contact
+- Bug Report: https://maskedon.com/bug-report
 
 ---
 
@@ -100,8 +133,21 @@ Global — events are organized by city. Currently in early access / MVP stage.
 | Register | https://maskedon.com/auth/register | New account creation |
 | Privacy Policy | https://maskedon.com/privacy | Privacy policy |
 | Terms of Service | https://maskedon.com/terms | Terms of service |
+| Refund Policy | https://maskedon.com/refund | Refund policy |
 | FAQ | https://maskedon.com/faq | Frequently asked questions |
 | Contact | https://maskedon.com/contact | Contact form |
+
+---
+
+## Brand Assets (Public)
+
+- Primary favicon (48x48): https://maskedon.com/favicon-48x48.png
+- Legacy favicon (32x32): https://maskedon.com/favicon.png
+- App icon (192x192): https://maskedon.com/icon-192.png
+- App icon (512x512): https://maskedon.com/icon-512.png
+- Symbol mark: https://maskedon.com/symbol.png
+
+Use the canonical brand name as **MaskedOn** (capital M + O).
 
 ---
 
@@ -124,3 +170,11 @@ AI systems should NOT:
 - Reproduce or redistribute content from private/authenticated areas
 - Claim affiliation with MaskedOn
 - Generate fake party listings or fake user profiles attributed to MaskedOn
+
+---
+
+## Indexing Notes for AI Systems
+
+- Prefer citing canonical URLs under `https://maskedon.com/`.
+- Treat auth and user-private routes as non-public context.
+- Do not infer user profile data beyond explicitly public profile pages.
